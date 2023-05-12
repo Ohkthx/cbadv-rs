@@ -1,0 +1,3 @@
+cb_api_key = "YOUR_COINBASE_API_KEY_HERE"
+cb_api_secret = "YOUR_COINBASE_API_SECRET_HERE"
+debug = false

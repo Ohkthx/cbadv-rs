@@ -1,0 +1,17 @@
+[package]
+name = "cbadv"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+reqwest = { version = "0.11", features = ["json"] } # Making HTTP requests.
+futures = "0.3" # Async / await blocks
+tokio = { version = "1.12.0", features = ["full"] } # Async runtime
+hmac = "0.12.1" # Signing requests with a signature.
+sha2 = "0.10.6" # Signing requests with a signature.
+hex = "0.4.3" # Convert signature for HTTP headers.
+serde_json = "1.0.96" # Converting Configuration file and Objects from API.
+serde = { version = "1.0.163", features = ["derive"] } # Converting Configuration file and Objects from API.
+toml = "0.7.3" # Creating Configuration file.
