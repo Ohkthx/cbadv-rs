@@ -1,4 +1,4 @@
 pub mod client;
 pub mod product;
-mod utils;
-
+pub mod time;
+pub mod utils;

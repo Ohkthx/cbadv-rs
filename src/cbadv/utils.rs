@@ -1,11 +1,14 @@
+use crate::cbadv::time;
 use hex;
 use hmac::{Hmac, Mac};
 use reqwest::{header, Method, Response};
 use sha2::Sha256;
-use std::time::{SystemTime, UNIX_EPOCH};
 
 type HmacSha256 = Hmac<Sha256>;
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
+
+/// Root URI for the API service.
+const ROOT_URI: &str = "https://api.coinbase.com";
 
 /// Creates and signs HTTP Requests to the API.
 #[derive(Debug, Clone)]
@@ -29,7 +32,7 @@ impl Signer {
     /// * `api_secret` - A string that holds the secret for the API service.
     pub fn new(api_key: String, api_secret: String) -> Self {
         let client = reqwest::Client::new();
-        let root = String::from("https://api.coinbase.com");
+        let root = String::from(ROOT_URI);
 
         Self {
             api_key,
@@ -45,21 +48,22 @@ impl Signer {
     ///
     /// * `method` - HTTP Method as to which action to perform (GET, POST, etc.).
     /// * `resource` - A string slice representing the resource that is being accessed.
-    /// * `item` - A string for the exact item being accessed within a resource.
-    pub fn get_signature(&self, method: Method, resource: &str, item: String) -> header::HeaderMap {
+    /// * `body` - A string representing a body data.
+    pub fn get_signature(
+        &self,
+        method: Method,
+        resource: &String,
+        body: &String,
+    ) -> header::HeaderMap {
         // Timestamp of the request, must be +/- 30 seconds of remote system.
-        let timestamp = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_secs()
-            .to_string();
+        let timestamp = time::now().to_string();
 
         // Pre-hash, combines all of the request data.
-        let prehash = format!("{}{}{}{}", timestamp, method, resource, item);
+        let prehash = format!("{}{}{}{}", timestamp, method, resource, body);
 
         // Create the signature.
         let mut mac = HmacSha256::new_from_slice(self.api_secret.as_bytes())
-            .expect("HMAC can take key of any size");
+            .expect("Failed to generate a signature.");
         mac.update(prehash.as_bytes());
         let signature = mac.finalize();
         let sign = hex::encode(signature.into_bytes());
@@ -72,21 +76,61 @@ impl Signer {
         headers
     }
 
-    /// Performs a HTTP Reques.
+    /// Performs a HTTP GET Request.
     ///
     /// # Arguments
     ///
-    /// * `method` - HTTP Method as to which action to perform (GET, POST, etc.).
-    /// * `resource` - A string slice representing the resource that is being accessed.
-    /// * `item` - A string for the exact item being accessed within a resource.
-    pub async fn request(&self, method: Method, resource: &str, item: String) -> Result<Response> {
+    /// * `resource` - A string representing the resource that is being accessed.
+    /// * `params` - A string containing options / parameters for the URL.
+    pub async fn get(&self, resource: String, params: String) -> Result<Response> {
+        // Add the '?' to the beginning of the parameters if not empty.
+        let prefix = match params.is_empty() {
+            true => "",
+            false => "?",
+        };
+
         // Create the full URL being accessed.
-        let target = format!("/{}", item);
+        let target = format!("{}{}", prefix, params);
         let url = format!("{}{}{}", self.root, resource, target);
 
         // Create the signature and submit the request.
-        let headers = self.get_signature(method, resource, target);
-        let res = self.client.get(url).headers(headers).send().await?;
-        Ok(res)
+        let headers = self.get_signature(Method::GET, &resource, &"".to_string());
+        match self.client.get(url).headers(headers).send().await {
+            Ok(res) => Ok(res),
+            Err(error) => Err(Box::new(error)),
+        }
+    }
+
+    /// Performs a HTTP POST Request.
+    ///
+    /// # Arguments
+    ///
+    /// * `resource` - A string representing the resource that is being accessed.
+    /// * `params` - A string containing options / parameters for the URL.
+    pub async fn post(&self, resource: String, params: String) -> Result<Response> {
+        // Add the '?' to the beginning of the parameters if not empty.
+        let prefix = match params.is_empty() {
+            true => "",
+            false => "?",
+        };
+
+        // Create the full URL being accessed.
+        let target = format!("{}{}", prefix, params);
+        let url = format!("{}{}{}", self.root, resource, target);
+
+        // Create the signature and submit the request.
+        let headers = self.get_signature(Method::GET, &resource, &"".to_string());
+        let res = self
+            .client
+            .post(url)
+            .header("Content-Type", "application/json")
+            .headers(headers)
+            .send()
+            .await;
+
+        match res {
+            Ok(value) => Ok(value),
+            Err(error) => Err(Box::new(error)),
+        }
     }
 }

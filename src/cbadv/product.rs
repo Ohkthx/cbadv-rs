@@ -1,16 +1,8 @@
+use crate::cbadv::time;
 use crate::cbadv::utils::Signer;
-use reqwest::Method;
 use serde::{Deserialize, Serialize};
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
-
-/// Represents a list of Products received from the API.
-#[allow(dead_code)]
-#[derive(Serialize, Deserialize, Debug)]
-pub struct ListProducts {
-    pub products: Vec<Product>,
-    pub num_products: i32,
-}
 
 /// Represents a Product received from the API.
 #[allow(dead_code)]
@@ -50,6 +42,87 @@ pub struct Product {
     pub view_only: bool,
 }
 
+/// Represents a list of Products received from the API.
+#[allow(dead_code)]
+#[derive(Serialize, Deserialize, Debug)]
+struct ListProducts {
+    pub products: Vec<Product>,
+    pub num_products: i32,
+}
+
+/// Represents parameters that are optional for List Product API request.
+#[allow(dead_code)]
+#[derive(Serialize, Debug)]
+pub struct ListProductParams {
+    pub limit: i32,
+    pub offset: i32,
+    pub product_type: String,
+}
+
+impl ListProductParams {
+    pub fn to_params(&self) -> String {
+        format!(
+            "limit={}&offset={}&product_type={}",
+            self.limit, self.offset, self.product_type
+        )
+    }
+}
+
+/// Represents a candle for a product.
+#[allow(dead_code)]
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Candle {
+    pub start: String,
+    pub low: String,
+    pub high: String,
+    pub open: String,
+    pub close: String,
+    pub volume: String,
+}
+
+/// Represents a candle response from the API.
+#[allow(dead_code)]
+#[derive(Serialize, Deserialize, Debug)]
+struct CandleResponse {
+    pub candles: Vec<Candle>,
+}
+
+/// Represents a trade for a product.
+#[allow(dead_code)]
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Trade {
+    pub trade_id: String,
+    pub product_id: String,
+    pub price: String,
+    pub size: String,
+    pub time: String,
+    pub side: String,
+    pub bid: String,
+    pub ask: String,
+}
+
+/// Represents a ticker for a product.
+#[allow(dead_code)]
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Ticker {
+    pub trades: Vec<Trade>,
+    pub best_bid: String,
+    pub best_ask: String,
+}
+
+/// Represents parameters for Ticker Product API request.
+#[allow(dead_code)]
+#[derive(Serialize, Debug)]
+pub struct TickerParams {
+    pub limit: i32,
+}
+
+impl TickerParams {
+    pub fn to_params(&self) -> String {
+        format!("limit={}", self.limit)
+    }
+}
+
 /// Provides access to the Product API for the service.
 pub struct ProductAPI {
     signer: Signer,
@@ -74,24 +147,79 @@ impl ProductAPI {
     /// # Arguments
     ///
     /// * `product_id` - A string the represents the product's ID.
+    ///
+    /// # Endpoint / Reference
+    ///
+    /// https://api.coinbase.com/api/v3/brokerage/products/{product_id}
+    /// https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getproduct
     pub async fn get(&self, product_id: String) -> Result<Product> {
-        let res = self
-            .signer
-            .request(Method::GET, Self::RESOURCE, product_id)
-            .await?
-            .json()
-            .await?;
-        Ok(res)
+        let resource = format!("{}/{}", Self::RESOURCE.to_string(), product_id);
+        match self.signer.get(resource, "".to_string()).await {
+            Ok(value) => Ok(value.json().await?),
+            Err(error) => {
+                println!("Failed to get product: {}", error);
+                Err(error)
+            }
+        }
     }
 
     /// Obtains all products from the API.
-    pub async fn get_all(&self) -> Result<ListProducts> {
-        let res = self
-            .signer
-            .request(Method::GET, Self::RESOURCE, "".to_string())
-            .await?
-            .json()
-            .await?;
-        Ok(res)
+    ///
+    /// # Endpoint / Reference
+    ///
+    /// https://api.coinbase.com/api/v3/brokerage/products
+    /// https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getproducts
+    pub async fn get_all(&self, params: ListProductParams) -> Result<Vec<Product>> {
+        let resource = Self::RESOURCE.to_string();
+        match self.signer.get(resource, params.to_params()).await {
+            Ok(value) => match value.json::<ListProducts>().await {
+                Ok(resp) => Ok(resp.products),
+                Err(error) => Err(Box::new(error)),
+            },
+            Err(error) => {
+                println!("Failed to get all products: {}", error);
+                Err(error)
+            }
+        }
+    }
+
+    /// Obtains candles for a specific product.
+    ///
+    /// # Endpoint / Reference
+    ///
+    /// https://api.coinbase.com/api/v3/brokerage/products/{product_id}/candles
+    /// https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getcandles
+    pub async fn candles(&self, product_id: String, params: time::Span) -> Result<Vec<Candle>> {
+        let resource = format!("{}/{}/candles", Self::RESOURCE, product_id);
+        match self.signer.get(resource, params.to_params()).await {
+            Ok(value) => match value.json::<CandleResponse>().await {
+                Ok(resp) => Ok(resp.candles),
+                Err(error) => Err(Box::new(error)),
+            },
+            Err(error) => {
+                println!("Failed to get the candles: {}", error);
+                Err(error)
+            }
+        }
+    }
+
+    /// Obtains product ticker from the API.
+    ///
+    /// # Endpoint / Reference
+    ///
+    /// https://api.coinbase.com/api/v3/brokerage/products/{product_id}/ticker
+    /// https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getmarkettrades
+    pub async fn ticker(&self, product_id: String, params: TickerParams) -> Result<Ticker> {
+        let resource = format!("{}/{}/ticker", Self::RESOURCE, product_id);
+        match self.signer.get(resource, params.to_params()).await {
+            Ok(value) => match value.json::<Ticker>().await {
+                Ok(resp) => Ok(resp),
+                Err(error) => Err(Box::new(error)),
+            },
+            Err(error) => {
+                println!("Failed to get product ticker: {}", error);
+                Err(error)
+            }
+        }
     }
 }
