@@ -1,3 +1,4 @@
+use crate::cbadv::account::ListAccountsParams;
 use crate::cbadv::client::Client;
 use crate::cbadv::product::{ListProductParams, TickerParams};
 use crate::cbadv::time;
@@ -53,7 +54,6 @@ async fn main() {
     }
 
     // Pull ticker.
-    // Pull multiple products from the Product API.
     let params = TickerParams { limit: 200 };
     match client.product.ticker(test_product.clone(), params).await {
         Ok(ticker) => {
@@ -67,6 +67,41 @@ async fn main() {
                 Some(trade) => println!("{:#?}\n\n", trade),
                 None => println!("Out of bounds."),
             }
+        }
+        Err(error) => {
+            println!("\n\nIN-MAIN ERROR: {}", error);
+        }
+    }
+
+    // Pull accounts.
+    let params = ListAccountsParams {
+        // limit: 50,
+        // cursor: "".to_string(),
+        ..Default::default()
+    };
+
+    let mut account_uuid = "".to_string();
+    match client.account.get_all(params).await {
+        Ok(accounts) => {
+            println!("Accounts obtained: {:#?}", accounts.len());
+            match accounts.get(0) {
+                Some(account) => {
+                    account_uuid = account.uuid.clone();
+                    println!("{:#?}\n\n", account);
+                }
+                None => println!("Out of bounds."),
+            }
+        }
+        Err(error) => {
+            println!("\n\nIN-MAIN ERROR: {}", error);
+        }
+    }
+
+    // Get a singular account based on the UUID.
+    println!("Obtaining Account: {}", account_uuid);
+    match client.account.get(account_uuid).await {
+        Ok(account) => {
+            println!("{:#?}\n\n", account);
         }
         Err(error) => {
             println!("\n\nIN-MAIN ERROR: {}", error);
