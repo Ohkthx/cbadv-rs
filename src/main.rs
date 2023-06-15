@@ -1,5 +1,6 @@
 use crate::cbadv::account::ListAccountsParams;
 use crate::cbadv::client::Client;
+use crate::cbadv::fee::TransactionSummaryParams;
 use crate::cbadv::product::{ListProductParams, TickerParams};
 use crate::cbadv::time;
 pub mod cbadv;
@@ -99,9 +100,23 @@ async fn main() {
 
     // Get a singular account based on the UUID.
     println!("Obtaining Account: {}", account_uuid);
-    match client.account.get(account_uuid).await {
+    match client.account.get(account_uuid.clone()).await {
         Ok(account) => {
             println!("{:#?}\n\n", account);
+        }
+        Err(error) => {
+            println!("\n\nIN-MAIN ERROR: {}", error);
+        }
+    }
+
+    // Get fee transaction summary.
+    println!("Obtaining Transaction Fee Summary");
+    let params = TransactionSummaryParams {
+        ..Default::default()
+    };
+    match client.fee.get(params).await {
+        Ok(summary) => {
+            println!("{:#?}\n\n", summary);
         }
         Err(error) => {
             println!("\n\nIN-MAIN ERROR: {}", error);

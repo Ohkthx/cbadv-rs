@@ -1,6 +1,7 @@
 use crate::cbadv::utils::Signer;
 
 use crate::cbadv::account::AccountAPI;
+use crate::cbadv::fee::FeeAPI;
 use crate::cbadv::product::ProductAPI;
 
 /// Represents a Client for the API.
@@ -16,6 +17,8 @@ pub struct Client {
     pub account: AccountAPI,
     /// Gives access to the Product API.
     pub product: ProductAPI,
+    /// Gives access to the Fee API.
+    pub fee: FeeAPI,
 }
 
 impl Client {
@@ -29,6 +32,7 @@ impl Client {
         let signer = Signer::new(key.clone(), secret.clone());
         let account = AccountAPI::new(signer.clone());
         let product = ProductAPI::new(signer.clone());
+        let fee = FeeAPI::new(signer.clone());
 
         Self {
             api_key: String::from(key),
@@ -36,6 +40,7 @@ impl Client {
             signer,
             account,
             product,
+            fee,
         }
     }
 }
