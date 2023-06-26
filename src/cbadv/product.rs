@@ -40,6 +40,24 @@ pub struct Product {
     pub view_only: bool,
 }
 
+/// Represents a Bid or an Ask entry for a product.
+#[allow(dead_code)]
+#[derive(Serialize, Deserialize, Debug)]
+pub struct BidAsk {
+    pub price: String,
+    pub size: String,
+}
+
+/// Represents a product book for a product.
+#[allow(dead_code)]
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ProductBook {
+    pub product_id: String,
+    pub time: String,
+    pub bids: Vec<BidAsk>,
+    pub asks: Vec<BidAsk>,
+}
+
 /// Represents a candle for a product.
 #[allow(dead_code)]
 #[derive(Serialize, Deserialize, Debug)]
@@ -90,6 +108,20 @@ struct CandleResponse {
     pub candles: Vec<Candle>,
 }
 
+/// Represents a best bid and ask response from the API.
+#[allow(dead_code)]
+#[derive(Serialize, Deserialize, Debug)]
+struct BidAskResponse {
+    pub pricebooks: Vec<ProductBook>,
+}
+
+/// Represents a product book response from the API.
+#[allow(dead_code)]
+#[derive(Serialize, Deserialize, Debug)]
+struct ProductBookResponse {
+    pub pricebook: ProductBook,
+}
+
 /// Represents parameters that are optional for List Products API request.
 #[allow(dead_code)]
 #[derive(Serialize, Default, Debug)]
@@ -125,7 +157,7 @@ impl ListProductsParams {
         };
 
         params = match &self.product_ids {
-            Some(v) => format!("{}&product_ids={}", params, v.join(",")),
+            Some(v) => format!("{}&product_ids={}", params, v.join("&product_ids=")),
             _ => params,
         };
 
@@ -168,6 +200,58 @@ impl ProductAPI {
     /// requests.
     pub fn new(signer: Signer) -> Self {
         Self { signer }
+    }
+
+    /// Obtains best bids and asks for a vector of product IDs..
+    ///
+    /// # Arguments
+    ///
+    /// * `product_ids` - A vector of strings the represents the product IDs of product books to
+    /// obtain.
+    ///
+    /// # Endpoint / Reference
+    ///
+    /// https://api.coinbase.com/api/v3/brokerage/best_bid_ask
+    /// https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getbestbidask
+    pub async fn best_bid_ask(&self, product_ids: Vec<String>) -> Result<Vec<ProductBook>> {
+        let resource = "/api/v3/brokerage/best_bid_ask".to_string();
+        let params = format!("product_ids={}", product_ids.join("&product_ids="));
+
+        match self.signer.get(resource, params).await {
+            Ok(value) => match value.json::<BidAskResponse>().await {
+                Ok(bidasks) => Ok(bidasks.pricebooks),
+                Err(_) => Err(CBAdvError::BadParse("bid asks object".to_string())),
+            },
+            Err(error) => Err(error),
+        }
+    }
+
+    /// Obtains the product book (bids and asks) for the product ID provided.
+    ///
+    /// # Arguments
+    ///
+    /// * `product_id` - A string the represents the product's ID.
+    /// * `limit` - An integer the represents the amount to obtain, defaults to 250.
+    ///
+    /// # Endpoint / Reference
+    ///
+    /// https://api.coinbase.com/api/v3/brokerage/product_book
+    /// https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getproductbook
+    pub async fn product_book(
+        &self,
+        product_id: String,
+        limit: Option<u16>,
+    ) -> Result<ProductBook> {
+        let resource = "/api/v3/brokerage/product_book".to_string();
+        let params = format!("product_id={}&limit={}", product_id, limit.unwrap_or(250));
+
+        match self.signer.get(resource, params).await {
+            Ok(value) => match value.json::<ProductBookResponse>().await {
+                Ok(book) => Ok(book.pricebook),
+                Err(_) => Err(CBAdvError::BadParse("product book object".to_string())),
+            },
+            Err(error) => Err(error),
+        }
     }
 
     /// Obtains a single product based on the Product ID (ex. "BTC-USD").

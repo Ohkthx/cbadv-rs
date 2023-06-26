@@ -529,10 +529,7 @@ impl OrderAPI {
                     "could not parse order object".to_string(),
                 )),
             },
-            Err(error) => {
-                println!("Failed to get order.");
-                Err(error)
-            }
+            Err(error) => Err(error),
         }
     }
 

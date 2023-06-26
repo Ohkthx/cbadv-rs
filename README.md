@@ -28,6 +28,8 @@ I am ambitious with the project and plan on expanding to the entire API. The API
   - List Accounts [client.account.get_all]
   - Get Account [client.account.get]
 - **Products [client.product]**
+  - Get Best Bid / Ask [client.product.best_bid_ask]
+  - Get Product Book [client.product.product_book]
   - List Products [client.product.get_all]
   - Get Product [client.product.get]
   - Get Product Candles [client.product.candles]
@@ -45,9 +47,6 @@ I am ambitious with the project and plan on expanding to the entire API. The API
 
 ## TODO API Requests
 
-- **Products**
-  - Get Best Bid / Ask
-  - Get Product Book
 - **Orders**
   - Create Order 
     - Stop Limit GTC

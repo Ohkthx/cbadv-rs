@@ -13,21 +13,37 @@ async fn check_product_api(client: &Client, product_pair: &String) {
     let product = client.product.get(product_pair.clone()).await.unwrap();
     println!("{:#?}\n\n", product);
 
+    println!("Getting Best Bids and Asks");
+    match client
+        .product
+        .best_bid_ask(vec!["BTC-USD".to_string(), product_pair.clone()])
+        .await
+    {
+        Ok(bidasks) => println!("{:#?}", bidasks),
+        Err(error) => println!("\n\nTHIS IS THE ERROR LARGE: {}", error),
+    }
+
+    println!("Getting Product book");
+    match client
+        .product
+        .product_book(product_pair.clone(), None)
+        .await
+    {
+        Ok(book) => println!("{:#?}", book),
+        Err(error) => println!("\n\nTHIS IS THE ERROR LARGE: {}", error),
+    }
+
     // Pull multiple products from the Product API.
+    println!("Getting Products");
     let params = ListProductsParams {
         limit: Some(5),
-        product_type: Some("SPOT".to_string()),
+        product_ids: Some(vec!["BTC-USD".to_string(), product_pair.clone()]),
         ..Default::default()
     };
 
     match client.product.get_all(params).await {
-        Ok(products) => match products.get(1) {
-            Some(value) => println!("{:#?}\n\n", value),
-            None => println!("Out of bounds."),
-        },
-        Err(error) => {
-            println!("\n\nTHIS IS THE ERROR LARGE: {}", error);
-        }
+        Ok(products) => println!("{:#?}\n\n", products),
+        Err(error) => println!("\n\nTHIS IS THE ERROR LARGE: {}", error),
     }
 
     // Pull candles.
@@ -43,9 +59,7 @@ async fn check_product_api(client: &Client, product_pair: &String) {
             Some(candle) => println!("{:#?}\n\n", candle),
             None => println!("Out of bounds."),
         },
-        Err(error) => {
-            println!("\n\nIN-MAIN ERROR: {}", error);
-        }
+        Err(error) => println!("\n\nIN-MAIN ERROR: {}", error),
     }
 
     // Pull ticker.
@@ -63,9 +77,7 @@ async fn check_product_api(client: &Client, product_pair: &String) {
                 None => println!("Out of bounds."),
             }
         }
-        Err(error) => {
-            println!("\n\nIN-MAIN ERROR: {}", error);
-        }
+        Err(error) => println!("\n\nIN-MAIN ERROR: {}", error),
     }
 }
 
@@ -96,9 +108,7 @@ async fn check_account_api(client: &Client, product_name: &String) -> String {
                 None => println!("Out of bounds."),
             }
         }
-        Err(error) => {
-            println!("\n\nIN-MAIN ERROR: {}", error);
-        }
+        Err(error) => println!("\n\nIN-MAIN ERROR: {}", error),
     }
 
     // Get a singular account based on the UUID.
@@ -123,12 +133,8 @@ async fn check_fee_api(client: &Client) {
         ..Default::default()
     };
     match client.fee.get(params).await {
-        Ok(summary) => {
-            println!("{:#?}\n\n", summary);
-        }
-        Err(error) => {
-            println!("\n\nIN-MAIN ERROR: {}", error);
-        }
+        Ok(summary) => println!("{:#?}\n\n", summary),
+        Err(error) => println!("\n\nIN-MAIN ERROR: {}", error),
     }
 }
 
@@ -147,12 +153,8 @@ async fn check_order_api(client: &Client, product_pair: String, total_size: Stri
             )
             .await
         {
-            Ok(summary) => {
-                println!("Order creation result: {:#?}\n\n", summary);
-            }
-            Err(error) => {
-                println!("\n\nIN-MAIN ERROR: {}", error);
-            }
+            Ok(summary) => println!("Order creation result: {:#?}\n\n", summary),
+            Err(error) => println!("\n\nIN-MAIN ERROR: {}", error),
         }
     }
 
@@ -188,29 +190,19 @@ async fn check_order_api(client: &Client, product_pair: String, total_size: Stri
             if cancel && order_ids.len() > 0 {
                 println!("Cancelling open orders...");
                 match client.order.cancel(order_ids).await {
-                    Ok(summary) => {
-                        println!("Order cancel result: {:#?}\n\n", summary);
-                    }
-                    Err(error) => {
-                        println!("\n\nIN-MAIN ERROR: {}", error);
-                    }
+                    Ok(summary) => println!("Order cancel result: {:#?}\n\n", summary),
+                    Err(error) => println!("\n\nIN-MAIN ERROR: {}", error),
                 }
             }
         }
-        Err(error) => {
-            println!("\n\nIN-MAIN ERROR: {}", error);
-        }
+        Err(error) => println!("\n\nIN-MAIN ERROR: {}", error),
     }
 
     // Get a singular order based on the ID.
     println!("Obtaining Order: {}", order_id);
     match client.order.get(order_id.clone()).await {
-        Ok(order) => {
-            println!("{:#?}\n\n", order);
-        }
-        Err(error) => {
-            println!("\n\nIN-MAIN ERROR: {}", error);
-        }
+        Ok(order) => println!("{:#?}\n\n", order),
+        Err(error) => println!("\n\nIN-MAIN ERROR: {}", error),
     }
 }
 
@@ -225,14 +217,14 @@ async fn main() {
     let client = Client::new(config.cb_api_key, config.cb_api_secret);
 
     // Check the product api.
-    // check_product_api(&client, &product_pair).await;
+    check_product_api(&client, &product_pair).await;
 
     // Check the product api.
-    let total_size: String = check_account_api(&client, &product_name).await;
+    // let total_size: String = check_account_api(&client, &product_name).await;
 
     // Check the fee api.
     // check_fee_api(&client).await;
 
-    // Check the fee api.
-    check_order_api(&client, product_pair, total_size, true).await;
+    // Check the order api.
+    // check_order_api(&client, product_pair, total_size, true).await;
 }
