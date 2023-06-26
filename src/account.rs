@@ -105,9 +105,9 @@ impl AccountAPI {
     ///
     /// https://api.coinbase.com/api/v3/brokerage/accounts/{account_uuid}
     /// https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getaccount
-    pub async fn get(&self, account_uuid: String) -> Result<Account> {
-        let resource = format!("{}/{}", Self::RESOURCE.to_string(), account_uuid);
-        match self.signer.get(resource, "".to_string()).await {
+    pub async fn get(&self, account_uuid: &str) -> Result<Account> {
+        let resource = format!("{}/{}", Self::RESOURCE, account_uuid);
+        match self.signer.get(&resource, "").await {
             Ok(value) => match value.json::<AccountResponse>().await {
                 Ok(resp) => Ok(resp.account),
                 Err(_) => Err(CBAdvError::BadParse("account object".to_string())),
@@ -123,8 +123,7 @@ impl AccountAPI {
     /// https://api.coinbase.com/api/v3/brokerage/accounts
     /// https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getaccounts
     pub async fn get_all(&self, params: ListAccountsParams) -> Result<ListAccounts> {
-        let resource = Self::RESOURCE.to_string();
-        match self.signer.get(resource, params.to_params()).await {
+        match self.signer.get(Self::RESOURCE, &params.to_params()).await {
             Ok(value) => match value.json::<ListAccounts>().await {
                 Ok(resp) => Ok(resp),
                 Err(_) => Err(CBAdvError::BadParse("accounts vector".to_string())),

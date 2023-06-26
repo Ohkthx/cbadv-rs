@@ -214,10 +214,10 @@ impl ProductAPI {
     /// https://api.coinbase.com/api/v3/brokerage/best_bid_ask
     /// https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getbestbidask
     pub async fn best_bid_ask(&self, product_ids: Vec<String>) -> Result<Vec<ProductBook>> {
-        let resource = "/api/v3/brokerage/best_bid_ask".to_string();
+        let resource = "/api/v3/brokerage/best_bid_ask";
         let params = format!("product_ids={}", product_ids.join("&product_ids="));
 
-        match self.signer.get(resource, params).await {
+        match self.signer.get(resource, &params).await {
             Ok(value) => match value.json::<BidAskResponse>().await {
                 Ok(bidasks) => Ok(bidasks.pricebooks),
                 Err(_) => Err(CBAdvError::BadParse("bid asks object".to_string())),
@@ -242,10 +242,10 @@ impl ProductAPI {
         product_id: String,
         limit: Option<u16>,
     ) -> Result<ProductBook> {
-        let resource = "/api/v3/brokerage/product_book".to_string();
+        let resource = "/api/v3/brokerage/product_book";
         let params = format!("product_id={}&limit={}", product_id, limit.unwrap_or(250));
 
-        match self.signer.get(resource, params).await {
+        match self.signer.get(resource, &params).await {
             Ok(value) => match value.json::<ProductBookResponse>().await {
                 Ok(book) => Ok(book.pricebook),
                 Err(_) => Err(CBAdvError::BadParse("product book object".to_string())),
@@ -265,8 +265,8 @@ impl ProductAPI {
     /// https://api.coinbase.com/api/v3/brokerage/products/{product_id}
     /// https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getproduct
     pub async fn get(&self, product_id: String) -> Result<Product> {
-        let resource = format!("{}/{}", Self::RESOURCE.to_string(), product_id);
-        match self.signer.get(resource, "".to_string()).await {
+        let resource = format!("{}/{}", Self::RESOURCE, product_id);
+        match self.signer.get(&resource, "").await {
             Ok(value) => match value.json::<Product>().await {
                 Ok(product) => Ok(product),
                 Err(_) => Err(CBAdvError::BadParse("product object".to_string())),
@@ -282,8 +282,7 @@ impl ProductAPI {
     /// https://api.coinbase.com/api/v3/brokerage/products
     /// https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getproducts
     pub async fn get_all(&self, params: ListProductsParams) -> Result<Vec<Product>> {
-        let resource = Self::RESOURCE.to_string();
-        match self.signer.get(resource, params.to_params()).await {
+        match self.signer.get(Self::RESOURCE, &params.to_params()).await {
             Ok(value) => match value.json::<ListProductsResponse>().await {
                 Ok(resp) => Ok(resp.products),
                 Err(_) => Err(CBAdvError::BadParse("products vector".to_string())),
@@ -300,7 +299,7 @@ impl ProductAPI {
     /// https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getcandles
     pub async fn candles(&self, product_id: String, params: time::Span) -> Result<Vec<Candle>> {
         let resource = format!("{}/{}/candles", Self::RESOURCE, product_id);
-        match self.signer.get(resource, params.to_params()).await {
+        match self.signer.get(&resource, &params.to_params()).await {
             Ok(value) => match value.json::<CandleResponse>().await {
                 Ok(resp) => Ok(resp.candles),
                 Err(_) => Err(CBAdvError::BadParse("candle object".to_string())),
@@ -317,7 +316,7 @@ impl ProductAPI {
     /// https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getmarkettrades
     pub async fn ticker(&self, product_id: String, params: TickerParams) -> Result<Ticker> {
         let resource = format!("{}/{}/ticker", Self::RESOURCE, product_id);
-        match self.signer.get(resource, params.to_params()).await {
+        match self.signer.get(&resource, &params.to_params()).await {
             Ok(value) => match value.json::<Ticker>().await {
                 Ok(resp) => Ok(resp),
                 Err(_) => Err(CBAdvError::BadParse("ticker object".to_string())),

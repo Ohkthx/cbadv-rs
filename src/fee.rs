@@ -109,8 +109,7 @@ impl FeeAPI {
     /// https://api.coinbase.com/api/v3/brokerage/transaction_summary
     /// https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_gettransactionsummary
     pub async fn get(&self, params: TransactionSummaryParams) -> Result<TransactionSummary> {
-        let resource = Self::RESOURCE.to_string();
-        match self.signer.get(resource, params.to_params()).await {
+        match self.signer.get(Self::RESOURCE, &params.to_params()).await {
             Ok(value) => match value.json::<TransactionSummary>().await {
                 Ok(resp) => Ok(resp),
                 Err(_) => Err(CBAdvError::BadParse("fee summary object".to_string())),

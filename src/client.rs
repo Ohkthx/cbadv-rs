@@ -49,3 +49,13 @@ impl Client {
         }
     }
 }
+
+/// Creates a new instance of a Client. This is a wrapper for the various APIs and Signer.
+///
+/// # Arguments
+///
+/// * `key` - A string that holds the key for the API service.
+/// * `secret` - A string that holds the secret for the API service.
+pub fn new(key: String, secret: String) -> Client {
+    Client::new(key, secret)
+}

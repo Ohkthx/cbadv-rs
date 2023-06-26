@@ -26,20 +26,34 @@ impl Config {
     /// # Arguments
     ///
     /// * `path` - A string slice that holds the location for the file.
-    pub fn read(path: &str) -> Result<Self, toml::de::Error> {
+    pub fn load(path: &str) -> Result<Self, toml::de::Error> {
         let contents = fs::read_to_string(path);
         let config: Config = toml::from_str(&contents.unwrap())?;
         Ok(config)
     }
 
-    /// Writes a configuration to a given path.
+    /// Saves a configuration to a given path.
     ///
     /// # Arguments
     ///
     /// * `path` - A string slice that holds the location for the file.
-    pub fn write(&self, path: &str) -> Result<(), std::io::Error> {
+    pub fn save(&self, path: &str) -> Result<(), std::io::Error> {
         let contents = toml::to_string_pretty(self);
         fs::write(path, contents.unwrap())?;
         Ok(())
     }
+}
+
+/// Creates the default configuration.
+pub fn new() -> Config {
+    Config::new()
+}
+
+/// Loads a configuration from a given path.
+///
+/// # Arguments
+///
+/// * `path` - A string slice that holds the location for the file.
+pub fn load(path: &str) -> Result<Config, toml::de::Error> {
+    Config::load(path)
 }

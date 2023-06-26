@@ -74,12 +74,7 @@ impl Signer {
     /// * `method` - HTTP Method as to which action to perform (GET, POST, etc.).
     /// * `resource` - A string slice representing the resource that is being accessed.
     /// * `body` - A string representing a body data.
-    pub fn get_signature(
-        &self,
-        method: Method,
-        resource: &String,
-        body: &String,
-    ) -> header::HeaderMap {
+    pub fn get_signature(&self, method: Method, resource: &str, body: &str) -> header::HeaderMap {
         // Timestamp of the request, must be +/- 30 seconds of remote system.
         let timestamp = time::now().to_string();
 
@@ -107,7 +102,7 @@ impl Signer {
     ///
     /// * `resource` - A string representing the resource that is being accessed.
     /// * `params` - A string containing options / parameters for the URL.
-    pub async fn get(&self, resource: String, params: String) -> Result<Response> {
+    pub async fn get(&self, resource: &str, params: &str) -> Result<Response> {
         // Add the '?' to the beginning of the parameters if not empty.
         let prefix = match params.is_empty() {
             true => "",
@@ -119,7 +114,7 @@ impl Signer {
         let url = format!("{}{}{}", self.root, resource, target);
 
         // Create the signature and submit the request.
-        let headers = self.get_signature(Method::GET, &resource, &"".to_string());
+        let headers = self.get_signature(Method::GET, resource, &"".to_string());
 
         let result = self.client.get(url).headers(headers).send().await;
         match result {
@@ -149,8 +144,8 @@ impl Signer {
     /// * `body` - An object to send to the URL via POST request.
     pub async fn post<T: Serialize>(
         &self,
-        resource: String,
-        params: String,
+        resource: &str,
+        params: &str,
         body: T,
     ) -> Result<Response> {
         // Add the '?' to the beginning of the parameters if not empty.
@@ -165,7 +160,7 @@ impl Signer {
 
         // Create the signature and submit the request.
         let body_str = serde_json::to_string(&body).unwrap();
-        let mut headers = self.get_signature(Method::POST, &resource, &body_str);
+        let mut headers = self.get_signature(Method::POST, resource, &body_str);
         headers.insert("Content-Type", "application/json".parse().unwrap());
 
         let result = self

@@ -202,12 +202,40 @@ pub struct Order {
     pub cancel_message: String,
 }
 
+/// Represents a fill received from the API.
+#[allow(dead_code)]
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Fill {
+    pub entry_id: String,
+    pub trade_id: String,
+    pub order_id: String,
+    pub trade_time: String,
+    pub trade_type: String,
+    pub price: String,
+    pub size: String,
+    pub commission: String,
+    pub product_id: String,
+    pub sequence_timestamp: String,
+    pub liquidity_indicator: String,
+    pub size_in_quote: bool,
+    pub user_id: String,
+    pub side: String,
+}
+
 /// Represents a list of orders received from the API.
 #[allow(dead_code)]
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ListOrders {
     pub orders: Vec<Order>,
     pub has_next: bool,
+    pub cursor: String,
+}
+
+/// Represents a list of fills received from the API.
+#[allow(dead_code)]
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ListFills {
+    pub orders: Vec<Fill>,
     pub cursor: String,
 }
 
@@ -234,7 +262,7 @@ struct OrderStatusResponse {
     pub order: Order,
 }
 
-/// Represents parameters that are optional for List Account API request.
+/// Represents parameters that are optional for List Orders API request.
 #[allow(dead_code)]
 #[derive(Serialize, Default, Debug)]
 pub struct ListOrdersParams {
@@ -317,6 +345,67 @@ impl ListOrdersParams {
         }
     }
 }
+
+/// Represents parameters that are optional for List Fills API request.
+#[allow(dead_code)]
+#[derive(Serialize, Default, Debug)]
+pub struct ListFillsParams {
+    /// ID of the order.
+    pub order_id: Option<String>,
+    /// The ID of the product this order was created for.
+    pub product_id: Option<String>,
+    /// Start date. Only fills with a trade time at or after this start date are returned.
+    pub start_sequence_timestamp: Option<String>,
+    /// End date. Only fills with a trade time before this start date are returned.
+    pub end_sequence_timestamp: Option<String>,
+    /// Maximum number of fills to return in response. Defaults to 100.
+    pub limit: Option<i32>,
+    /// Cursor used for pagination. When provided, the response returns responses after this cursor.
+    pub cursor: Option<String>,
+}
+
+impl ListFillsParams {
+    /// Converts the object into HTTP request parameters.
+    pub fn to_params(&self) -> String {
+        let mut params: String = "".to_string();
+
+        params = match &self.order_id {
+            Some(v) => format!("{}&order_id={}", params, v),
+            _ => params,
+        };
+
+        params = match &self.product_id {
+            Some(v) => format!("{}&product_id={}", params, v),
+            _ => params,
+        };
+
+        params = match &self.start_sequence_timestamp {
+            Some(v) => format!("{}&start_sequence_timestamp={}", params, v),
+            _ => params,
+        };
+
+        params = match &self.end_sequence_timestamp {
+            Some(v) => format!("{}&end_sequence_timestamp={}", params, v),
+            _ => params,
+        };
+
+        params = match &self.limit {
+            Some(v) => format!("{}&limit={}", params, v),
+            _ => params,
+        };
+
+        params = match &self.cursor {
+            Some(v) => format!("{}&cursor={}", params, v),
+            _ => params,
+        };
+
+        match params.is_empty() {
+            true => params,
+            false => params[1..].to_string(),
+        }
+    }
+}
+
 /// Provides access to the Order API for the service.
 pub struct OrderAPI {
     signer: Signer,
@@ -349,8 +438,8 @@ impl OrderAPI {
     pub async fn cancel(&self, order_ids: Vec<String>) -> Result<Vec<OrderResponse>> {
         let body = CancelOrders { order_ids };
 
-        let resource = format!("{}/batch_cancel", Self::RESOURCE.to_string());
-        match self.signer.post(resource, "".to_string(), body).await {
+        let resource = format!("{}/batch_cancel", Self::RESOURCE);
+        match self.signer.post(&resource, "", body).await {
             Ok(value) => match value.json::<CancelOrdersResponse>().await {
                 Ok(resp) => Ok(resp.results),
                 Err(_) => Err(CBAdvError::BadParse("cancel order object".to_string())),
@@ -384,11 +473,7 @@ impl OrderAPI {
             order_configuration: configuration,
         };
 
-        match self
-            .signer
-            .post(Self::RESOURCE.to_string(), "".to_string(), body)
-            .await
-        {
+        match self.signer.post(Self::RESOURCE, "", body).await {
             Ok(value) => match value.json::<OrderResponse>().await {
                 Ok(resp) => Ok(resp),
                 Err(_) => Err(CBAdvError::BadParse("created order object".to_string())),
@@ -510,6 +595,87 @@ impl OrderAPI {
         self.create(product_id, side, config).await
     }
 
+    /// Create a Good til Cancelled Stop Limit order.
+    ///
+    /// # Arguments
+    ///
+    /// * `product_id` - A string that represents the product's ID.
+    /// * `side` - A string that represents the side: BUY or SELL
+    /// * `size` - A string that represents the size to buy or sell.
+    /// * `limit_price` - Ceiling price for which the order should get filled.
+    /// * `stop_price` - Price at which the order should trigger - if stop direction is Up, then the order will trigger when the last trade price goes above this, otherwise order will trigger when last trade price goes below this price.
+    /// * `stop_direction` - Possible values: [UNKNOWN_STOP_DIRECTION, STOP_DIRECTION_STOP_UP, STOP_DIRECTION_STOP_DOWN]
+    ///
+    /// # Endpoint / Reference
+    ///
+    /// https://api.coinbase.com/api/v3/brokerage/orders
+    /// https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_postorder
+    pub async fn create_stop_limit_gtc(
+        &self,
+        product_id: &String,
+        side: &String,
+        size: &String,
+        limit_price: &String,
+        stop_price: &String,
+        stop_direction: &String,
+    ) -> Result<OrderResponse> {
+        let stoplimit = StopLimitGTC {
+            base_size: size.clone(),
+            limit_price: limit_price.clone(),
+            stop_price: stop_price.clone(),
+            stop_direction: stop_direction.clone(),
+        };
+
+        let config = OrderConfiguration {
+            stop_limit_stop_limit_gtc: Some(stoplimit),
+            ..Default::default()
+        };
+
+        self.create(product_id, side, config).await
+    }
+
+    /// Create a Good til Time (Date) Stop Limit order.
+    ///
+    /// # Arguments
+    ///
+    /// * `product_id` - A string that represents the product's ID.
+    /// * `side` - A string that represents the side: BUY or SELL
+    /// * `size` - A string that represents the size to buy or sell.
+    /// * `limit_price` - Ceiling price for which the order should get filled.
+    /// * `stop_price` - Price at which the order should trigger - if stop direction is Up, then the order will trigger when the last trade price goes above this, otherwise order will trigger when last trade price goes below this price.
+    /// * `stop_direction` - Possible values: [UNKNOWN_STOP_DIRECTION, STOP_DIRECTION_STOP_UP, STOP_DIRECTION_STOP_DOWN]
+    /// * `end_time` - Time at which the order should be cancelled if it's not filled.
+    ///
+    /// # Endpoint / Reference
+    ///
+    /// https://api.coinbase.com/api/v3/brokerage/orders
+    /// https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_postorder
+    pub async fn create_stop_limit_gtd(
+        &self,
+        product_id: &String,
+        side: &String,
+        size: &String,
+        limit_price: &String,
+        stop_price: &String,
+        stop_direction: &String,
+        end_time: &String,
+    ) -> Result<OrderResponse> {
+        let stoplimit = StopLimitGTD {
+            base_size: size.clone(),
+            limit_price: limit_price.clone(),
+            stop_price: stop_price.clone(),
+            end_time: end_time.clone(),
+            stop_direction: stop_direction.clone(),
+        };
+
+        let config = OrderConfiguration {
+            stop_limit_stop_limit_gtd: Some(stoplimit),
+            ..Default::default()
+        };
+
+        self.create(product_id, side, config).await
+    }
+
     /// Obtains a single order based on the Order ID (ex. "XXXX-YYYY-ZZZZ").
     ///
     /// # Arguments
@@ -521,8 +687,8 @@ impl OrderAPI {
     /// https://api.coinbase.com/api/v3/brokerage/orders/historical/{order_id}
     /// https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_gethistoricalorder
     pub async fn get(&self, order_id: String) -> Result<Order> {
-        let resource = format!("{}/historical/{}", Self::RESOURCE.to_string(), order_id);
-        match self.signer.get(resource, "".to_string()).await {
+        let resource = format!("{}/historical/{}", Self::RESOURCE, order_id);
+        match self.signer.get(&resource, "").await {
             Ok(value) => match value.json::<OrderStatusResponse>().await {
                 Ok(resp) => Ok(resp.order),
                 Err(_) => Err(CBAdvError::BadParse(
@@ -542,12 +708,33 @@ impl OrderAPI {
     /// https://api.coinbase.com/api/v3/brokerage/orders/historical
     /// https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_gethistoricalorders
     pub async fn get_all(&self, params: ListOrdersParams) -> Result<ListOrders> {
-        let resource = format!("{}/historical/batch", Self::RESOURCE.to_string());
-        match self.signer.get(resource, params.to_params()).await {
+        let resource = format!("{}/historical/batch", Self::RESOURCE);
+        match self.signer.get(&resource, &params.to_params()).await {
             Ok(value) => match value.json::<ListOrders>().await {
                 Ok(resp) => Ok(resp),
                 Err(_) => Err(CBAdvError::BadParse(
                     "could not parse orders vector".to_string(),
+                )),
+            },
+            Err(error) => Err(error),
+        }
+    }
+
+    /// Obtains fills from the API.
+    ///
+    /// * `params` - A Parameters to modify what is returned by the API.
+    ///
+    /// # Endpoint / Reference
+    ///
+    /// https://api.coinbase.com/api/v3/brokerage/orders/historical/fills
+    /// https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getfills
+    pub async fn fills(&self, params: ListFillsParams) -> Result<ListFills> {
+        let resource = format!("{}/historical/fills", Self::RESOURCE);
+        match self.signer.get(&resource, &params.to_params()).await {
+            Ok(value) => match value.json::<ListFills>().await {
+                Ok(resp) => Ok(resp),
+                Err(_) => Err(CBAdvError::BadParse(
+                    "could not parse fills vector".to_string(),
                 )),
             },
             Err(error) => Err(error),
