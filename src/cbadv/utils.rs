@@ -1,11 +1,35 @@
 use crate::cbadv::time;
 use hex;
 use hmac::{Hmac, Mac};
-use reqwest::{header, Method, Response};
+use reqwest::{header, Method, Response, StatusCode};
+use serde::Serialize;
 use sha2::Sha256;
+use std::fmt;
 
+/// Types of errors that can occur.
+#[derive(Debug)]
+pub enum CBAdvError {
+    /// Unable to parse JSON successfully.
+    BadParse(String),
+    /// Non-200 status code received.
+    BadStatus(String),
+    /// General unknown error.
+    Unknown(String),
+}
+
+impl fmt::Display for CBAdvError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            CBAdvError::Unknown(value) => write!(f, "unknown error occured: {}", value),
+            CBAdvError::BadParse(value) => write!(f, "could not parse: {}", value),
+            CBAdvError::BadStatus(value) => write!(f, "non-zero status occurred: {}", value),
+        }
+    }
+}
+
+/// Used to return objects from the API to the end-user.
+pub type Result<T> = std::result::Result<T, CBAdvError>;
 type HmacSha256 = Hmac<Sha256>;
-type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
 
 /// Root URI for the API service.
 const ROOT_URI: &str = "https://api.coinbase.com";
@@ -23,6 +47,7 @@ pub struct Signer {
     pub root: String,
 }
 
+/// Responsible for signing and sending HTTP requests.
 impl Signer {
     /// Creates a new instance of Signer.
     ///
@@ -95,9 +120,23 @@ impl Signer {
 
         // Create the signature and submit the request.
         let headers = self.get_signature(Method::GET, &resource, &"".to_string());
-        match self.client.get(url).headers(headers).send().await {
-            Ok(res) => Ok(res),
-            Err(error) => Err(Box::new(error)),
+
+        let result = self.client.get(url).headers(headers).send().await;
+        match result {
+            Ok(value) => match value.status() {
+                StatusCode::OK => Ok(value),
+                _ => {
+                    let code = format!("Status Code: {}", value.status().as_u16());
+                    match value.text().await {
+                        Ok(text) => Err(CBAdvError::BadStatus(format!("{}, {}", code, text))),
+                        Err(_) => Err(CBAdvError::BadStatus(format!(
+                            "{}, could not parse error message",
+                            code
+                        ))),
+                    }
+                }
+            },
+            Err(_) => Err(CBAdvError::Unknown("GET request to API".to_string())),
         }
     }
 
@@ -107,7 +146,13 @@ impl Signer {
     ///
     /// * `resource` - A string representing the resource that is being accessed.
     /// * `params` - A string containing options / parameters for the URL.
-    pub async fn post(&self, resource: String, params: String) -> Result<Response> {
+    /// * `body` - An object to send to the URL via POST request.
+    pub async fn post<T: Serialize>(
+        &self,
+        resource: String,
+        params: String,
+        body: T,
+    ) -> Result<Response> {
         // Add the '?' to the beginning of the parameters if not empty.
         let prefix = match params.is_empty() {
             true => "",
@@ -119,18 +164,33 @@ impl Signer {
         let url = format!("{}{}{}", self.root, resource, target);
 
         // Create the signature and submit the request.
-        let headers = self.get_signature(Method::GET, &resource, &"".to_string());
-        let res = self
+        let body_str = serde_json::to_string(&body).unwrap();
+        let mut headers = self.get_signature(Method::POST, &resource, &body_str);
+        headers.insert("Content-Type", "application/json".parse().unwrap());
+
+        let result = self
             .client
             .post(url)
-            .header("Content-Type", "application/json")
             .headers(headers)
+            .body(body_str)
             .send()
             .await;
 
-        match res {
-            Ok(value) => Ok(value),
-            Err(error) => Err(Box::new(error)),
+        match result {
+            Ok(value) => match value.status() {
+                StatusCode::OK => Ok(value),
+                _ => {
+                    let code = format!("Status Code: {}", value.status().as_u16());
+                    match value.text().await {
+                        Ok(text) => Err(CBAdvError::BadStatus(format!("{}, {}", code, text))),
+                        Err(_) => Err(CBAdvError::BadStatus(format!(
+                            "{}, could not parse error message",
+                            code
+                        ))),
+                    }
+                }
+            },
+            Err(_) => Err(CBAdvError::Unknown("POST request to API".to_string())),
         }
     }
 }

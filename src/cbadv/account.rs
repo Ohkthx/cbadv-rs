@@ -1,7 +1,5 @@
-use crate::cbadv::utils::Signer;
+use crate::cbadv::utils::{CBAdvError, Result, Signer};
 use serde::{Deserialize, Serialize};
-
-type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
 
 /// Represents a Balance for either Available or Held funds.
 #[allow(dead_code)]
@@ -29,6 +27,16 @@ pub struct Account {
     pub hold: Balance,
 }
 
+/// Represents a list of accounts received from the API.
+#[allow(dead_code)]
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ListAccounts {
+    pub accounts: Vec<Account>,
+    pub has_next: bool,
+    pub cursor: String,
+    pub size: i32,
+}
+
 /// Represents an account response from the API.
 #[allow(dead_code)]
 #[derive(Serialize, Deserialize, Debug)]
@@ -36,28 +44,35 @@ struct AccountResponse {
     pub account: Account,
 }
 
-/// Represents a list of accounts received from the API.
-#[allow(dead_code)]
-#[derive(Serialize, Deserialize, Debug)]
-struct ListAccounts {
-    pub accounts: Vec<Account>,
-    pub has_next: bool,
-    pub cursor: String,
-    pub size: i32,
-}
-
 /// Represents parameters that are optional for List Account API request.
 #[allow(dead_code)]
 #[derive(Serialize, Default, Debug)]
 pub struct ListAccountsParams {
-    pub limit: i32,
-    pub cursor: String,
+    /// Amount to obtain, default 49 maximum is 250.
+    pub limit: Option<i32>,
+    /// Returns accounts after the cursor provided.
+    pub cursor: Option<String>,
 }
 
 impl ListAccountsParams {
+    /// Converts the object into HTTP request parameters.
     pub fn to_params(&self) -> String {
-        // format!("limit={}&cursor={}", self.limit, self.cursor)
-        format!("limit={}&cursor={}", self.limit, self.cursor)
+        let mut params: String = "".to_string();
+
+        params = match &self.limit {
+            Some(v) => format!("{}&limit={}", params, v),
+            _ => params,
+        };
+
+        params = match &self.cursor {
+            Some(v) => format!("{}&cursor={}", params, v),
+            _ => params,
+        };
+
+        match params.is_empty() {
+            true => params,
+            false => params[1..].to_string(),
+        }
     }
 }
 
@@ -70,7 +85,7 @@ impl AccountAPI {
     /// Resource for the API.
     const RESOURCE: &str = "/api/v3/brokerage/accounts";
 
-    /// Creates a new instance of the Account API. This grants access to product information.
+    /// Creates a new instance of the Account API. This grants access to account information.
     ///
     /// # Arguments
     ///
@@ -95,12 +110,9 @@ impl AccountAPI {
         match self.signer.get(resource, "".to_string()).await {
             Ok(value) => match value.json::<AccountResponse>().await {
                 Ok(resp) => Ok(resp.account),
-                Err(error) => Err(Box::new(error)),
+                Err(_) => Err(CBAdvError::BadParse("account object".to_string())),
             },
-            Err(error) => {
-                println!("Failed to get account: {}", error);
-                Err(error)
-            }
+            Err(error) => Err(error),
         }
     }
 
@@ -110,17 +122,14 @@ impl AccountAPI {
     ///
     /// https://api.coinbase.com/api/v3/brokerage/accounts
     /// https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getaccounts
-    pub async fn get_all(&self, params: ListAccountsParams) -> Result<Vec<Account>> {
+    pub async fn get_all(&self, params: ListAccountsParams) -> Result<ListAccounts> {
         let resource = Self::RESOURCE.to_string();
         match self.signer.get(resource, params.to_params()).await {
             Ok(value) => match value.json::<ListAccounts>().await {
-                Ok(resp) => Ok(resp.accounts),
-                Err(error) => Err(Box::new(error)),
+                Ok(resp) => Ok(resp),
+                Err(_) => Err(CBAdvError::BadParse("accounts vector".to_string())),
             },
-            Err(error) => {
-                println!("Failed to get all accounts: {}", error);
-                Err(error)
-            }
+            Err(error) => Err(error),
         }
     }
 }

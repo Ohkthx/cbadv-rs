@@ -1,7 +1,5 @@
-use crate::cbadv::utils::Signer;
+use crate::cbadv::utils::{CBAdvError, Result, Signer};
 use serde::{Deserialize, Serialize};
-
-type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
 
 #[allow(dead_code)]
 #[derive(Serialize, Deserialize, Debug)]
@@ -47,62 +45,41 @@ pub struct TransactionSummary {
 pub struct TransactionSummaryParams {
     pub start_date: Option<String>,
     pub end_date: Option<String>,
+    /// String of the users native currency, default is USD.
     pub user_native_currency: Option<String>,
+    /// Type of products to return. Valid options: SPOT or FUTURE
     pub product_type: Option<String>,
 }
 
 impl TransactionSummaryParams {
+    /// Converts the object into HTTP request parameters.
     pub fn to_params(&self) -> String {
-        let mut has_prior: bool = false;
+        let mut params: String = "".to_string();
 
-        let start_date = match &self.start_date {
-            Some(v) => {
-                has_prior = true;
-                format!("start_date={}", v)
-            }
-            None => "".to_string(),
+        params = match &self.start_date {
+            Some(v) => format!("{}&start_date={}", params, v),
+            _ => params,
         };
 
-        let end_date = match &self.end_date {
-            Some(v) => {
-                let mut sep = "";
-                if has_prior {
-                    sep = "&"
-                }
-                has_prior = true;
-
-                format!("{}end_date={}", sep, v)
-            }
-            None => "".to_string(),
+        params = match &self.end_date {
+            Some(v) => format!("{}&end_date={}", params, v),
+            _ => params,
         };
 
-        let native = match &self.user_native_currency {
-            Some(v) => {
-                let mut sep = "";
-                if has_prior {
-                    sep = "&"
-                }
-                has_prior = true;
-
-                format!("{}user_native_currency={}", sep, v)
-            }
-            None => "".to_string(),
+        params = match &self.user_native_currency {
+            Some(v) => format!("{}&user_native_currency={}", params, v),
+            _ => params,
         };
 
-        let product = match &self.product_type {
-            Some(v) => {
-                let mut sep = "";
-                if has_prior {
-                    sep = "&"
-                }
-
-                format!("{}product_type={}", sep, v)
-            }
-            None => "".to_string(),
+        params = match &self.product_type {
+            Some(v) => format!("{}&product_type={}", params, v),
+            _ => params,
         };
 
-        // format!("limit={}&cursor={}", self.limit, self.cursor)
-        format!("{}{}{}{}", start_date, end_date, native, product)
+        match params.is_empty() {
+            true => params,
+            false => params[1..].to_string(),
+        }
     }
 }
 
@@ -136,12 +113,9 @@ impl FeeAPI {
         match self.signer.get(resource, params.to_params()).await {
             Ok(value) => match value.json::<TransactionSummary>().await {
                 Ok(resp) => Ok(resp),
-                Err(error) => Err(Box::new(error)),
+                Err(_) => Err(CBAdvError::BadParse("fee summary object".to_string())),
             },
-            Err(error) => {
-                println!("Failed to get fee transaction summary: {}", error);
-                Err(error)
-            }
+            Err(error) => Err(error),
         }
     }
 }

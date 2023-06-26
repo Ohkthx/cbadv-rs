@@ -1,8 +1,6 @@
 use crate::cbadv::time;
-use crate::cbadv::utils::Signer;
+use crate::cbadv::utils::{CBAdvError, Result, Signer};
 use serde::{Deserialize, Serialize};
-
-type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
 
 /// Represents a Product received from the API.
 #[allow(dead_code)]
@@ -42,32 +40,6 @@ pub struct Product {
     pub view_only: bool,
 }
 
-/// Represents a list of Products received from the API.
-#[allow(dead_code)]
-#[derive(Serialize, Deserialize, Debug)]
-struct ListProducts {
-    pub products: Vec<Product>,
-    pub num_products: i32,
-}
-
-/// Represents parameters that are optional for List Product API request.
-#[allow(dead_code)]
-#[derive(Serialize, Debug)]
-pub struct ListProductParams {
-    pub limit: i32,
-    pub offset: i32,
-    pub product_type: String,
-}
-
-impl ListProductParams {
-    pub fn to_params(&self) -> String {
-        format!(
-            "limit={}&offset={}&product_type={}",
-            self.limit, self.offset, self.product_type
-        )
-    }
-}
-
 /// Represents a candle for a product.
 #[allow(dead_code)]
 #[derive(Serialize, Deserialize, Debug)]
@@ -78,13 +50,6 @@ pub struct Candle {
     pub open: String,
     pub close: String,
     pub volume: String,
-}
-
-/// Represents a candle response from the API.
-#[allow(dead_code)]
-#[derive(Serialize, Deserialize, Debug)]
-struct CandleResponse {
-    pub candles: Vec<Candle>,
 }
 
 /// Represents a trade for a product.
@@ -110,14 +75,77 @@ pub struct Ticker {
     pub best_ask: String,
 }
 
+/// Represents a list of Products received from the API.
+#[allow(dead_code)]
+#[derive(Serialize, Deserialize, Debug)]
+struct ListProductsResponse {
+    pub products: Vec<Product>,
+    pub num_products: i32,
+}
+
+/// Represents a candle response from the API.
+#[allow(dead_code)]
+#[derive(Serialize, Deserialize, Debug)]
+struct CandleResponse {
+    pub candles: Vec<Candle>,
+}
+
+/// Represents parameters that are optional for List Products API request.
+#[allow(dead_code)]
+#[derive(Serialize, Default, Debug)]
+pub struct ListProductsParams {
+    /// A limit describing how many products to return.
+    pub limit: Option<i32>,
+    /// Number of products to offset before returning.
+    pub offset: Option<i32>,
+    /// Type of products to return. Valid options: SPOT or FUTURE
+    pub product_type: Option<String>,
+    /// List of product IDs to return.
+    pub product_ids: Option<Vec<String>>,
+}
+
+impl ListProductsParams {
+    /// Converts the object into HTTP request parameters.
+    pub fn to_params(&self) -> String {
+        let mut params: String = "".to_string();
+
+        params = match &self.limit {
+            Some(v) => format!("{}&limit={}", params, v),
+            _ => params,
+        };
+
+        params = match &self.offset {
+            Some(v) => format!("{}&offset={}", params, v),
+            _ => params,
+        };
+
+        params = match &self.product_type {
+            Some(v) => format!("{}&product_type={}", params, v),
+            _ => params,
+        };
+
+        params = match &self.product_ids {
+            Some(v) => format!("{}&product_ids={}", params, v.join(",")),
+            _ => params,
+        };
+
+        match params.is_empty() {
+            true => params,
+            false => params[1..].to_string(),
+        }
+    }
+}
+
 /// Represents parameters for Ticker Product API request.
 #[allow(dead_code)]
 #[derive(Serialize, Debug)]
 pub struct TickerParams {
+    /// Number of trades to return.
     pub limit: i32,
 }
 
 impl TickerParams {
+    /// Converts the object into HTTP request parameters.
     pub fn to_params(&self) -> String {
         format!("limit={}", self.limit)
     }
@@ -155,11 +183,11 @@ impl ProductAPI {
     pub async fn get(&self, product_id: String) -> Result<Product> {
         let resource = format!("{}/{}", Self::RESOURCE.to_string(), product_id);
         match self.signer.get(resource, "".to_string()).await {
-            Ok(value) => Ok(value.json().await?),
-            Err(error) => {
-                println!("Failed to get product: {}", error);
-                Err(error)
-            }
+            Ok(value) => match value.json::<Product>().await {
+                Ok(product) => Ok(product),
+                Err(_) => Err(CBAdvError::BadParse("product object".to_string())),
+            },
+            Err(error) => Err(error),
         }
     }
 
@@ -169,17 +197,14 @@ impl ProductAPI {
     ///
     /// https://api.coinbase.com/api/v3/brokerage/products
     /// https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getproducts
-    pub async fn get_all(&self, params: ListProductParams) -> Result<Vec<Product>> {
+    pub async fn get_all(&self, params: ListProductsParams) -> Result<Vec<Product>> {
         let resource = Self::RESOURCE.to_string();
         match self.signer.get(resource, params.to_params()).await {
-            Ok(value) => match value.json::<ListProducts>().await {
+            Ok(value) => match value.json::<ListProductsResponse>().await {
                 Ok(resp) => Ok(resp.products),
-                Err(error) => Err(Box::new(error)),
+                Err(_) => Err(CBAdvError::BadParse("products vector".to_string())),
             },
-            Err(error) => {
-                println!("Failed to get all products: {}", error);
-                Err(error)
-            }
+            Err(error) => Err(error),
         }
     }
 
@@ -194,12 +219,9 @@ impl ProductAPI {
         match self.signer.get(resource, params.to_params()).await {
             Ok(value) => match value.json::<CandleResponse>().await {
                 Ok(resp) => Ok(resp.candles),
-                Err(error) => Err(Box::new(error)),
+                Err(_) => Err(CBAdvError::BadParse("candle object".to_string())),
             },
-            Err(error) => {
-                println!("Failed to get the candles: {}", error);
-                Err(error)
-            }
+            Err(error) => Err(error),
         }
     }
 
@@ -214,12 +236,9 @@ impl ProductAPI {
         match self.signer.get(resource, params.to_params()).await {
             Ok(value) => match value.json::<Ticker>().await {
                 Ok(resp) => Ok(resp),
-                Err(error) => Err(Box::new(error)),
+                Err(_) => Err(CBAdvError::BadParse("ticker object".to_string())),
             },
-            Err(error) => {
-                println!("Failed to get product ticker: {}", error);
-                Err(error)
-            }
+            Err(error) => Err(error),
         }
     }
 }
