@@ -1,9 +1,9 @@
-use crate::cbadv::utils::Signer;
+use crate::utils::Signer;
 
-use crate::cbadv::account::AccountAPI;
-use crate::cbadv::fee::FeeAPI;
-use crate::cbadv::order::OrderAPI;
-use crate::cbadv::product::ProductAPI;
+use crate::account::AccountAPI;
+use crate::fee::FeeAPI;
+use crate::order::OrderAPI;
+use crate::product::ProductAPI;
 
 /// Represents a Client for the API.
 #[allow(dead_code)]

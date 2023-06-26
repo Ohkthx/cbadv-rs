@@ -1,5 +1,5 @@
-use crate::cbadv::time;
-use crate::cbadv::utils::{CBAdvError, Result, Signer};
+use crate::time;
+use crate::utils::{CBAdvError, Result, Signer};
 use serde::{Deserialize, Serialize};
 
 /// Represents a Product received from the API.

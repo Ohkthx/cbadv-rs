@@ -1,4 +1,4 @@
-use crate::cbadv::time;
+use crate::time;
 use hex;
 use hmac::{Hmac, Mac};
 use reqwest::{header, Method, Response, StatusCode};
