@@ -63,3 +63,12 @@ Test all endpoints that are currently untested.
 The default configuration is unusable due to the API requiring a Key and Secret. You can create, modify, and delete API Keys and Secrets with this [link](https://www.coinbase.com/settings/api).
 
 Copy the `config.toml.sample` to `config.toml` and add in your API information. The `config.toml` file will automatically be read on launch to access your accounts API information. Unlike the depreciated Coinbase Pro API, there's no longer access to Public API endpoints. All access requires authentication. The key and secret is authentication requirements for HTTP requests to be properly [signed](https://docs.cloud.coinbase.com/advanced-trade-api/docs/rest-api-auth) and accepted by Coinbase.
+
+## Examples:
+
+Check above in the **Covered API requests** section for possibly covered examples.
+
+- **Account API**: [account_api_example.rs](https://github.com/Ohkthx/cbadv-rs/tree/main/src/bin/account_api_example.rs)
+- **Product API**: [product_api_example.rs](https://github.com/Ohkthx/cbadv-rs/tree/main/src/bin/product_api_example.rs)
+- **Fee API**: [fee_api_example.rs](https://github.com/Ohkthx/cbadv-rs/tree/main/src/bin/fee_api_example.rs)
+- **Order API**: [order_api_example.rs](https://github.com/Ohkthx/cbadv-rs/tree/main/src/bin/order_api_example.rs)

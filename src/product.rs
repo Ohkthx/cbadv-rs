@@ -237,11 +237,7 @@ impl ProductAPI {
     ///
     /// https://api.coinbase.com/api/v3/brokerage/product_book
     /// https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getproductbook
-    pub async fn product_book(
-        &self,
-        product_id: String,
-        limit: Option<u16>,
-    ) -> Result<ProductBook> {
+    pub async fn product_book(&self, product_id: &str, limit: Option<u16>) -> Result<ProductBook> {
         let resource = "/api/v3/brokerage/product_book";
         let params = format!("product_id={}&limit={}", product_id, limit.unwrap_or(250));
 
@@ -264,7 +260,7 @@ impl ProductAPI {
     ///
     /// https://api.coinbase.com/api/v3/brokerage/products/{product_id}
     /// https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getproduct
-    pub async fn get(&self, product_id: String) -> Result<Product> {
+    pub async fn get(&self, product_id: &str) -> Result<Product> {
         let resource = format!("{}/{}", Self::RESOURCE, product_id);
         match self.signer.get(&resource, "").await {
             Ok(value) => match value.json::<Product>().await {
@@ -297,7 +293,7 @@ impl ProductAPI {
     ///
     /// https://api.coinbase.com/api/v3/brokerage/products/{product_id}/candles
     /// https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getcandles
-    pub async fn candles(&self, product_id: String, params: time::Span) -> Result<Vec<Candle>> {
+    pub async fn candles(&self, product_id: &str, params: time::Span) -> Result<Vec<Candle>> {
         let resource = format!("{}/{}/candles", Self::RESOURCE, product_id);
         match self.signer.get(&resource, &params.to_params()).await {
             Ok(value) => match value.json::<CandleResponse>().await {
@@ -314,7 +310,7 @@ impl ProductAPI {
     ///
     /// https://api.coinbase.com/api/v3/brokerage/products/{product_id}/ticker
     /// https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getmarkettrades
-    pub async fn ticker(&self, product_id: String, params: TickerParams) -> Result<Ticker> {
+    pub async fn ticker(&self, product_id: &str, params: TickerParams) -> Result<Ticker> {
         let resource = format!("{}/{}/ticker", Self::RESOURCE, product_id);
         match self.signer.get(&resource, &params.to_params()).await {
             Ok(value) => match value.json::<Ticker>().await {

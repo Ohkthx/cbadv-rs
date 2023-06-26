@@ -462,14 +462,14 @@ impl OrderAPI {
     /// https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_postorder
     async fn create(
         &self,
-        product_id: &String,
-        side: &String,
+        product_id: &str,
+        side: &str,
         configuration: OrderConfiguration,
     ) -> Result<OrderResponse> {
         let body = CreateOrder {
             client_order_id: Uuid::new_v4().to_string(),
-            product_id: product_id.clone(),
-            side: side.clone(),
+            product_id: product_id.to_string(),
+            side: side.to_string(),
             order_configuration: configuration,
         };
 
@@ -496,19 +496,19 @@ impl OrderAPI {
     /// https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_postorder
     pub async fn create_market(
         &self,
-        product_id: &String,
-        side: &String,
-        size: &String,
+        product_id: &str,
+        side: &str,
+        size: &str,
     ) -> Result<OrderResponse> {
         let market = if side == "BUY" {
             MarketIOC {
-                quote_size: Some(size.clone()),
+                quote_size: Some(size.to_string()),
                 base_size: None,
             }
         } else {
             MarketIOC {
                 quote_size: None,
-                base_size: Some(size.clone()),
+                base_size: Some(size.to_string()),
             }
         };
 
@@ -536,15 +536,15 @@ impl OrderAPI {
     /// https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_postorder
     pub async fn create_limit_gtc(
         &self,
-        product_id: &String,
-        side: &String,
-        size: &String,
-        price: &String,
+        product_id: &str,
+        side: &str,
+        size: &str,
+        price: &str,
         post_only: bool,
     ) -> Result<OrderResponse> {
         let limit = LimitGTC {
-            base_size: size.clone(),
-            limit_price: price.clone(),
+            base_size: size.to_string(),
+            limit_price: price.to_string(),
             post_only: post_only.clone(),
         };
 
@@ -573,17 +573,17 @@ impl OrderAPI {
     /// https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_postorder
     pub async fn create_limit_gtd(
         &self,
-        product_id: &String,
-        side: &String,
-        size: &String,
-        price: &String,
-        end_time: &String,
+        product_id: &str,
+        side: &str,
+        size: &str,
+        price: &str,
+        end_time: &str,
         post_only: bool,
     ) -> Result<OrderResponse> {
         let limit = LimitGTD {
-            base_size: size.clone(),
-            limit_price: price.clone(),
-            end_time: end_time.clone(),
+            base_size: size.to_string(),
+            limit_price: price.to_string(),
+            end_time: end_time.to_string(),
             post_only: post_only.clone(),
         };
 
@@ -612,18 +612,18 @@ impl OrderAPI {
     /// https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_postorder
     pub async fn create_stop_limit_gtc(
         &self,
-        product_id: &String,
-        side: &String,
-        size: &String,
-        limit_price: &String,
-        stop_price: &String,
-        stop_direction: &String,
+        product_id: &str,
+        side: &str,
+        size: &str,
+        limit_price: &str,
+        stop_price: &str,
+        stop_direction: &str,
     ) -> Result<OrderResponse> {
         let stoplimit = StopLimitGTC {
-            base_size: size.clone(),
-            limit_price: limit_price.clone(),
-            stop_price: stop_price.clone(),
-            stop_direction: stop_direction.clone(),
+            base_size: size.to_string(),
+            limit_price: limit_price.to_string(),
+            stop_price: stop_price.to_string(),
+            stop_direction: stop_direction.to_string(),
         };
 
         let config = OrderConfiguration {
@@ -652,20 +652,20 @@ impl OrderAPI {
     /// https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_postorder
     pub async fn create_stop_limit_gtd(
         &self,
-        product_id: &String,
-        side: &String,
-        size: &String,
-        limit_price: &String,
-        stop_price: &String,
-        stop_direction: &String,
-        end_time: &String,
+        product_id: &str,
+        side: &str,
+        size: &str,
+        limit_price: &str,
+        stop_price: &str,
+        stop_direction: &str,
+        end_time: &str,
     ) -> Result<OrderResponse> {
         let stoplimit = StopLimitGTD {
-            base_size: size.clone(),
-            limit_price: limit_price.clone(),
-            stop_price: stop_price.clone(),
-            end_time: end_time.clone(),
-            stop_direction: stop_direction.clone(),
+            base_size: size.to_string(),
+            limit_price: limit_price.to_string(),
+            stop_price: stop_price.to_string(),
+            end_time: end_time.to_string(),
+            stop_direction: stop_direction.to_string(),
         };
 
         let config = OrderConfiguration {
@@ -686,7 +686,7 @@ impl OrderAPI {
     ///
     /// https://api.coinbase.com/api/v3/brokerage/orders/historical/{order_id}
     /// https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_gethistoricalorder
-    pub async fn get(&self, order_id: String) -> Result<Order> {
+    pub async fn get(&self, order_id: &str) -> Result<Order> {
         let resource = format!("{}/historical/{}", Self::RESOURCE, order_id);
         match self.signer.get(&resource, "").await {
             Ok(value) => match value.json::<OrderStatusResponse>().await {
