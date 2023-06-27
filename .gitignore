@@ -1,2 +1,5 @@
-/target
 config.toml
+commit_msg
+
+target/
+configs/
