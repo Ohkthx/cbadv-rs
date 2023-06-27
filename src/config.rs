@@ -1,3 +1,8 @@
+//! # Configuration file creation, loading, and saving.
+//!
+//! `config` helps manage the optional configuration file for the crate. This gives access to
+//! loading the credentials for API access without hardcoding them into source code.
+
 use serde::{Deserialize, Serialize};
 use std::fs;
 use toml;
