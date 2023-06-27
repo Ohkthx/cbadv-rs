@@ -7,7 +7,7 @@ description = "Coinbase Advanced API Client used to access information and post 
 readme = "README.md"
 homepage = "https://github.com/Ohkthx/cbadv-rs"
 repository = "https://github.com/Ohkthx/cbadv-rs"
-keywords = ["api", "coinbase", "coinbase pro", "coinbase advanced", "crypto"]
+keywords = ["api", "coinbase", "coinbasepro", "coinbaseadvanced", "crypto"]
 exclude = ["commit_msg", "*.toml", "configs/", "target/", "src/bin/"]
 
 

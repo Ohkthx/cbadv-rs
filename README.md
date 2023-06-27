@@ -1,11 +1,20 @@
 <p align="center">
     <a href="https://patreon.com/ohkthx" title="Donate to this project using Patreon">
-        <img src="https://img.shields.io/badge/patreon-donate-red.svg?style=for-the-badge&color=f38ba8&label=PATREON&logo=patreon&logoColor=f38ba8&labelColor=11111b"
+        <img src="https://img.shields.io/badge/donate-black?style=for-the-badge&logo=Patreon&logoColor=cba6f7&label=Patreon&labelColor=11111b&color=cba6f7"
             alt="Patreon donate button"></a>
     <a href="https://ko-fi.com/G2G0J79MY" title="Donate to this project using Ko-fi">
-        <img src="https://img.shields.io/badge/kofi-donate-ffffff.svg?style=for-the-badge&color=fab387&label=KOFI&logo=kofi&logoColor=fab387&labelColor=11111b"
+        <img src="https://img.shields.io/badge/donate-black?style=for-the-badge&logo=kofi&logoColor=f38ba8&label=KOFI&labelColor=11111b&color=f38ba8"
             alt="Buy me a coffee! Ko-fi"></a>
+    <a href="https://etherscan.io/address/0x7d75f6a9c021fcc70691fec73368198823fb0f60" title="Donate with Ethereum!">
+        <img src="https://img.shields.io/badge/donate-black?style=for-the-badge&logo=ethereum&logoColor=fab387&label=ETH&labelColor=11111b&color=fab387"
+            alt="Donate with Ethereum!"></a>
+    <a href="https://bscscan.com/address/0x7d75f6a9c021fcc70691fec73368198823fb0f60" title="Donate with BNB (Binance)!">
+        <img src="https://img.shields.io/badge/donate-black?style=for-the-badge&logo=binance&logoColor=f9e2af&label=BNB&labelColor=11111b&color=f9e2af"
+            alt="Donate with BNB!"></a>
 <br>
+    <a href="https://crates.io/crates/cbadv" title="crates.io download counter">
+        <img src="https://img.shields.io/crates/d/cbadv?style=for-the-badge&logoColor=89dceb&labelColor=11111b&color=89dceb&link=https%3A%2F%2Fcrates.io%2Fcrates%2Fcbadv"
+            alt="crates.io downloads"></a>
     <a href="https://github.com/ohkthx/xIPL" title="Size of the repo!">
         <img src="https://img.shields.io/github/repo-size/ohkthx/cbadv-rs?style=for-the-badge&color=cba6f7&label=SIZE&logo=codesandbox&logoColor=cba6f7&labelColor=11111b"
             alt="No data."></a>
@@ -16,7 +25,7 @@
 
 The **cbadv-rs** project is designed to help me get my feet wet in Rust. By no means should others consider using this in the near future, especially with the hopes of making money. This is entirely for testing purposes and I am not responsible for your losses. However, you can choose to credit me with any gains made.
 
-I am ambitious with the project and plan on expanding to the entire API. The API reference can be seen at [Coinbase Advanced API](https://docs.cloud.coinbase.com/advanced-trade-api/reference). If you wish to add this to your project, add the following line to your dependencies section in **Cargo.toml**:
+I am ambitious with the project and plan on expanding to the entire API. The API reference can be seen at [Coinbase Advanced API](https://docs.cloud.coinbase.com/advanced-trade-api/reference). If you wish to add this to your project, either use `cargo add cbadv` or add the following line to your dependencies section in **Cargo.toml**:
 
 ```toml
 [dependencies]
@@ -72,3 +81,11 @@ Check above in the **Covered API requests** section for possibly covered example
 - **Product API**: [product_api_example.rs](https://github.com/Ohkthx/cbadv-rs/tree/main/src/bin/product_api_example.rs)
 - **Fee API**: [fee_api_example.rs](https://github.com/Ohkthx/cbadv-rs/tree/main/src/bin/fee_api_example.rs)
 - **Order API**: [order_api_example.rs](https://github.com/Ohkthx/cbadv-rs/tree/main/src/bin/order_api_example.rs)
+
+## Tips Appreciated!
+
+Wallet addresses are provided below, or click the badges above!
+```
+Ethereum (ETH): 0x7d75f6a9c021fcc70691fec73368198823fb0f60
+Binance (BNB):  0x7d75f6a9c021fcc70691fec73368198823fb0f60
+```
