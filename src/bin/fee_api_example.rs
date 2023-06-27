@@ -10,9 +10,7 @@ async fn main() {
     let client = client::new(config.cb_api_key, config.cb_api_secret);
 
     // Parameters to send to the API.
-    let params = TransactionSummaryParams {
-        ..Default::default()
-    };
+    let params = TransactionSummaryParams::default();
 
     // Get fee transaction summary.
     println!("Obtaining Transaction Fee Summary");

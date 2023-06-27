@@ -1,3 +1,9 @@
+//! # Coinbase Advanced Product API
+//!
+//! `product` gives access to the Product API and the various endpoints associated with it.
+//! This allows you to obtain product information such as: Ticker (Market Trades), Product and
+//! Currency information, Product Book, and Best Bids and Asks for multiple products.
+
 use crate::time;
 use crate::utils::{CBAdvError, Result, Signer};
 use serde::{Deserialize, Serialize};
@@ -211,8 +217,10 @@ impl ProductAPI {
     ///
     /// # Endpoint / Reference
     ///
+    #[allow(rustdoc::bare_urls)]
     /// https://api.coinbase.com/api/v3/brokerage/best_bid_ask
-    /// https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getbestbidask
+    ///
+    /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getbestbidask>
     pub async fn best_bid_ask(&self, product_ids: Vec<String>) -> Result<Vec<ProductBook>> {
         let resource = "/api/v3/brokerage/best_bid_ask";
         let params = format!("product_ids={}", product_ids.join("&product_ids="));
@@ -235,8 +243,10 @@ impl ProductAPI {
     ///
     /// # Endpoint / Reference
     ///
+    #[allow(rustdoc::bare_urls)]
     /// https://api.coinbase.com/api/v3/brokerage/product_book
-    /// https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getproductbook
+    ///
+    /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getproductbook>
     pub async fn product_book(&self, product_id: &str, limit: Option<u16>) -> Result<ProductBook> {
         let resource = "/api/v3/brokerage/product_book";
         let params = format!("product_id={}&limit={}", product_id, limit.unwrap_or(250));
@@ -258,8 +268,10 @@ impl ProductAPI {
     ///
     /// # Endpoint / Reference
     ///
+    #[allow(rustdoc::bare_urls)]
     /// https://api.coinbase.com/api/v3/brokerage/products/{product_id}
-    /// https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getproduct
+    ///
+    /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getproduct>
     pub async fn get(&self, product_id: &str) -> Result<Product> {
         let resource = format!("{}/{}", Self::RESOURCE, product_id);
         match self.signer.get(&resource, "").await {
@@ -275,8 +287,10 @@ impl ProductAPI {
     ///
     /// # Endpoint / Reference
     ///
+    #[allow(rustdoc::bare_urls)]
     /// https://api.coinbase.com/api/v3/brokerage/products
-    /// https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getproducts
+    ///
+    /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getproducts>
     pub async fn get_all(&self, params: ListProductsParams) -> Result<Vec<Product>> {
         match self.signer.get(Self::RESOURCE, &params.to_params()).await {
             Ok(value) => match value.json::<ListProductsResponse>().await {
@@ -291,8 +305,10 @@ impl ProductAPI {
     ///
     /// # Endpoint / Reference
     ///
+    #[allow(rustdoc::bare_urls)]
     /// https://api.coinbase.com/api/v3/brokerage/products/{product_id}/candles
-    /// https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getcandles
+    ///
+    /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getcandles>
     pub async fn candles(&self, product_id: &str, params: time::Span) -> Result<Vec<Candle>> {
         let resource = format!("{}/{}/candles", Self::RESOURCE, product_id);
         match self.signer.get(&resource, &params.to_params()).await {
@@ -308,8 +324,10 @@ impl ProductAPI {
     ///
     /// # Endpoint / Reference
     ///
+    #[allow(rustdoc::bare_urls)]
     /// https://api.coinbase.com/api/v3/brokerage/products/{product_id}/ticker
-    /// https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getmarkettrades
+    ///
+    /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getmarkettrades>
     pub async fn ticker(&self, product_id: &str, params: TickerParams) -> Result<Ticker> {
         let resource = format!("{}/{}/ticker", Self::RESOURCE, product_id);
         match self.signer.get(&resource, &params.to_params()).await {

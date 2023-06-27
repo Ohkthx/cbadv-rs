@@ -1,3 +1,9 @@
+//! # Coinbase Advanced Client
+//!
+//! `client` gives access to all of the APIs for the Coinbase Advanced API.
+//! This is the primary method of accessing the endpoints and handles all of the configurations and
+//! negotiations for the user.
+
 use crate::utils::Signer;
 
 use crate::account::AccountAPI;

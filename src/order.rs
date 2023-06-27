@@ -1,3 +1,8 @@
+//! # Coinbase Advanced Order API
+//!
+//! `order` gives access to the Order API and the various endpoints associated with it.
+//! These allow you to obtain past created orders, create new orders, and cancel orders.
+
 use crate::utils::{CBAdvError, Result, Signer};
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -433,8 +438,10 @@ impl OrderAPI {
     ///
     /// # Endpoint / Reference
     ///
+    #[allow(rustdoc::bare_urls)]
     /// https://api.coinbase.com/api/v3/brokerage/orders/batch_cancel
-    /// https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_cancelorders
+    ///
+    /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_cancelorders>
     pub async fn cancel(&self, order_ids: Vec<String>) -> Result<Vec<OrderResponse>> {
         let body = CancelOrders { order_ids };
 
@@ -458,8 +465,10 @@ impl OrderAPI {
     ///
     /// # Endpoint / Reference
     ///
+    #[allow(rustdoc::bare_urls)]
     /// https://api.coinbase.com/api/v3/brokerage/orders
-    /// https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_postorder
+    ///
+    /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_postorder>
     async fn create(
         &self,
         product_id: &str,
@@ -492,8 +501,10 @@ impl OrderAPI {
     ///
     /// # Endpoint / Reference
     ///
+    #[allow(rustdoc::bare_urls)]
     /// https://api.coinbase.com/api/v3/brokerage/orders
-    /// https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_postorder
+    ///
+    /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_postorder>
     pub async fn create_market(
         &self,
         product_id: &str,
@@ -532,8 +543,10 @@ impl OrderAPI {
     ///
     /// # Endpoint / Reference
     ///
+    #[allow(rustdoc::bare_urls)]
     /// https://api.coinbase.com/api/v3/brokerage/orders
-    /// https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_postorder
+    ///
+    /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_postorder>
     pub async fn create_limit_gtc(
         &self,
         product_id: &str,
@@ -569,8 +582,10 @@ impl OrderAPI {
     ///
     /// # Endpoint / Reference
     ///
+    #[allow(rustdoc::bare_urls)]
     /// https://api.coinbase.com/api/v3/brokerage/orders
-    /// https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_postorder
+    ///
+    /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_postorder>
     pub async fn create_limit_gtd(
         &self,
         product_id: &str,
@@ -608,8 +623,10 @@ impl OrderAPI {
     ///
     /// # Endpoint / Reference
     ///
+    #[allow(rustdoc::bare_urls)]
     /// https://api.coinbase.com/api/v3/brokerage/orders
-    /// https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_postorder
+    ///
+    /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_postorder>
     pub async fn create_stop_limit_gtc(
         &self,
         product_id: &str,
@@ -648,8 +665,10 @@ impl OrderAPI {
     ///
     /// # Endpoint / Reference
     ///
+    #[allow(rustdoc::bare_urls)]
     /// https://api.coinbase.com/api/v3/brokerage/orders
-    /// https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_postorder
+    ///
+    /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_postorder>
     pub async fn create_stop_limit_gtd(
         &self,
         product_id: &str,
@@ -684,8 +703,10 @@ impl OrderAPI {
     ///
     /// # Endpoint / Reference
     ///
+    #[allow(rustdoc::bare_urls)]
     /// https://api.coinbase.com/api/v3/brokerage/orders/historical/{order_id}
-    /// https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_gethistoricalorder
+    ///
+    /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_gethistoricalorder>
     pub async fn get(&self, order_id: &str) -> Result<Order> {
         let resource = format!("{}/historical/{}", Self::RESOURCE, order_id);
         match self.signer.get(&resource, "").await {
@@ -705,8 +726,10 @@ impl OrderAPI {
     ///
     /// # Endpoint / Reference
     ///
+    #[allow(rustdoc::bare_urls)]
     /// https://api.coinbase.com/api/v3/brokerage/orders/historical
-    /// https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_gethistoricalorders
+    ///
+    /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_gethistoricalorders>
     pub async fn get_all(&self, params: ListOrdersParams) -> Result<ListOrders> {
         let resource = format!("{}/historical/batch", Self::RESOURCE);
         match self.signer.get(&resource, &params.to_params()).await {
@@ -726,8 +749,10 @@ impl OrderAPI {
     ///
     /// # Endpoint / Reference
     ///
+    #[allow(rustdoc::bare_urls)]
     /// https://api.coinbase.com/api/v3/brokerage/orders/historical/fills
-    /// https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getfills
+    ///
+    /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getfills>
     pub async fn fills(&self, params: ListFillsParams) -> Result<ListFills> {
         let resource = format!("{}/historical/fills", Self::RESOURCE);
         match self.signer.get(&resource, &params.to_params()).await {

@@ -1,3 +1,8 @@
+//! # Coinbase Advanced Account API
+//!
+//! `account` gives access to the Account API and the various endpoints associated with it.
+//! This allows you to obtain account information either by account UUID or in bulk (all accounts).
+
 use crate::utils::{CBAdvError, Result, Signer};
 use serde::{Deserialize, Serialize};
 
@@ -103,8 +108,10 @@ impl AccountAPI {
     ///
     /// # Endpoint / Reference
     ///
+    #[allow(rustdoc::bare_urls)]
     /// https://api.coinbase.com/api/v3/brokerage/accounts/{account_uuid}
-    /// https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getaccount
+    ///
+    /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getaccount>
     pub async fn get(&self, account_uuid: &str) -> Result<Account> {
         let resource = format!("{}/{}", Self::RESOURCE, account_uuid);
         match self.signer.get(&resource, "").await {
@@ -120,8 +127,10 @@ impl AccountAPI {
     ///
     /// # Endpoint / Reference
     ///
+    #[allow(rustdoc::bare_urls)]
     /// https://api.coinbase.com/api/v3/brokerage/accounts
-    /// https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getaccounts
+    ///
+    /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getaccounts>
     pub async fn get_all(&self, params: ListAccountsParams) -> Result<ListAccounts> {
         match self.signer.get(Self::RESOURCE, &params.to_params()).await {
             Ok(value) => match value.json::<ListAccounts>().await {

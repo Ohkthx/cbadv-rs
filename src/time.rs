@@ -1,3 +1,8 @@
+//! # Time, easy to use timestamps, spans of time, etc
+//!
+//! `time` plays an important role in authentication for API requests and obtaining data between
+//! spans of time such as in the Product API for obtaining Candles.
+
 use serde::Serialize;
 use std::time::{SystemTime, UNIX_EPOCH};
 

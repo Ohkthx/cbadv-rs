@@ -1,3 +1,10 @@
+//! # Utilities and supporting functions.
+//!
+//! `utils` contains the backbone of the API requests in the form of the Signer struct. This signs
+//! all requests to the API for ensure proper authentication. Signer is also responsible for handling
+//! the GET and POST requests. An additional supporting enum is provided, the CBAdvError enum used for
+//! reporting errors that may occur.
+
 use crate::time;
 use hex;
 use hmac::{Hmac, Mac};

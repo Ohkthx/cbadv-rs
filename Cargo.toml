@@ -1,7 +1,15 @@
 [package]
 name = "cbadv"
+license = "MIT"
 version = "1.0.1"
 edition = "2021"
+description = "Coinbase Advanced API Client used to access information and post new data such as trades."
+readme = "README.md"
+homepage = "https://github.com/Ohkthx/cbadv-rs"
+repository = "https://github.com/Ohkthx/cbadv-rs"
+keywords = ["api", "coinbase", "coinbase pro", "coinbase advanced", "crypto"]
+exclude = ["commit_msg", "*.toml", "configs/", "target/", "src/bin/"]
+
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

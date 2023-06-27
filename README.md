@@ -64,7 +64,7 @@ The default configuration is unusable due to the API requiring a Key and Secret.
 
 Copy the `config.toml.sample` to `config.toml` and add in your API information. The `config.toml` file will automatically be read on launch to access your accounts API information. Unlike the depreciated Coinbase Pro API, there's no longer access to Public API endpoints. All access requires authentication. The key and secret is authentication requirements for HTTP requests to be properly [signed](https://docs.cloud.coinbase.com/advanced-trade-api/docs/rest-api-auth) and accepted by Coinbase.
 
-## Examples:
+## Examples
 
 Check above in the **Covered API requests** section for possibly covered examples.
 
