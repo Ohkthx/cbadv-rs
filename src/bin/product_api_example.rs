@@ -10,7 +10,7 @@ async fn main() {
     let config = config::load("config.toml").unwrap();
 
     // Create a client to interact with the API.
-    let client = client::new(config.cb_api_key, config.cb_api_secret);
+    let client = client::new(&config.cb_api_key, &config.cb_api_secret);
 
     // Pull a singular product from the Product API.
     println!("Getting product: {}.", product_pair);

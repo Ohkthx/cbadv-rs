@@ -35,7 +35,7 @@ pub struct Account {
 /// Represents a list of accounts received from the API.
 #[allow(dead_code)]
 #[derive(Serialize, Deserialize, Debug)]
-pub struct ListAccounts {
+pub struct ListedAccounts {
     pub accounts: Vec<Account>,
     pub has_next: bool,
     pub cursor: String,
@@ -131,9 +131,9 @@ impl AccountAPI {
     /// https://api.coinbase.com/api/v3/brokerage/accounts
     ///
     /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getaccounts>
-    pub async fn get_all(&self, params: ListAccountsParams) -> Result<ListAccounts> {
+    pub async fn get_all(&self, params: ListAccountsParams) -> Result<ListedAccounts> {
         match self.signer.get(Self::RESOURCE, &params.to_params()).await {
-            Ok(value) => match value.json::<ListAccounts>().await {
+            Ok(value) => match value.json::<ListedAccounts>().await {
                 Ok(resp) => Ok(resp),
                 Err(_) => Err(CBAdvError::BadParse("accounts vector".to_string())),
             },

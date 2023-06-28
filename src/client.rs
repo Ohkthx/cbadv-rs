@@ -14,12 +14,6 @@ use crate::product::ProductAPI;
 /// Represents a Client for the API.
 #[allow(dead_code)]
 pub struct Client {
-    /// API Key provided by the service to the user.
-    api_key: String,
-    /// API Secret provided by the service to the user.
-    api_secret: String,
-    /// Responsible for making all HTTP requests.
-    signer: Signer,
     /// Gives access to the Account API.
     pub account: AccountAPI,
     /// Gives access to the Product API.
@@ -37,21 +31,12 @@ impl Client {
     ///
     /// * `key` - A string that holds the key for the API service.
     /// * `secret` - A string that holds the secret for the API service.
-    pub fn new(key: String, secret: String) -> Self {
-        let signer = Signer::new(key.clone(), secret.clone());
-        let account = AccountAPI::new(signer.clone());
-        let product = ProductAPI::new(signer.clone());
-        let fee = FeeAPI::new(signer.clone());
-        let order = OrderAPI::new(signer.clone());
-
+    pub fn new(key: &str, secret: &str) -> Self {
         Self {
-            api_key: String::from(key),
-            api_secret: String::from(secret),
-            signer,
-            account,
-            product,
-            fee,
-            order,
+            account: AccountAPI::new(Signer::new(key.to_string(), secret.to_string())),
+            product: ProductAPI::new(Signer::new(key.to_string(), secret.to_string())),
+            fee: FeeAPI::new(Signer::new(key.to_string(), secret.to_string())),
+            order: OrderAPI::new(Signer::new(key.to_string(), secret.to_string())),
         }
     }
 }
@@ -62,6 +47,6 @@ impl Client {
 ///
 /// * `key` - A string that holds the key for the API service.
 /// * `secret` - A string that holds the secret for the API service.
-pub fn new(key: String, secret: String) -> Client {
+pub fn new(key: &str, secret: &str) -> Client {
     Client::new(key, secret)
 }

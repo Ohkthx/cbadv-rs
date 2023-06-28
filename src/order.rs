@@ -230,7 +230,7 @@ pub struct Fill {
 /// Represents a list of orders received from the API.
 #[allow(dead_code)]
 #[derive(Serialize, Deserialize, Debug)]
-pub struct ListOrders {
+pub struct ListedOrders {
     pub orders: Vec<Order>,
     pub has_next: bool,
     pub cursor: String,
@@ -239,7 +239,7 @@ pub struct ListOrders {
 /// Represents a list of fills received from the API.
 #[allow(dead_code)]
 #[derive(Serialize, Deserialize, Debug)]
-pub struct ListFills {
+pub struct ListedFills {
     pub orders: Vec<Fill>,
     pub cursor: String,
 }
@@ -730,10 +730,10 @@ impl OrderAPI {
     /// https://api.coinbase.com/api/v3/brokerage/orders/historical
     ///
     /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_gethistoricalorders>
-    pub async fn get_all(&self, params: ListOrdersParams) -> Result<ListOrders> {
+    pub async fn get_all(&self, params: ListOrdersParams) -> Result<ListedOrders> {
         let resource = format!("{}/historical/batch", Self::RESOURCE);
         match self.signer.get(&resource, &params.to_params()).await {
-            Ok(value) => match value.json::<ListOrders>().await {
+            Ok(value) => match value.json::<ListedOrders>().await {
                 Ok(resp) => Ok(resp),
                 Err(_) => Err(CBAdvError::BadParse(
                     "could not parse orders vector".to_string(),
@@ -753,10 +753,10 @@ impl OrderAPI {
     /// https://api.coinbase.com/api/v3/brokerage/orders/historical/fills
     ///
     /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getfills>
-    pub async fn fills(&self, params: ListFillsParams) -> Result<ListFills> {
+    pub async fn fills(&self, params: ListFillsParams) -> Result<ListedFills> {
         let resource = format!("{}/historical/fills", Self::RESOURCE);
         match self.signer.get(&resource, &params.to_params()).await {
-            Ok(value) => match value.json::<ListFills>().await {
+            Ok(value) => match value.json::<ListedFills>().await {
                 Ok(resp) => Ok(resp),
                 Err(_) => Err(CBAdvError::BadParse(
                     "could not parse fills vector".to_string(),

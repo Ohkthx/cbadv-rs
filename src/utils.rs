@@ -49,9 +49,7 @@ pub struct Signer {
     /// API Secret provided by the service.
     api_secret: String,
     /// Wrapped client that is responsible for making the requests.
-    pub client: reqwest::Client,
-    /// Root URL for the service.
-    pub root: String,
+    client: reqwest::Client,
 }
 
 /// Responsible for signing and sending HTTP requests.
@@ -63,14 +61,10 @@ impl Signer {
     /// * `api_key` - A string that holds the key for the API service.
     /// * `api_secret` - A string that holds the secret for the API service.
     pub fn new(api_key: String, api_secret: String) -> Self {
-        let client = reqwest::Client::new();
-        let root = String::from(ROOT_URI);
-
         Self {
             api_key,
             api_secret,
-            client,
-            root,
+            client: reqwest::Client::new(),
         }
     }
 
@@ -118,7 +112,7 @@ impl Signer {
 
         // Create the full URL being accessed.
         let target = format!("{}{}", prefix, params);
-        let url = format!("{}{}{}", self.root, resource, target);
+        let url = format!("{}{}{}", ROOT_URI, resource, target);
 
         // Create the signature and submit the request.
         let headers = self.get_signature(Method::GET, resource, &"".to_string());
@@ -163,7 +157,7 @@ impl Signer {
 
         // Create the full URL being accessed.
         let target = format!("{}{}", prefix, params);
-        let url = format!("{}{}{}", self.root, resource, target);
+        let url = format!("{}{}{}", ROOT_URI, resource, target);
 
         // Create the signature and submit the request.
         let body_str = serde_json::to_string(&body).unwrap();
