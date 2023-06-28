@@ -4,6 +4,7 @@
 //! This allows you to obtain account information either by account UUID or in bulk (all accounts).
 
 use crate::utils::{CBAdvError, Result, Signer};
+use async_recursion::async_recursion;
 use serde::{Deserialize, Serialize};
 
 /// Represents a Balance for either Available or Held funds.
@@ -100,7 +101,8 @@ impl AccountAPI {
         Self { signer }
     }
 
-    /// Obtains a single account based on the Account UUID (ex. "XXXX-YYYY-ZZZZ").
+    /// Obtains a single account based on the Account UUID (ex. "XXXX-YYYY-ZZZZ"). This is the most
+    /// efficient way to get a single account, however it requires the user to know the UUID.
     ///
     /// # Arguments
     ///
@@ -123,6 +125,46 @@ impl AccountAPI {
         }
     }
 
+    /// Obtains a single account based on the Account ID (ex. "BTC").
+    /// This wraps `get_bulk` and recursively makes several additional requests until either the
+    /// account is found or there are not more accounts. This is a more expensive call, but more
+    /// convient than `get` which requires knowing the UUID already.
+    ///
+    /// NOTE: NOT A STANDARD API FUNCTION. QoL function that may require additional API requests than
+    /// normal.
+    ///
+    /// # Arguments
+    ///
+    /// * `id` - Identifier for the account, such as BTC or ETH.
+    /// * `params` - Optional parameters, should default to None unless you want additional control.
+    #[async_recursion]
+    pub async fn get_by_id(&self, id: &str, params: Option<ListAccountsParams>) -> Result<Account> {
+        let mut params = match params {
+            Some(p) => p,
+            None => ListAccountsParams::default(),
+        };
+
+        match self.get_bulk(&params).await {
+            Ok(mut listed) => {
+                // Find the index.
+                match listed.accounts.iter().position(|r| r.currency == id) {
+                    Some(index) => Ok(listed.accounts.swap_remove(index)),
+                    None => {
+                        // Prevent further requests if no more can be made.
+                        if !listed.has_next {
+                            return Err(CBAdvError::NotFound("no matching ids".to_string()));
+                        }
+
+                        // Make another request to the API for the account.
+                        params.cursor = Some(listed.cursor);
+                        self.get_by_id(id, Some(params)).await
+                    }
+                }
+            }
+            Err(error) => Err(error),
+        }
+    }
+
     /// Obtains various accounts from the API.
     ///
     /// # Endpoint / Reference
@@ -131,7 +173,7 @@ impl AccountAPI {
     /// https://api.coinbase.com/api/v3/brokerage/accounts
     ///
     /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getaccounts>
-    pub async fn get_all(&self, params: ListAccountsParams) -> Result<ListedAccounts> {
+    pub async fn get_bulk(&self, params: &ListAccountsParams) -> Result<ListedAccounts> {
         match self.signer.get(Self::RESOURCE, &params.to_params()).await {
             Ok(value) => match value.json::<ListedAccounts>().await {
                 Ok(resp) => Ok(resp),

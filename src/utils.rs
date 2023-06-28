@@ -20,6 +20,10 @@ pub enum CBAdvError {
     BadParse(String),
     /// Non-200 status code received.
     BadStatus(String),
+    /// Nothing to do.
+    NothingToDo(String),
+    /// Unable to locate resource.
+    NotFound(String),
     /// General unknown error.
     Unknown(String),
 }
@@ -29,6 +33,8 @@ impl fmt::Display for CBAdvError {
         match self {
             CBAdvError::Unknown(value) => write!(f, "unknown error occured: {}", value),
             CBAdvError::BadParse(value) => write!(f, "could not parse: {}", value),
+            CBAdvError::NothingToDo(value) => write!(f, "nothing to do: {}", value),
+            CBAdvError::NotFound(value) => write!(f, "could not find: {}", value),
             CBAdvError::BadStatus(value) => write!(f, "non-zero status occurred: {}", value),
         }
     }

@@ -4,7 +4,7 @@ use cbadv::{client, config};
 #[tokio::main]
 async fn main() {
     let create_trade: bool = false;
-    let cancel_open_orders: bool = true;
+    let cancel_open_orders: bool = false;
     let product_pair: &str = "DOT-USD";
     let total_size: &str = "3.00";
     let price: &str = "10.00";
@@ -28,16 +28,28 @@ async fn main() {
         }
     }
 
+    println!("\n\nCancelling all OPEN orders for {}.", product_pair);
+    match client.order.cancel_all(&product_pair).await {
+        Ok(result) => println!("{:#?}", result),
+        Err(error) => println!("Unable to cancel orders: {}", error),
+    }
+
+    println!("\n\nGetting all orders for {}.", product_pair);
+    match client.order.get_all(product_pair, None).await {
+        Ok(orders) => println!("Orders obtained: {:#?}", orders.len()),
+        Err(error) => println!("Unable to obtain all orders: {}", error),
+    }
+
     // Get all BUYING orders.
     let mut order_id = "".to_string();
     let params = ListOrdersParams {
         product_id: Some(product_pair.to_string()),
-        order_side: Some(OrderSide::BUY),
+        order_side: Some(OrderSide::SELL),
         ..Default::default()
     };
 
     println!("\n\nObtaining Orders.");
-    match client.order.get_all(params).await {
+    match client.order.get_bulk(&params).await {
         Ok(orders) => {
             println!("Orders obtained: {:#?}", orders.orders.len());
             match orders.orders.get(0) {
@@ -52,7 +64,7 @@ async fn main() {
             let mut order_ids: Vec<String> = vec![];
             for order in orders.orders {
                 if order.status == "OPEN" {
-                    order_ids.push(order_id.clone());
+                    order_ids.push(order.order_id);
                 }
             }
 

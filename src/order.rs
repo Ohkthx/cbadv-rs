@@ -455,6 +455,41 @@ impl OrderAPI {
         }
     }
 
+    /// Cancel all OPEN orders for a specific product ID.
+    ///
+    /// NOTE: NOT A STANDARD API FUNCTION. QoL function that may require additional API requests
+    /// than normal.
+    ///
+    /// # Arguments
+    ///
+    /// * `product_id` - Product to cancel all OPEN orders for.
+    pub async fn cancel_all(&self, product_id: &str) -> Result<Vec<OrderResponse>> {
+        let params = ListOrdersParams {
+            product_id: Some(product_id.to_string()),
+            order_status: Some(vec![OrderStatus::OPEN]),
+            ..Default::default()
+        };
+
+        // Obtain all open orders.
+        match self.get_all(product_id, Some(params)).await {
+            Ok(orders) => {
+                // Build list of orders to cancel.
+                let order_ids: Vec<String> = orders.iter().map(|o| o.order_id.clone()).collect();
+
+                // Do nothing since no orders found.
+                if order_ids.len() == 0 {
+                    return Err(CBAdvError::NothingToDo(
+                        "no orders found to cancel".to_string(),
+                    ));
+                }
+
+                // Cancel the order list.
+                self.cancel(order_ids).await
+            }
+            Err(error) => Err(error),
+        }
+    }
+
     /// Create an order.
     ///
     /// # Arguments
@@ -730,7 +765,7 @@ impl OrderAPI {
     /// https://api.coinbase.com/api/v3/brokerage/orders/historical
     ///
     /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_gethistoricalorders>
-    pub async fn get_all(&self, params: ListOrdersParams) -> Result<ListedOrders> {
+    pub async fn get_bulk(&self, params: &ListOrdersParams) -> Result<ListedOrders> {
         let resource = format!("{}/historical/batch", Self::RESOURCE);
         match self.signer.get(&resource, &params.to_params()).await {
             Ok(value) => match value.json::<ListedOrders>().await {
@@ -743,6 +778,47 @@ impl OrderAPI {
         }
     }
 
+    /// Obtains all orders for a product based on the product ID. (ex. "BTC-USD").
+    /// This wraps `get_bulk` and makes several additional requests until there are no
+    /// additional orders.
+    ///
+    /// NOTE: NOT A STANDARD API FUNCTION. QoL function that may require additional API requests than
+    /// normal.
+    ///
+    /// # Arguments
+    ///
+    /// * `product_id` - Identifier for the account, such as BTC-USD or ETH-USD.
+    /// * `params` - Optional parameters, should default to None unless you want additional control.
+    pub async fn get_all(
+        &self,
+        product_id: &str,
+        params: Option<ListOrdersParams>,
+    ) -> Result<Vec<Order>> {
+        let mut params = match params {
+            Some(p) => p,
+            None => ListOrdersParams::default(),
+        };
+
+        // Override product ID.
+        params.product_id = Some(product_id.to_string());
+        let mut orders: Vec<Order> = vec![];
+        let mut has_next: bool = true;
+
+        // Get the orders until there is not a next.
+        while has_next {
+            match self.get_bulk(&params).await {
+                Ok(listed) => {
+                    has_next = listed.has_next;
+                    params.cursor = Some(listed.cursor);
+                    orders.extend(listed.orders);
+                }
+                Err(error) => return Err(error),
+            }
+        }
+
+        Ok(orders)
+    }
+
     /// Obtains fills from the API.
     ///
     /// * `params` - A Parameters to modify what is returned by the API.
@@ -753,7 +829,7 @@ impl OrderAPI {
     /// https://api.coinbase.com/api/v3/brokerage/orders/historical/fills
     ///
     /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getfills>
-    pub async fn fills(&self, params: ListFillsParams) -> Result<ListedFills> {
+    pub async fn fills(&self, params: &ListFillsParams) -> Result<ListedFills> {
         let resource = format!("{}/historical/fills", Self::RESOURCE);
         match self.signer.get(&resource, &params.to_params()).await {
             Ok(value) => match value.json::<ListedFills>().await {

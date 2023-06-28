@@ -13,24 +13,35 @@ async fn main() {
 
     // Parameters to send to the API.
     let params = ListAccountsParams {
-        limit: Some(50),
+        // limit: Some(50),
         ..Default::default()
     };
 
+    // Pull accounts by ID.
+    println!("Obtaining account by ID.");
+    match client.account.get_by_id(&product_name, None).await {
+        Ok(account) => println!("{:#?}", account),
+        Err(error) => println!("Unable to get account: {}", error),
+    }
+
     // Pull all accounts.
-    println!("Obtaining ALL Accounts.");
+    println!("\n\nObtaining ALL Accounts.");
     let mut account_uuid = "".to_string();
-    match client.account.get_all(params).await {
+    match client.account.get_bulk(&params).await {
         Ok(accounts) => {
             println!("Accounts obtained: {:#?}", accounts.accounts.len());
-            let index = accounts
+            for acct in accounts.accounts.iter() {
+                println!("Account name: {}", acct.currency);
+            }
+
+            match accounts
                 .accounts
                 .iter()
-                .position(|r| r.currency == product_name)
-                .unwrap();
-
-            match accounts.accounts.get(index) {
-                Some(account) => {
+                .position(|r| &r.currency == product_name)
+            {
+                Some(index) => {
+                    println!("Account index: {}", index);
+                    let account = accounts.accounts.get(index).unwrap();
                     account_uuid = account.uuid.clone();
                     println!("{:#?}", account);
                 }
@@ -43,11 +54,7 @@ async fn main() {
     // Get a singular account based on the UUID.
     println!("\n\nObtaining Account: {}", account_uuid);
     match client.account.get(&account_uuid).await {
-        Ok(account) => {
-            println!("{:#?}", account);
-        }
-        Err(error) => {
-            println!("Unable to get account: {}", error);
-        }
+        Ok(account) => println!("{:#?}", account),
+        Err(error) => println!("Unable to get account: {}", error),
     }
 }

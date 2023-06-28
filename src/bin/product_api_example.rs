@@ -45,7 +45,7 @@ async fn main() {
     };
 
     // Pull multiple products from the Product API.
-    match client.product.get_all(params).await {
+    match client.product.get_bulk(&params).await {
         Ok(products) => println!("{:#?}", products),
         Err(error) => println!("Unable to get products: {}", error),
     }
@@ -57,7 +57,7 @@ async fn main() {
     let time_span = time::Span::new(start, end, time::Granularity::OneMinute);
     match client
         .product
-        .candles(product_pair.clone(), time_span)
+        .candles(product_pair.clone(), &time_span)
         .await
     {
         Ok(candles) => match candles.get(0) {
@@ -70,7 +70,7 @@ async fn main() {
     // Pull ticker.
     println!("\n\nGetting ticker for: {}.", product_pair);
     let params = TickerParams { limit: 200 };
-    match client.product.ticker(product_pair.clone(), params).await {
+    match client.product.ticker(product_pair.clone(), &params).await {
         Ok(ticker) => {
             println!(
                 "best bid: {:#?}\nbest ask: {:#?}\ntrades: {:#?}",

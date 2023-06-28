@@ -14,7 +14,7 @@ async fn main() {
 
     // Get fee transaction summary.
     println!("Obtaining Transaction Fee Summary");
-    match client.fee.get(params).await {
+    match client.fee.get(&params).await {
         Ok(summary) => println!("{:#?}", summary),
         Err(error) => println!("Unable to get the Transaction Summary: {}", error),
     }

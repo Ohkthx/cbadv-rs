@@ -47,12 +47,12 @@ Most of the documentation can be accessed by clicking the following link: [docs.
 ### Covered API requests
 
 - **Accounts [client.account]**
-  - List Accounts [client.account.get_all]
+  - List Accounts [client.account.get_bulk]
   - Get Account [client.account.get]
 - **Products [client.product]**
   - Get Best Bid / Ask [client.product.best_bid_ask]
   - Get Product Book [client.product.product_book]
-  - List Products [client.product.get_all]
+  - List Products [client.product.get_bulk]
   - Get Product [client.product.get]
   - Get Product Candles [client.product.candles]
   - Get Market Trades (Ticker) [client.product.ticker]
@@ -64,11 +64,21 @@ Most of the documentation can be accessed by clicking the following link: [docs.
     - Stop Limit GTC (untested) [client.order.create_stop_limit_gtc]
     - Stop Limit GTD (untested) [client.order.create_stop_limit_gtd]
   - Cancel Orders [client.order.cancel]
-  - List Orders [client.order.get_all]
+  - List Orders [client.order.get_bulk]
   - List Fills (untested) [client.order.fills]
   - Get Order [client.order.get]
 - **Fees [client.fee]**
   - Get Transaction Summary [client.fee.get]
+
+### Added Requests
+
+These functions were created to cover common functionality but not initially part of the Coinbase Advanced API. They may require several API requests to accomplish their results.
+
+- **Accounts** [client.account]
+  - Get Account by ID [client.account.get_by_id] - Gets an account by the ID (ex BTC or ETH)
+- **Orders** [client.order]
+  - Get All Orders [client.order.get_all] - Obtains all orders for a product.
+  - Cancel All Orders [client.order.cancel_all] - Cancels all OPEN orders for a product.
 
 ### TODO
 

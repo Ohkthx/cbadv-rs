@@ -283,7 +283,7 @@ impl ProductAPI {
         }
     }
 
-    /// Obtains all products from the API.
+    /// Obtains bulk products from the API.
     ///
     /// # Endpoint / Reference
     ///
@@ -291,7 +291,7 @@ impl ProductAPI {
     /// https://api.coinbase.com/api/v3/brokerage/products
     ///
     /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getproducts>
-    pub async fn get_all(&self, params: ListProductsParams) -> Result<Vec<Product>> {
+    pub async fn get_bulk(&self, params: &ListProductsParams) -> Result<Vec<Product>> {
         match self.signer.get(Self::RESOURCE, &params.to_params()).await {
             Ok(value) => match value.json::<ListProductsResponse>().await {
                 Ok(resp) => Ok(resp.products),
@@ -309,7 +309,7 @@ impl ProductAPI {
     /// https://api.coinbase.com/api/v3/brokerage/products/{product_id}/candles
     ///
     /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getcandles>
-    pub async fn candles(&self, product_id: &str, params: time::Span) -> Result<Vec<Candle>> {
+    pub async fn candles(&self, product_id: &str, params: &time::Span) -> Result<Vec<Candle>> {
         let resource = format!("{}/{}/candles", Self::RESOURCE, product_id);
         match self.signer.get(&resource, &params.to_params()).await {
             Ok(value) => match value.json::<CandleResponse>().await {
@@ -328,7 +328,7 @@ impl ProductAPI {
     /// https://api.coinbase.com/api/v3/brokerage/products/{product_id}/ticker
     ///
     /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getmarkettrades>
-    pub async fn ticker(&self, product_id: &str, params: TickerParams) -> Result<Ticker> {
+    pub async fn ticker(&self, product_id: &str, params: &TickerParams) -> Result<Ticker> {
         let resource = format!("{}/{}/ticker", Self::RESOURCE, product_id);
         match self.signer.get(&resource, &params.to_params()).await {
             Ok(value) => match value.json::<Ticker>().await {

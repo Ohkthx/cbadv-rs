@@ -120,7 +120,7 @@ impl FeeAPI {
     /// https://api.coinbase.com/api/v3/brokerage/transaction_summary
     ///
     /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_gettransactionsummary>
-    pub async fn get(&self, params: TransactionSummaryParams) -> Result<TransactionSummary> {
+    pub async fn get(&self, params: &TransactionSummaryParams) -> Result<TransactionSummary> {
         match self.signer.get(Self::RESOURCE, &params.to_params()).await {
             Ok(value) => match value.json::<TransactionSummary>().await {
                 Ok(resp) => Ok(resp),
