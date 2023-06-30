@@ -23,8 +23,9 @@
             alt="No data."></a>
 </p>
 
-# cbadv-rs, Coinbase Advanced API in Rust
+# cbadv-rs, Coinbase Advanced API
 
+`cbadv-rs` grants access to the **Coinbase Advanced** REST and WebSocket API.
 
 The **cbadv-rs** project is designed to help me get my feet wet in Rust. By no means should others consider using this in the near future, especially with the hopes of making money. This is entirely for testing purposes and I am not responsible for your losses. As note that this project is a work-in-progress and subject to change with time. Some functions, structs, enums, etc may be renamed to adhere to better styling guidelines or optimized for efficiency. With these disclaimers aside and if you enjoy this project, you can choose to credit me with any gains made.
 
@@ -38,13 +39,34 @@ cbadv = { git = "https://github.com/ohkthx/cbadv-rs" }
 ## Features
 - Easy-to-use Client.
 - Configuration file to hold API Key and API Secret.
-- Covers all endpoints currently accessible (20230626).
+- Covers all REST endpoints currently accessible (20230630).
+- Covers all WebSocket endpoints currently accessible (20230630).
 
 ## Documentation
 
 Most of the documentation can be accessed by clicking the following link: [docs.rs](https://docs.rs/cbadv/latest/cbadv/). That documentation is automatically generated and also accessible from [crates.io](https://crates.io/crates/cbadv).
 
 ### Covered API requests
+
+#### WebSocket API
+
+Client: `use cbadv::websocket::Client`
+
+- **Authentication** [client.connect]
+- **Subscribe** [client.subscribe]
+- **Unsubscribe** [client.unsubscribe]
+- **Channels Supported**
+  - Status [Channel::STATUS]
+  - Ticker [Channel::TICKER]
+  - Ticker Batch [Channel::TICKER_BATCH]
+  - Level2 [Channel::LEVEL2]
+  - User [Channel::USER]
+  - Market Trades [Channel::MARKET_TRADES]
+
+
+#### REST API
+
+Client: `use cbadv::rest::Client`
 
 - **Accounts [client.account]**
   - List Accounts [client.account.get_bulk]
@@ -98,6 +120,7 @@ Check above in the **Covered API requests** section for possibly covered example
 - **Product API**: [product_api_example.rs](https://github.com/Ohkthx/cbadv-rs/tree/main/src/bin/product_api_example.rs)
 - **Fee API**: [fee_api_example.rs](https://github.com/Ohkthx/cbadv-rs/tree/main/src/bin/fee_api_example.rs)
 - **Order API**: [order_api_example.rs](https://github.com/Ohkthx/cbadv-rs/tree/main/src/bin/order_api_example.rs)
+- **WebSocket API**: [websocket_example.rs](https://github.com/Ohkthx/cbadv-rs/tree/main/src/bin/websocket_example.rs)
 
 ## Tips Appreciated!
 

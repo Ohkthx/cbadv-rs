@@ -8,7 +8,35 @@ use crate::time;
 use crate::utils::{CBAdvError, Result, Signer};
 use serde::{Deserialize, Serialize};
 
-/// Represents a Product received from the API.
+/// Represents a Product received from the Websocket API.
+#[allow(dead_code)]
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ProductUpdate {
+    pub product_type: String,
+    pub id: String,
+    pub base_currency: String,
+    pub quote_currency: String,
+    pub base_increment: String,
+    pub quote_increment: String,
+    pub display_name: String,
+    pub status: String,
+    pub status_message: String,
+    pub min_market_funds: String,
+}
+
+/// Represents a Market Trade received from the Websocket API.
+#[allow(dead_code)]
+#[derive(Serialize, Deserialize, Debug)]
+pub struct MarketTradesUpdate {
+    pub trade_id: String,
+    pub product_id: String,
+    pub price: String,
+    pub size: String,
+    pub side: String,
+    pub time: String,
+}
+
+/// Represents a Product received from the REST API.
 #[allow(dead_code)]
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Product {
@@ -88,6 +116,21 @@ pub struct Trade {
     pub side: String,
     pub bid: String,
     pub ask: String,
+}
+
+/// Represents a Ticker update received from the Websocket API.
+#[allow(dead_code)]
+#[derive(Serialize, Deserialize, Debug)]
+pub struct TickerUpdate {
+    pub r#type: String,
+    pub product_id: String,
+    pub price: String,
+    pub volume_24_h: String,
+    pub low_24_h: String,
+    pub high_24_h: String,
+    pub low_52_w: String,
+    pub high_52_w: String,
+    pub price_percent_chg_24_h: String,
 }
 
 /// Represents a ticker for a product.

@@ -1,6 +1,6 @@
 //! # Coinbase Advanced Client
 //!
-//! `client` gives access to all of the APIs for the Coinbase Advanced API.
+//! `rest` gives access to all of the APIs via `Client` for the Coinbase Advanced API.
 //! This is the primary method of accessing the endpoints and handles all of the configurations and
 //! negotiations for the user.
 
@@ -25,7 +25,7 @@ pub struct Client {
 }
 
 impl Client {
-    /// Creates a new instance of a Client. This is a wrapper for the various APIs and Signer.
+    /// Creates a new instance of a Client. This is a wrapper for the various APIs.
     ///
     /// # Arguments
     ///

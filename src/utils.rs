@@ -20,6 +20,8 @@ pub enum CBAdvError {
     BadParse(String),
     /// Non-200 status code received.
     BadStatus(String),
+    /// Could not connect to the service.
+    BadConnection(String),
     /// Nothing to do.
     NothingToDo(String),
     /// Unable to locate resource.
@@ -36,6 +38,7 @@ impl fmt::Display for CBAdvError {
             CBAdvError::NothingToDo(value) => write!(f, "nothing to do: {}", value),
             CBAdvError::NotFound(value) => write!(f, "could not find: {}", value),
             CBAdvError::BadStatus(value) => write!(f, "non-zero status occurred: {}", value),
+            CBAdvError::BadConnection(value) => write!(f, "could not connect: {}", value),
         }
     }
 }
@@ -51,7 +54,7 @@ const ROOT_URI: &str = "https://api.coinbase.com";
 #[derive(Debug, Clone)]
 pub struct Signer {
     /// API Key provided by the service.
-    api_key: String,
+    pub api_key: String,
     /// API Secret provided by the service.
     api_secret: String,
     /// Wrapped client that is responsible for making the requests.
@@ -81,7 +84,7 @@ impl Signer {
     /// * `method` - HTTP Method as to which action to perform (GET, POST, etc.).
     /// * `resource` - A string slice representing the resource that is being accessed.
     /// * `body` - A string representing a body data.
-    pub fn get_signature(&self, method: Method, resource: &str, body: &str) -> header::HeaderMap {
+    fn get_http_signature(&self, method: Method, resource: &str, body: &str) -> header::HeaderMap {
         // Timestamp of the request, must be +/- 30 seconds of remote system.
         let timestamp = time::now().to_string();
 
@@ -103,6 +106,30 @@ impl Signer {
         headers
     }
 
+    /// Creates the signature for a websocket request.
+    ///
+    /// # Arguments
+    ///
+    /// * `timestamp` - Current timestamp as a string, must be +/- 30 seconds.
+    /// * `channel` - Channel that is being modified (un/subscribe)
+    /// * `product_ids` - Vector of product_ids that belong to the subscription.
+    pub fn get_ws_signature(
+        &self,
+        timestamp: &str,
+        channel: &str,
+        product_ids: &Vec<String>,
+    ) -> String {
+        // Pre-hash, combines all of the request data.
+        let prehash = format!("{}{}{}", timestamp, channel, product_ids.join(","));
+
+        // Create the signature.
+        let mut mac = HmacSha256::new_from_slice(self.api_secret.as_bytes())
+            .expect("Failed to generate a signature.");
+        mac.update(prehash.as_bytes());
+        let signature = mac.finalize();
+        hex::encode(signature.into_bytes())
+    }
+
     /// Performs a HTTP GET Request.
     ///
     /// # Arguments
@@ -121,7 +148,7 @@ impl Signer {
         let url = format!("{}{}{}", ROOT_URI, resource, target);
 
         // Create the signature and submit the request.
-        let headers = self.get_signature(Method::GET, resource, &"".to_string());
+        let headers = self.get_http_signature(Method::GET, resource, &"".to_string());
 
         let result = self.client.get(url).headers(headers).send().await;
         match result {
@@ -167,7 +194,7 @@ impl Signer {
 
         // Create the signature and submit the request.
         let body_str = serde_json::to_string(&body).unwrap();
-        let mut headers = self.get_signature(Method::POST, resource, &body_str);
+        let mut headers = self.get_http_signature(Method::POST, resource, &body_str);
         headers.insert("Content-Type", "application/json".parse().unwrap());
 
         let result = self

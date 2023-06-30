@@ -71,6 +71,23 @@ impl fmt::Display for OrderStatus {
     }
 }
 
+/// Order updates for a user from a websocket.
+#[allow(dead_code)]
+#[derive(Serialize, Deserialize, Debug)]
+pub struct OrderUpdate {
+    pub r#type: String,
+    pub client_order_id: String,
+    pub cumulative_quantity: String,
+    pub leaves_quantity: String,
+    pub avg_price: String,
+    pub total_fees: String,
+    pub status: String,
+    pub product_id: String,
+    pub creation_time: String,
+    pub order_side: String,
+    pub order_type: String,
+}
+
 /// Market Immediate or Cancel.
 #[allow(dead_code)]
 #[derive(Serialize, Deserialize, Debug)]
@@ -442,8 +459,10 @@ impl OrderAPI {
     /// https://api.coinbase.com/api/v3/brokerage/orders/batch_cancel
     ///
     /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_cancelorders>
-    pub async fn cancel(&self, order_ids: Vec<String>) -> Result<Vec<OrderResponse>> {
-        let body = CancelOrders { order_ids };
+    pub async fn cancel(&self, order_ids: &Vec<String>) -> Result<Vec<OrderResponse>> {
+        let body = CancelOrders {
+            order_ids: order_ids.clone(),
+        };
 
         let resource = format!("{}/batch_cancel", Self::RESOURCE);
         match self.signer.post(&resource, "", body).await {
@@ -484,7 +503,7 @@ impl OrderAPI {
                 }
 
                 // Cancel the order list.
-                self.cancel(order_ids).await
+                self.cancel(&order_ids).await
             }
             Err(error) => Err(error),
         }

@@ -1,5 +1,5 @@
 use cbadv::order::{ListOrdersParams, OrderSide};
-use cbadv::{client, config};
+use cbadv::{config, rest};
 
 #[tokio::main]
 async fn main() {
@@ -14,7 +14,7 @@ async fn main() {
     let config = config::load("config.toml").unwrap();
 
     // Create a client to interact with the API.
-    let client = client::new(&config.cb_api_key, &config.cb_api_secret);
+    let client = rest::Client::new(&config.cb_api_key, &config.cb_api_secret);
 
     if create_trade {
         println!("Creating Order for {}.", product_pair);
@@ -71,7 +71,7 @@ async fn main() {
             // Cancel the orders.
             if cancel_open_orders && order_ids.len() > 0 {
                 println!("\n\nCancelling open orders.");
-                match client.order.cancel(order_ids).await {
+                match client.order.cancel(&order_ids).await {
                     Ok(summary) => println!("Order cancel result: {:#?}", summary),
                     Err(error) => println!("Unable to cancel order: {}", error),
                 }

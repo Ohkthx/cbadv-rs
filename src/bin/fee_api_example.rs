@@ -1,5 +1,5 @@
 use cbadv::fee::TransactionSummaryParams;
-use cbadv::{client, config};
+use cbadv::{config, rest};
 
 #[tokio::main]
 async fn main() {
@@ -7,7 +7,7 @@ async fn main() {
     let config = config::load("config.toml").unwrap();
 
     // Create a client to interact with the API.
-    let client = client::new(&config.cb_api_key, &config.cb_api_secret);
+    let client = rest::Client::new(&config.cb_api_key, &config.cb_api_secret);
 
     // Parameters to send to the API.
     let params = TransactionSummaryParams::default();

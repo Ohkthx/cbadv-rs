@@ -9,10 +9,11 @@
 //! contributions.
 
 pub mod account;
-pub mod client;
 pub mod config;
 pub mod fee;
 pub mod order;
 pub mod product;
+pub mod rest;
 pub mod time;
 pub mod utils;
+pub mod websocket;
