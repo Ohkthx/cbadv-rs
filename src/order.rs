@@ -320,8 +320,8 @@ impl ListOrdersParams {
 
         params = match &self.order_status {
             Some(v) => {
-                let statuses: String = v.iter().map(|s| s.to_string() + ",").collect();
-                format!("{}&order_status={}", params, statuses)
+                let statuses: String = v.iter().map(|s| format!("&order_status={s}")).collect();
+                format!("{}{}", params, statuses)
             }
             _ => params,
         };
