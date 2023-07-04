@@ -1,6 +1,7 @@
-use cbadv::config;
 use cbadv::utils::Result;
 use cbadv::websocket::{Channel, Client, Message};
+use cbadv::{config, websocket};
+use tokio;
 
 /// This is used to parse messages. It is passed to the `listen` function to pull Messages out of
 /// the stream.
@@ -32,7 +33,8 @@ async fn main() {
 
     // Connect to the websocket, a subscription needs to be sent within 5 seconds.
     // If a subscription is not sent, Coinbase will close the connection.
-    client.connect().await.unwrap();
+    let reader = client.connect().await.unwrap();
+    let future = tokio::spawn(websocket::listener(reader, parser_callback));
 
     // Products of interest.
     let products = vec!["BTC-USD".to_string(), "ETH-USD".to_string()];
@@ -50,6 +52,5 @@ async fn main() {
         .unwrap();
 
     // Passes the parser callback and listens for messages.
-    client.listen(parser_callback).await.unwrap();
-    let _ = client.close().await;
+    future.await.unwrap().unwrap();
 }

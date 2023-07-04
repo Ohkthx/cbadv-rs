@@ -1,4 +1,4 @@
-use cbadv::order::{ListOrdersParams, OrderSide};
+use cbadv::order::{ListOrdersQuery, OrderSide};
 use cbadv::{config, rest};
 
 #[tokio::main]
@@ -42,14 +42,14 @@ async fn main() {
 
     // Get all BUYING orders.
     let mut order_id = "".to_string();
-    let params = ListOrdersParams {
+    let query = ListOrdersQuery {
         product_id: Some(product_pair.to_string()),
         order_side: Some(OrderSide::SELL),
         ..Default::default()
     };
 
     println!("\n\nObtaining Orders.");
-    match client.order.get_bulk(&params).await {
+    match client.order.get_bulk(&query).await {
         Ok(orders) => {
             println!("Orders obtained: {:#?}", orders.orders.len());
             match orders.orders.get(0) {

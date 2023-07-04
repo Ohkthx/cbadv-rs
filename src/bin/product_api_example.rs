@@ -1,4 +1,4 @@
-use cbadv::product::{ListProductsParams, TickerParams};
+use cbadv::product::{ListProductsQuery, TickerQuery};
 use cbadv::time;
 use cbadv::{config, rest};
 
@@ -38,14 +38,14 @@ async fn main() {
     }
 
     println!("\n\nGetting multiple products.");
-    let params = ListProductsParams {
+    let query = ListProductsQuery {
         limit: Some(5),
         product_ids: Some(vec!["BTC-USD".to_string()]),
         ..Default::default()
     };
 
     // Pull multiple products from the Product API.
-    match client.product.get_bulk(&params).await {
+    match client.product.get_bulk(&query).await {
         Ok(products) => println!("{:#?}", products),
         Err(error) => println!("Unable to get products: {}", error),
     }
@@ -69,8 +69,8 @@ async fn main() {
 
     // Pull ticker.
     println!("\n\nGetting ticker for: {}.", product_pair);
-    let params = TickerParams { limit: 200 };
-    match client.product.ticker(product_pair.clone(), &params).await {
+    let query = TickerQuery { limit: 200 };
+    match client.product.ticker(product_pair.clone(), &query).await {
         Ok(ticker) => {
             println!(
                 "best bid: {:#?}\nbest ask: {:#?}\ntrades: {:#?}",

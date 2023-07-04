@@ -1,26 +1,22 @@
 <p align="center">
-    <a href="https://ko-fi.com/G2G0J79MY" title="Donate to this project using Ko-fi">
-        <img src="https://img.shields.io/badge/donate-black?style=for-the-badge&logo=kofi&logoColor=cba6f7&label=KOFI&labelColor=11111b&color=cba6f7"
-            alt="Buy me a coffee! Ko-fi"></a>
-    <a href="https://www.blockchain.com/explorer/addresses/btc/bc1q75w3cgutug8qdxw3jlmqnkjlv9alt3jr7ftha0" title="Donate with Bitcoin!">
-        <img src="https://img.shields.io/badge/donate-black?style=for-the-badge&logo=bitcoin&logoColor=f38ba8&label=BTC&labelColor=11111b&color=f38ba8"
+    <a href="https://github.com/Ohkthx/cbadv-rs#tips-appreciated" title="Donate with Bitcoin!">
+        <img src="https://img.shields.io/badge/donate-black?style=for-the-badge&logo=bitcoin&logoColor=f38ba8&label=BITCOIN&labelColor=11111b&color=f38ba8"
             alt="Donate with Bitcoin!"></a>
-    <a href="https://etherscan.io/address/0x7d75f6a9c021fcc70691fec73368198823fb0f60" title="Donate with Ethereum!">
-        <img src="https://img.shields.io/badge/donate-black?style=for-the-badge&logo=ethereum&logoColor=fab387&label=ETH&labelColor=11111b&color=fab387"
+    <a href="https://github.com/Ohkthx/cbadv-rs#tips-appreciated" title="Donate with Ethereum!">
+        <img src="https://img.shields.io/badge/donate-black?style=for-the-badge&logo=ethereum&logoColor=fab387&label=ETHEREUM&labelColor=11111b&color=fab387"
             alt="Donate with Ethereum!"></a>
-    <a href="https://bscscan.com/address/0x7d75f6a9c021fcc70691fec73368198823fb0f60" title="Donate with BNB (Binance)!">
-        <img src="https://img.shields.io/badge/donate-black?style=for-the-badge&logo=binance&logoColor=f9e2af&label=BNB&labelColor=11111b&color=f9e2af"
+    <a href="https://github.com/Ohkthx/cbadv-rs#tips-appreciated" title="Donate with BNB (Binance)!">
+        <img src="https://img.shields.io/badge/donate-black?style=for-the-badge&logo=binance&logoColor=f9e2af&label=BINANCE&labelColor=11111b&color=f9e2af"
             alt="Donate with BNB!"></a>
 <br>
+    <a href="https://crates.io/crates/cbadv" title="crates.io version.">
+        <img src="https://img.shields.io/crates/v/cbadv?style=for-the-badge&logoColor=89b4fa&labelColor=11111b&color=89b4fa"
+            alt="crates.io version"></a>
     <a href="https://crates.io/crates/cbadv" title="crates.io download counter.">
-        <img src="https://img.shields.io/crates/d/cbadv?style=for-the-badge&logoColor=89b4fa&labelColor=11111b&color=89b4fa"
+        <img src="https://img.shields.io/crates/d/cbadv?style=for-the-badge&logoColor=89dceb&labelColor=11111b&color=89dceb"
             alt="crates.io downloads"></a>
-    <a href="https://github.com/ohkthx/xIPL" title="Size of the repo!">
-        <img src="https://img.shields.io/github/repo-size/Ohkthx/cbadv-rs?style=for-the-badge&logo=codesandbox&logoColor=89dceb&labelColor=11111b&color=89dceb"
-            alt="No data."></a>
-    <a href="https://github.com/ohkthx/xIPL" title="Lines of code.">
-        <img src="https://img.shields.io/tokei/lines/GitHub/Ohkthx/cbadv-rs?style=for-the-badge&logo=circle&logoColor=a6e3a1&labelColor=11111b&color=a6e3a1"
-            alt="No data."></a>
+    <a href="https://github.com/ohkthx/cbadv-rs" title="Size of the repo!">
+        <img src="https://img.shields.io/github/repo-size/Ohkthx/cbadv-rs?style=for-the-badge&logoColor=a6e3a1&labelColor=11111b&color=a6e3a1"
 </p>
 
 # cbadv-rs, Coinbase Advanced API

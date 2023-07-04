@@ -287,7 +287,7 @@ struct OrderStatusResponse {
 /// Represents parameters that are optional for List Orders API request.
 #[allow(dead_code)]
 #[derive(Serialize, Default, Debug)]
-pub struct ListOrdersParams {
+pub struct ListOrdersQuery {
     /// Optional string of the product ID. Defaults to null, or fetch for all products.
     pub product_id: Option<String>,
     /// Note: Cannot pair OPEN orders with other order types.
@@ -308,62 +308,62 @@ pub struct ListOrdersParams {
     pub product_type: Option<String>,
 }
 
-impl ListOrdersParams {
+impl fmt::Display for ListOrdersQuery {
     /// Converts the object into HTTP request parameters.
-    pub fn to_params(&self) -> String {
-        let mut params: String = "".to_string();
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let mut query: String = "".to_string();
 
-        params = match &self.product_id {
-            Some(v) => format!("{}&product_id={}", params, v),
-            _ => params,
+        query = match &self.product_id {
+            Some(v) => format!("{}&product_id={}", query, v),
+            _ => query,
         };
 
-        params = match &self.order_status {
+        query = match &self.order_status {
             Some(v) => {
                 let statuses: String = v.iter().map(|s| format!("&order_status={s}")).collect();
-                format!("{}{}", params, statuses)
+                format!("{}{}", query, statuses)
             }
-            _ => params,
+            _ => query,
         };
 
-        params = match &self.limit {
-            Some(v) => format!("{}&limit={}", params, v),
-            _ => params,
+        query = match &self.limit {
+            Some(v) => format!("{}&limit={}", query, v),
+            _ => query,
         };
 
-        params = match &self.start_date {
-            Some(v) => format!("{}&start_date={}", params, v),
-            _ => params,
+        query = match &self.start_date {
+            Some(v) => format!("{}&start_date={}", query, v),
+            _ => query,
         };
 
-        params = match &self.end_date {
-            Some(v) => format!("{}&end_date={}", params, v),
-            _ => params,
+        query = match &self.end_date {
+            Some(v) => format!("{}&end_date={}", query, v),
+            _ => query,
         };
 
-        params = match &self.order_type {
-            Some(v) => format!("{}&order_type={}", params, v),
-            _ => params,
+        query = match &self.order_type {
+            Some(v) => format!("{}&order_type={}", query, v),
+            _ => query,
         };
 
-        params = match &self.order_side {
-            Some(v) => format!("{}&order_side={}", params, v),
-            _ => params,
+        query = match &self.order_side {
+            Some(v) => format!("{}&order_side={}", query, v),
+            _ => query,
         };
 
-        params = match &self.cursor {
-            Some(v) => format!("{}&cursor={}", params, v),
-            _ => params,
+        query = match &self.cursor {
+            Some(v) => format!("{}&cursor={}", query, v),
+            _ => query,
         };
 
-        params = match &self.product_type {
-            Some(v) => format!("{}&product_type={}", params, v),
-            _ => params,
+        query = match &self.product_type {
+            Some(v) => format!("{}&product_type={}", query, v),
+            _ => query,
         };
 
-        match params.is_empty() {
-            true => params,
-            false => params[1..].to_string(),
+        match query.is_empty() {
+            true => write!(f, ""),
+            false => write!(f, "{}", query[1..].to_string()),
         }
     }
 }
@@ -371,7 +371,7 @@ impl ListOrdersParams {
 /// Represents parameters that are optional for List Fills API request.
 #[allow(dead_code)]
 #[derive(Serialize, Default, Debug)]
-pub struct ListFillsParams {
+pub struct ListFillsQuery {
     /// ID of the order.
     pub order_id: Option<String>,
     /// The ID of the product this order was created for.
@@ -386,44 +386,44 @@ pub struct ListFillsParams {
     pub cursor: Option<String>,
 }
 
-impl ListFillsParams {
+impl fmt::Display for ListFillsQuery {
     /// Converts the object into HTTP request parameters.
-    pub fn to_params(&self) -> String {
-        let mut params: String = "".to_string();
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let mut query: String = "".to_string();
 
-        params = match &self.order_id {
-            Some(v) => format!("{}&order_id={}", params, v),
-            _ => params,
+        query = match &self.order_id {
+            Some(v) => format!("{}&order_id={}", query, v),
+            _ => query,
         };
 
-        params = match &self.product_id {
-            Some(v) => format!("{}&product_id={}", params, v),
-            _ => params,
+        query = match &self.product_id {
+            Some(v) => format!("{}&product_id={}", query, v),
+            _ => query,
         };
 
-        params = match &self.start_sequence_timestamp {
-            Some(v) => format!("{}&start_sequence_timestamp={}", params, v),
-            _ => params,
+        query = match &self.start_sequence_timestamp {
+            Some(v) => format!("{}&start_sequence_timestamp={}", query, v),
+            _ => query,
         };
 
-        params = match &self.end_sequence_timestamp {
-            Some(v) => format!("{}&end_sequence_timestamp={}", params, v),
-            _ => params,
+        query = match &self.end_sequence_timestamp {
+            Some(v) => format!("{}&end_sequence_timestamp={}", query, v),
+            _ => query,
         };
 
-        params = match &self.limit {
-            Some(v) => format!("{}&limit={}", params, v),
-            _ => params,
+        query = match &self.limit {
+            Some(v) => format!("{}&limit={}", query, v),
+            _ => query,
         };
 
-        params = match &self.cursor {
-            Some(v) => format!("{}&cursor={}", params, v),
-            _ => params,
+        query = match &self.cursor {
+            Some(v) => format!("{}&cursor={}", query, v),
+            _ => query,
         };
 
-        match params.is_empty() {
-            true => params,
-            false => params[1..].to_string(),
+        match query.is_empty() {
+            true => write!(f, ""),
+            false => write!(f, "{}", query[1..].to_string()),
         }
     }
 }
@@ -483,14 +483,14 @@ impl OrderAPI {
     ///
     /// * `product_id` - Product to cancel all OPEN orders for.
     pub async fn cancel_all(&self, product_id: &str) -> Result<Vec<OrderResponse>> {
-        let params = ListOrdersParams {
+        let query = ListOrdersQuery {
             product_id: Some(product_id.to_string()),
             order_status: Some(vec![OrderStatus::OPEN]),
             ..Default::default()
         };
 
         // Obtain all open orders.
-        match self.get_all(product_id, Some(params)).await {
+        match self.get_all(product_id, Some(query)).await {
             Ok(orders) => {
                 // Build list of orders to cancel.
                 let order_ids: Vec<String> = orders.iter().map(|o| o.order_id.clone()).collect();
@@ -776,7 +776,7 @@ impl OrderAPI {
 
     /// Obtains various orders from the API.
     ///
-    /// * `params` - A Parameters to modify what is returned by the API.
+    /// * `query` - A Parameters to modify what is returned by the API.
     ///
     /// # Endpoint / Reference
     ///
@@ -784,9 +784,9 @@ impl OrderAPI {
     /// https://api.coinbase.com/api/v3/brokerage/orders/historical
     ///
     /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_gethistoricalorders>
-    pub async fn get_bulk(&self, params: &ListOrdersParams) -> Result<ListedOrders> {
+    pub async fn get_bulk(&self, query: &ListOrdersQuery) -> Result<ListedOrders> {
         let resource = format!("{}/historical/batch", Self::RESOURCE);
-        match self.signer.get(&resource, &params.to_params()).await {
+        match self.signer.get(&resource, &query.to_string()).await {
             Ok(value) => match value.json::<ListedOrders>().await {
                 Ok(resp) => Ok(resp),
                 Err(_) => Err(CBAdvError::BadParse(
@@ -807,28 +807,28 @@ impl OrderAPI {
     /// # Arguments
     ///
     /// * `product_id` - Identifier for the account, such as BTC-USD or ETH-USD.
-    /// * `params` - Optional parameters, should default to None unless you want additional control.
+    /// * `query` - Optional parameters, should default to None unless you want additional control.
     pub async fn get_all(
         &self,
         product_id: &str,
-        params: Option<ListOrdersParams>,
+        query: Option<ListOrdersQuery>,
     ) -> Result<Vec<Order>> {
-        let mut params = match params {
+        let mut query = match query {
             Some(p) => p,
-            None => ListOrdersParams::default(),
+            None => ListOrdersQuery::default(),
         };
 
         // Override product ID.
-        params.product_id = Some(product_id.to_string());
+        query.product_id = Some(product_id.to_string());
         let mut orders: Vec<Order> = vec![];
         let mut has_next: bool = true;
 
         // Get the orders until there is not a next.
         while has_next {
-            match self.get_bulk(&params).await {
+            match self.get_bulk(&query).await {
                 Ok(listed) => {
                     has_next = listed.has_next;
-                    params.cursor = Some(listed.cursor);
+                    query.cursor = Some(listed.cursor);
                     orders.extend(listed.orders);
                 }
                 Err(error) => return Err(error),
@@ -840,7 +840,7 @@ impl OrderAPI {
 
     /// Obtains fills from the API.
     ///
-    /// * `params` - A Parameters to modify what is returned by the API.
+    /// * `query` - A Parameters to modify what is returned by the API.
     ///
     /// # Endpoint / Reference
     ///
@@ -848,9 +848,9 @@ impl OrderAPI {
     /// https://api.coinbase.com/api/v3/brokerage/orders/historical/fills
     ///
     /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getfills>
-    pub async fn fills(&self, params: &ListFillsParams) -> Result<ListedFills> {
+    pub async fn fills(&self, query: &ListFillsQuery) -> Result<ListedFills> {
         let resource = format!("{}/historical/fills", Self::RESOURCE);
-        match self.signer.get(&resource, &params.to_params()).await {
+        match self.signer.get(&resource, &query.to_string()).await {
             Ok(value) => match value.json::<ListedFills>().await {
                 Ok(resp) => Ok(resp),
                 Err(_) => Err(CBAdvError::BadParse(

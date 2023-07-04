@@ -135,16 +135,16 @@ impl Signer {
     /// # Arguments
     ///
     /// * `resource` - A string representing the resource that is being accessed.
-    /// * `params` - A string containing options / parameters for the URL.
-    pub async fn get(&self, resource: &str, params: &str) -> Result<Response> {
+    /// * `query` - A string containing options / parameters for the URL.
+    pub async fn get(&self, resource: &str, query: &str) -> Result<Response> {
         // Add the '?' to the beginning of the parameters if not empty.
-        let prefix = match params.is_empty() {
+        let prefix = match query.is_empty() {
             true => "",
             false => "?",
         };
 
         // Create the full URL being accessed.
-        let target = format!("{}{}", prefix, params);
+        let target = format!("{}{}", prefix, query);
         let url = format!("{}{}{}", ROOT_URI, resource, target);
 
         // Create the signature and submit the request.
@@ -174,22 +174,22 @@ impl Signer {
     /// # Arguments
     ///
     /// * `resource` - A string representing the resource that is being accessed.
-    /// * `params` - A string containing options / parameters for the URL.
+    /// * `query` - A string containing options / parameters for the URL.
     /// * `body` - An object to send to the URL via POST request.
     pub async fn post<T: Serialize>(
         &self,
         resource: &str,
-        params: &str,
+        query: &str,
         body: T,
     ) -> Result<Response> {
         // Add the '?' to the beginning of the parameters if not empty.
-        let prefix = match params.is_empty() {
+        let prefix = match query.is_empty() {
             true => "",
             false => "?",
         };
 
         // Create the full URL being accessed.
-        let target = format!("{}{}", prefix, params);
+        let target = format!("{}{}", prefix, query);
         let url = format!("{}{}{}", ROOT_URI, resource, target);
 
         // Create the signature and submit the request.

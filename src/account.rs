@@ -6,6 +6,7 @@
 use crate::utils::{CBAdvError, Result, Signer};
 use async_recursion::async_recursion;
 use serde::{Deserialize, Serialize};
+use std::fmt;
 
 /// Represents a Balance for either Available or Held funds.
 #[allow(dead_code)]
@@ -53,31 +54,31 @@ struct AccountResponse {
 /// Represents parameters that are optional for List Account API request.
 #[allow(dead_code)]
 #[derive(Serialize, Default, Debug)]
-pub struct ListAccountsParams {
+pub struct ListAccountsQuery {
     /// Amount to obtain, default 49 maximum is 250.
     pub limit: Option<i32>,
     /// Returns accounts after the cursor provided.
     pub cursor: Option<String>,
 }
 
-impl ListAccountsParams {
+impl fmt::Display for ListAccountsQuery {
     /// Converts the object into HTTP request parameters.
-    pub fn to_params(&self) -> String {
-        let mut params: String = "".to_string();
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let mut query: String = "".to_string();
 
-        params = match &self.limit {
-            Some(v) => format!("{}&limit={}", params, v),
-            _ => params,
+        query = match &self.limit {
+            Some(v) => format!("{}&limit={}", query, v),
+            _ => query,
         };
 
-        params = match &self.cursor {
-            Some(v) => format!("{}&cursor={}", params, v),
-            _ => params,
+        query = match &self.cursor {
+            Some(v) => format!("{}&cursor={}", query, v),
+            _ => query,
         };
 
-        match params.is_empty() {
-            true => params,
-            false => params[1..].to_string(),
+        match query.is_empty() {
+            true => write!(f, ""),
+            false => write!(f, "{}", query[1..].to_string()),
         }
     }
 }
@@ -136,15 +137,15 @@ impl AccountAPI {
     /// # Arguments
     ///
     /// * `id` - Identifier for the account, such as BTC or ETH.
-    /// * `params` - Optional parameters, should default to None unless you want additional control.
+    /// * `query` - Optional parameters, should default to None unless you want additional control.
     #[async_recursion]
-    pub async fn get_by_id(&self, id: &str, params: Option<ListAccountsParams>) -> Result<Account> {
-        let mut params = match params {
+    pub async fn get_by_id(&self, id: &str, query: Option<ListAccountsQuery>) -> Result<Account> {
+        let mut query = match query {
             Some(p) => p,
-            None => ListAccountsParams::default(),
+            None => ListAccountsQuery::default(),
         };
 
-        match self.get_bulk(&params).await {
+        match self.get_bulk(&query).await {
             Ok(mut listed) => {
                 // Find the index.
                 match listed.accounts.iter().position(|r| r.currency == id) {
@@ -156,8 +157,8 @@ impl AccountAPI {
                         }
 
                         // Make another request to the API for the account.
-                        params.cursor = Some(listed.cursor);
-                        self.get_by_id(id, Some(params)).await
+                        query.cursor = Some(listed.cursor);
+                        self.get_by_id(id, Some(query)).await
                     }
                 }
             }
@@ -173,8 +174,8 @@ impl AccountAPI {
     /// https://api.coinbase.com/api/v3/brokerage/accounts
     ///
     /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getaccounts>
-    pub async fn get_bulk(&self, params: &ListAccountsParams) -> Result<ListedAccounts> {
-        match self.signer.get(Self::RESOURCE, &params.to_params()).await {
+    pub async fn get_bulk(&self, query: &ListAccountsQuery) -> Result<ListedAccounts> {
+        match self.signer.get(Self::RESOURCE, &query.to_string()).await {
             Ok(value) => match value.json::<ListedAccounts>().await {
                 Ok(resp) => Ok(resp),
                 Err(_) => Err(CBAdvError::BadParse("accounts vector".to_string())),

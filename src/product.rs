@@ -7,6 +7,7 @@
 use crate::time;
 use crate::utils::{CBAdvError, Result, Signer};
 use serde::{Deserialize, Serialize};
+use std::fmt;
 
 /// Represents a Product received from the Websocket API.
 #[allow(dead_code)]
@@ -174,7 +175,7 @@ struct ProductBookResponse {
 /// Represents parameters that are optional for List Products API request.
 #[allow(dead_code)]
 #[derive(Serialize, Default, Debug)]
-pub struct ListProductsParams {
+pub struct ListProductsQuery {
     /// A limit describing how many products to return.
     pub limit: Option<i32>,
     /// Number of products to offset before returning.
@@ -185,34 +186,34 @@ pub struct ListProductsParams {
     pub product_ids: Option<Vec<String>>,
 }
 
-impl ListProductsParams {
+impl fmt::Display for ListProductsQuery {
     /// Converts the object into HTTP request parameters.
-    pub fn to_params(&self) -> String {
-        let mut params: String = "".to_string();
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let mut query: String = "".to_string();
 
-        params = match &self.limit {
-            Some(v) => format!("{}&limit={}", params, v),
-            _ => params,
+        query = match &self.limit {
+            Some(v) => format!("{}&limit={}", query, v),
+            _ => query,
         };
 
-        params = match &self.offset {
-            Some(v) => format!("{}&offset={}", params, v),
-            _ => params,
+        query = match &self.offset {
+            Some(v) => format!("{}&offset={}", query, v),
+            _ => query,
         };
 
-        params = match &self.product_type {
-            Some(v) => format!("{}&product_type={}", params, v),
-            _ => params,
+        query = match &self.product_type {
+            Some(v) => format!("{}&product_type={}", query, v),
+            _ => query,
         };
 
-        params = match &self.product_ids {
-            Some(v) => format!("{}&product_ids={}", params, v.join("&product_ids=")),
-            _ => params,
+        query = match &self.product_ids {
+            Some(v) => format!("{}&product_ids={}", query, v.join("&product_ids=")),
+            _ => query,
         };
 
-        match params.is_empty() {
-            true => params,
-            false => params[1..].to_string(),
+        match query.is_empty() {
+            true => write!(f, ""),
+            false => write!(f, "{}", query[1..].to_string()),
         }
     }
 }
@@ -220,15 +221,15 @@ impl ListProductsParams {
 /// Represents parameters for Ticker Product API request.
 #[allow(dead_code)]
 #[derive(Serialize, Debug)]
-pub struct TickerParams {
+pub struct TickerQuery {
     /// Number of trades to return.
     pub limit: i32,
 }
 
-impl TickerParams {
+impl fmt::Display for TickerQuery {
     /// Converts the object into HTTP request parameters.
-    pub fn to_params(&self) -> String {
-        format!("limit={}", self.limit)
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "limit={}", self.limit)
     }
 }
 
@@ -266,9 +267,9 @@ impl ProductAPI {
     /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getbestbidask>
     pub async fn best_bid_ask(&self, product_ids: Vec<String>) -> Result<Vec<ProductBook>> {
         let resource = "/api/v3/brokerage/best_bid_ask";
-        let params = format!("product_ids={}", product_ids.join("&product_ids="));
+        let query = format!("product_ids={}", product_ids.join("&product_ids="));
 
-        match self.signer.get(resource, &params).await {
+        match self.signer.get(resource, &query).await {
             Ok(value) => match value.json::<BidAskResponse>().await {
                 Ok(bidasks) => Ok(bidasks.pricebooks),
                 Err(_) => Err(CBAdvError::BadParse("bid asks object".to_string())),
@@ -292,9 +293,9 @@ impl ProductAPI {
     /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getproductbook>
     pub async fn product_book(&self, product_id: &str, limit: Option<u16>) -> Result<ProductBook> {
         let resource = "/api/v3/brokerage/product_book";
-        let params = format!("product_id={}&limit={}", product_id, limit.unwrap_or(250));
+        let query = format!("product_id={}&limit={}", product_id, limit.unwrap_or(250));
 
-        match self.signer.get(resource, &params).await {
+        match self.signer.get(resource, &query).await {
             Ok(value) => match value.json::<ProductBookResponse>().await {
                 Ok(book) => Ok(book.pricebook),
                 Err(_) => Err(CBAdvError::BadParse("product book object".to_string())),
@@ -334,8 +335,8 @@ impl ProductAPI {
     /// https://api.coinbase.com/api/v3/brokerage/products
     ///
     /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getproducts>
-    pub async fn get_bulk(&self, params: &ListProductsParams) -> Result<Vec<Product>> {
-        match self.signer.get(Self::RESOURCE, &params.to_params()).await {
+    pub async fn get_bulk(&self, query: &ListProductsQuery) -> Result<Vec<Product>> {
+        match self.signer.get(Self::RESOURCE, &query.to_string()).await {
             Ok(value) => match value.json::<ListProductsResponse>().await {
                 Ok(resp) => Ok(resp.products),
                 Err(_) => Err(CBAdvError::BadParse("products vector".to_string())),
@@ -352,9 +353,9 @@ impl ProductAPI {
     /// https://api.coinbase.com/api/v3/brokerage/products/{product_id}/candles
     ///
     /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getcandles>
-    pub async fn candles(&self, product_id: &str, params: &time::Span) -> Result<Vec<Candle>> {
+    pub async fn candles(&self, product_id: &str, query: &time::Span) -> Result<Vec<Candle>> {
         let resource = format!("{}/{}/candles", Self::RESOURCE, product_id);
-        match self.signer.get(&resource, &params.to_params()).await {
+        match self.signer.get(&resource, &query.to_string()).await {
             Ok(value) => match value.json::<CandleResponse>().await {
                 Ok(resp) => Ok(resp.candles),
                 Err(_) => Err(CBAdvError::BadParse("candle object".to_string())),
@@ -371,9 +372,9 @@ impl ProductAPI {
     /// https://api.coinbase.com/api/v3/brokerage/products/{product_id}/ticker
     ///
     /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getmarkettrades>
-    pub async fn ticker(&self, product_id: &str, params: &TickerParams) -> Result<Ticker> {
+    pub async fn ticker(&self, product_id: &str, query: &TickerQuery) -> Result<Ticker> {
         let resource = format!("{}/{}/ticker", Self::RESOURCE, product_id);
-        match self.signer.get(&resource, &params.to_params()).await {
+        match self.signer.get(&resource, &query.to_string()).await {
             Ok(value) => match value.json::<Ticker>().await {
                 Ok(resp) => Ok(resp),
                 Err(_) => Err(CBAdvError::BadParse("ticker object".to_string())),

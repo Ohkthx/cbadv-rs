@@ -5,6 +5,7 @@
 
 use crate::utils::{CBAdvError, Result, Signer};
 use serde::{Deserialize, Serialize};
+use std::fmt;
 
 #[allow(dead_code)]
 #[derive(Serialize, Deserialize, Debug)]
@@ -47,7 +48,7 @@ pub struct TransactionSummary {
 /// Represents parameters that are optional for transaction summary API request.
 #[allow(dead_code)]
 #[derive(Serialize, Default, Debug)]
-pub struct TransactionSummaryParams {
+pub struct TransactionSummaryQuery {
     pub start_date: Option<String>,
     pub end_date: Option<String>,
     /// String of the users native currency, default is USD.
@@ -56,34 +57,34 @@ pub struct TransactionSummaryParams {
     pub product_type: Option<String>,
 }
 
-impl TransactionSummaryParams {
+impl fmt::Display for TransactionSummaryQuery {
     /// Converts the object into HTTP request parameters.
-    pub fn to_params(&self) -> String {
-        let mut params: String = "".to_string();
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let mut query: String = "".to_string();
 
-        params = match &self.start_date {
-            Some(v) => format!("{}&start_date={}", params, v),
-            _ => params,
+        query = match &self.start_date {
+            Some(v) => format!("{}&start_date={}", query, v),
+            _ => query,
         };
 
-        params = match &self.end_date {
-            Some(v) => format!("{}&end_date={}", params, v),
-            _ => params,
+        query = match &self.end_date {
+            Some(v) => format!("{}&end_date={}", query, v),
+            _ => query,
         };
 
-        params = match &self.user_native_currency {
-            Some(v) => format!("{}&user_native_currency={}", params, v),
-            _ => params,
+        query = match &self.user_native_currency {
+            Some(v) => format!("{}&user_native_currency={}", query, v),
+            _ => query,
         };
 
-        params = match &self.product_type {
-            Some(v) => format!("{}&product_type={}", params, v),
-            _ => params,
+        query = match &self.product_type {
+            Some(v) => format!("{}&product_type={}", query, v),
+            _ => query,
         };
 
-        match params.is_empty() {
-            true => params,
-            false => params[1..].to_string(),
+        match query.is_empty() {
+            true => write!(f, ""),
+            false => write!(f, "{}", query[1..].to_string()),
         }
     }
 }
@@ -111,7 +112,7 @@ impl FeeAPI {
     ///
     /// # Arguments
     ///
-    /// * `params` - Optional paramaters used to modify the resulting scope of the
+    /// * `query` - Optional paramaters used to modify the resulting scope of the
     /// summary.
     ///
     /// # Endpoint / Reference
@@ -120,8 +121,8 @@ impl FeeAPI {
     /// https://api.coinbase.com/api/v3/brokerage/transaction_summary
     ///
     /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_gettransactionsummary>
-    pub async fn get(&self, params: &TransactionSummaryParams) -> Result<TransactionSummary> {
-        match self.signer.get(Self::RESOURCE, &params.to_params()).await {
+    pub async fn get(&self, query: &TransactionSummaryQuery) -> Result<TransactionSummary> {
+        match self.signer.get(Self::RESOURCE, &query.to_string()).await {
             Ok(value) => match value.json::<TransactionSummary>().await {
                 Ok(resp) => Ok(resp),
                 Err(_) => Err(CBAdvError::BadParse("fee summary object".to_string())),

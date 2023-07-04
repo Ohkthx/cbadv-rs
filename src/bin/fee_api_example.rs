@@ -1,4 +1,4 @@
-use cbadv::fee::TransactionSummaryParams;
+use cbadv::fee::TransactionSummaryQuery;
 use cbadv::{config, rest};
 
 #[tokio::main]
@@ -10,7 +10,7 @@ async fn main() {
     let client = rest::Client::new(&config.cb_api_key, &config.cb_api_secret);
 
     // Parameters to send to the API.
-    let params = TransactionSummaryParams::default();
+    let params = TransactionSummaryQuery::default();
 
     // Get fee transaction summary.
     println!("Obtaining Transaction Fee Summary");

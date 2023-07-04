@@ -4,6 +4,7 @@
 //! spans of time such as in the Product API for obtaining Candles.
 
 use serde::Serialize;
+use std::fmt;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 /// One minute of time in seconds.
@@ -106,10 +107,11 @@ impl Span {
             granularity: granularity_sec,
         }
     }
+}
 
-    /// Gets the time span in a parameter format.
-    pub fn to_params(&self) -> String {
-        // First convert Granularity to the string format.
+impl fmt::Display for Span {
+    /// Converts the object into HTTP request parameters.
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let granularity = Granularity::from_seconds(self.granularity);
         let granularity_str: &str = match granularity {
             Granularity::OneMinute => "ONE_MINUTE",
@@ -126,7 +128,8 @@ impl Span {
             Granularity::UnknownGranularity => "UNKNOWN_GRANULARITY",
         };
 
-        format!(
+        write!(
+            f,
             "start={}&end={}&granularity={}",
             self.start, self.end, granularity_str
         )

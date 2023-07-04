@@ -9,11 +9,11 @@ use crate::product::{MarketTradesUpdate, ProductUpdate, TickerUpdate};
 use crate::time;
 use crate::utils::{CBAdvError, Result, Signer};
 
+use futures_util::stream::{SplitSink, SplitStream};
 use futures_util::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use tokio::net::TcpStream;
-use tokio_tungstenite::tungstenite::handshake::client::Response;
 use tokio_tungstenite::{connect_async, tungstenite, MaybeTlsStream, WebSocketStream};
 
 type Socket = WebSocketStream<MaybeTlsStream<TcpStream>>;
@@ -247,8 +247,10 @@ struct Subscription {
 /// the WebSocket.
 #[allow(dead_code)]
 pub struct Client {
+    /// Signs the messages sent.
     signer: Signer,
-    pub socket: Option<(Socket, Response)>,
+    /// Writes data to the stream, gets sent to the API.
+    pub socket_tx: Option<SplitSink<Socket, tungstenite::Message>>,
 }
 
 impl Client {
@@ -265,35 +267,22 @@ impl Client {
     pub fn new(key: &str, secret: &str) -> Self {
         Self {
             signer: Signer::new(key.to_string(), secret.to_string()),
-            socket: None,
+            socket_tx: None,
         }
     }
 
     /// Connects to the WebSocket. This is required before subscribing, unsubscribing, and
-    /// listening for updates.
-    pub async fn connect(&mut self) -> Result<()> {
+    /// listening for updates. A reader is returned to allow for `listener` to parse events.
+    pub async fn connect(&mut self) -> Result<SplitStream<Socket>> {
         match connect_async(Self::RESOURCE).await {
-            Ok(response) => {
-                self.socket = Some(response);
-                Ok(())
+            Ok((socket, _)) => {
+                let (sink, stream) = socket.split();
+                self.socket_tx = Some(sink);
+                Ok(stream)
             }
             Err(_) => Err(CBAdvError::BadConnection(
                 "unable to get handshake".to_string(),
             )),
-        }
-    }
-
-    /// Closes the WebSocket entirely.
-    pub async fn close(&mut self) -> Result<()> {
-        match self.socket {
-            None => Err(CBAdvError::BadConnection(
-                "need to connect first.".to_string(),
-            )),
-
-            Some((ref mut socket, _)) => {
-                let _ = socket.close(None).await;
-                Ok(())
-            }
         }
     }
 
@@ -304,36 +293,26 @@ impl Client {
     ///
     /// # Arguments
     ///
+    /// * `reader` - Allows the listener to receive messages. `Obtained from connect``.
     /// * `callback` - A callback function that is trigger and passed the Message received via
     /// WebSocket, if an error occurred.
-    pub async fn listen(&mut self, callback: Callback) -> Result<()> {
-        match self.socket {
-            None => Err(CBAdvError::BadConnection(
-                "need to connect first.".to_string(),
-            )),
+    pub async fn listener(reader: SplitStream<Socket>, callback: Callback) -> Result<()> {
+        // Read messages and send to the callback as they come in.
+        let read_future = reader.for_each(|message| async {
+            let data = message.unwrap().to_string();
 
-            Some((ref mut socket, _)) => {
-                // Get the read portion.
-                let (_, read) = socket.split();
-
-                // Read messages and send to the callback as they come in.
-                let read_future = read.for_each(|message| async {
-                    let data = message.unwrap().to_string();
-
-                    // Parse the message.
-                    match serde_json::from_str(&data) {
-                        Ok(message) => callback(Ok(message)),
-                        _ => callback(Err(CBAdvError::BadParse(format!(
-                            "unable to parse message: {}",
-                            data
-                        )))),
-                    }
-                });
-
-                read_future.await;
-                Ok(())
+            // Parse the message.
+            match serde_json::from_str(&data) {
+                Ok(message) => callback(Ok(message)),
+                _ => callback(Err(CBAdvError::BadParse(format!(
+                    "unable to parse message: {}",
+                    data
+                )))),
             }
-        }
+        });
+
+        read_future.await;
+        Ok(())
     }
 
     /// Updates the WebSocket with either additional subscriptions or unsubscriptions. This is
@@ -374,12 +353,12 @@ impl Client {
             signature,
         };
 
-        match self.socket {
+        match self.socket_tx {
             None => Err(CBAdvError::BadConnection(
                 "need to connect first.".to_string(),
             )),
 
-            Some((ref mut socket, _)) => {
+            Some(ref mut socket) => {
                 // Serialize and send the update to the API.
                 let body_str = serde_json::to_string(&sub).unwrap();
                 match socket.send(tungstenite::Message::text(body_str)).await {
@@ -412,4 +391,18 @@ impl Client {
     pub async fn unsubscribe(&mut self, channel: Channel, product_ids: &Vec<String>) -> Result<()> {
         self.update(channel, product_ids, false).await
     }
+}
+
+/// Starts the listener which returns Messages via a callback function provided by the user.
+/// This allows the user to get objects out of the WebSocket stream for additional processing.
+/// the WebSocket. If it is unable to parse an object received, the user is supplied
+/// CBAdvError::BadParse along with the data it failed to parse.
+///
+/// # Arguments
+///
+/// * `reader` - Allows the listener to receive messages. `Obtained from connect``.
+/// * `callback` - A callback function that is trigger and passed the Message received via
+/// WebSocket, if an error occurred.
+pub async fn listener(reader: SplitStream<Socket>, callback: Callback) -> Result<()> {
+    Client::listener(reader, callback).await
 }

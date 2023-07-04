@@ -1,4 +1,4 @@
-use cbadv::account::ListAccountsParams;
+use cbadv::account::ListAccountsQuery;
 use cbadv::{config, rest};
 
 #[tokio::main]
@@ -12,7 +12,7 @@ async fn main() {
     let client = rest::Client::new(&config.cb_api_key, &config.cb_api_secret);
 
     // Parameters to send to the API.
-    let params = ListAccountsParams {
+    let query = ListAccountsQuery {
         // limit: Some(50),
         ..Default::default()
     };
@@ -27,7 +27,7 @@ async fn main() {
     // Pull all accounts.
     println!("\n\nObtaining ALL Accounts.");
     let mut account_uuid = "".to_string();
-    match client.account.get_bulk(&params).await {
+    match client.account.get_bulk(&query).await {
         Ok(accounts) => {
             println!("Accounts obtained: {:#?}", accounts.accounts.len());
             for acct in accounts.accounts.iter() {
