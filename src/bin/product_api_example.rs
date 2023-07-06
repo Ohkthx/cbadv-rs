@@ -27,15 +27,16 @@ async fn main() {
         Err(error) => println!("Unable to get best bids and asks: {}", error),
     }
 
-    println!("\n\nGetting product book.");
-    match client
-        .product
-        .product_book(product_pair.clone(), None)
-        .await
-    {
-        Ok(book) => println!("{:#?}", book),
-        Err(error) => println!("Unable to get product book: {}", error),
-    }
+    // NOTE: Commented out due to large amounts of output.
+    // println!("\n\nGetting product book.");
+    // match client
+    //     .product
+    //     .product_book(product_pair.clone(), None)
+    //     .await
+    // {
+    //     Ok(book) => println!("{:#?}", book),
+    //     Err(error) => println!("Unable to get product book: {}", error),
+    // }
 
     println!("\n\nGetting multiple products.");
     let query = ListProductsQuery {

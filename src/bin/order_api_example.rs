@@ -6,8 +6,8 @@ async fn main() {
     let create_trade: bool = false;
     let cancel_open_orders: bool = false;
     let product_pair: &str = "DOT-USD";
-    let total_size: &str = "3.00";
-    let price: &str = "10.00";
+    let total_size: f64 = 3.00;
+    let price: f64 = 10.00;
     let side: &str = "SELL";
 
     // Load the configuration file.
@@ -20,7 +20,7 @@ async fn main() {
         println!("Creating Order for {}.", product_pair);
         match client
             .order
-            .create_limit_gtc(product_pair, total_size, price, side, true)
+            .create_limit_gtc(product_pair, side, &total_size, &price, true)
             .await
         {
             Ok(summary) => println!("Order creation result: {:#?}", summary),

@@ -23,7 +23,7 @@
 
 `cbadv-rs` grants access to the **Coinbase Advanced** REST and WebSocket API.
 
-The **cbadv-rs** project is designed to help me get my feet wet in Rust. By no means should others consider using this in the near future, especially with the hopes of making money. This is entirely for testing purposes and I am not responsible for your losses. As note that this project is a work-in-progress and subject to change with time. Some functions, structs, enums, etc may be renamed to adhere to better styling guidelines or optimized for efficiency. With these disclaimers aside and if you enjoy this project, you can choose to credit me with any gains made.
+This project is current a work-in-progress. Changes between versions can vary greatly as this API becomes more refined and adapts to Coinbase Advances changing state. I ask you to understand that I am not liable for any issues you may encounter while this project is in this state and encourage you to verify and test before committing to using this yourself in a serious manner.
 
 Contributions are encouraged! The API reference can be seen at [Coinbase Advanced API](https://docs.cloud.coinbase.com/advanced-trade-api/reference). If you wish to add this to your project, either use `cargo add cbadv` or add the following line to your dependencies section in **Cargo.toml**:
 
@@ -35,8 +35,8 @@ cbadv = { git = "https://github.com/ohkthx/cbadv-rs" }
 ## Features
 - Easy-to-use Client.
 - Configuration file to hold API Key and API Secret.
-- Covers all REST endpoints currently accessible (20230630).
-- Covers all WebSocket endpoints currently accessible (20230630).
+- Covers all REST endpoints currently accessible (20230705).
+- Covers all WebSocket endpoints currently accessible (20230705).
 
 ## Documentation
 
@@ -122,7 +122,7 @@ Check above in the **Covered API requests** section for possibly covered example
 
 Wallet addresses are provided below, or click the badges above!
 ```
-Bitcoin (BTC):  bc1q75w3cgutug8qdxw3jlmqnkjlv9alt3jr7ftha0
 Ethereum (ETH): 0x7d75f6a9c021fcc70691fec73368198823fb0f60
+Bitcoin (BTC):  bc1q75w3cgutug8qdxw3jlmqnkjlv9alt3jr7ftha0
 Binance (BNB):  0x7d75f6a9c021fcc70691fec73368198823fb0f60
 ```

@@ -22,7 +22,6 @@ const SIX_HOUR: u32 = ONE_HOUR * 6;
 const ONE_DAY: u32 = ONE_HOUR * 24;
 
 /// Span of time in seconds.
-#[allow(dead_code)]
 pub enum Granularity {
     UnknownGranularity,
     OneMinute,

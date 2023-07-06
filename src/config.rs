@@ -8,11 +8,13 @@ use std::fs;
 use toml;
 
 /// Configuration for API settings. Loaded from a file.
-#[allow(dead_code)]
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Config {
+    /// API Key provided by the service.
     pub cb_api_key: String,
+    /// API Secret provided by the service.
     pub cb_api_secret: String,
+    /// Enable debug messages or not.
     pub debug: bool,
 }
 

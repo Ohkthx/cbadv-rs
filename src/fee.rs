@@ -3,35 +3,42 @@
 //! `fee` gives access to the Fee API and the various endpoints associated with it.
 //! Currently the only endpoint available is the Transaction Summary endpoint.
 
-use crate::utils::{CBAdvError, Result, Signer};
+use crate::signer::Signer;
+use crate::utils::{CBAdvError, Result};
 use serde::{Deserialize, Serialize};
+use serde_with::{serde_as, DisplayFromStr};
 use std::fmt;
 
-#[allow(dead_code)]
+#[serde_as]
 #[derive(Serialize, Deserialize, Debug)]
 pub struct FeeTier {
     pub pricing_tier: String,
-    pub usd_from: String,
-    pub usd_to: String,
-    pub taker_fee_rate: String,
-    pub maker_fee_rate: String,
+    #[serde_as(as = "DisplayFromStr")]
+    pub usd_from: u32,
+    #[serde_as(as = "DisplayFromStr")]
+    pub usd_to: u32,
+    #[serde_as(as = "DisplayFromStr")]
+    pub taker_fee_rate: f64,
+    #[serde_as(as = "DisplayFromStr")]
+    pub maker_fee_rate: f64,
 }
 
-#[allow(dead_code)]
+#[serde_as]
 #[derive(Serialize, Deserialize, Debug)]
 pub struct MarginRate {
-    pub value: String,
+    #[serde_as(as = "DisplayFromStr")]
+    pub value: f64,
 }
 
-#[allow(dead_code)]
+#[serde_as]
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Tax {
-    pub value: String,
+    #[serde_as(as = "DisplayFromStr")]
+    pub value: f64,
     pub r#type: String,
 }
 
 /// Represents the transaction summary for fees received from the API.
-#[allow(dead_code)]
 #[derive(Serialize, Deserialize, Debug)]
 pub struct TransactionSummary {
     pub total_volume: f64,
@@ -46,7 +53,6 @@ pub struct TransactionSummary {
 }
 
 /// Represents parameters that are optional for transaction summary API request.
-#[allow(dead_code)]
 #[derive(Serialize, Default, Debug)]
 pub struct TransactionSummaryQuery {
     pub start_date: Option<String>,

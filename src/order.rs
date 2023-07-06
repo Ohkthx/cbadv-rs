@@ -3,13 +3,14 @@
 //! `order` gives access to the Order API and the various endpoints associated with it.
 //! These allow you to obtain past created orders, create new orders, and cancel orders.
 
-use crate::utils::{CBAdvError, Result, Signer};
+use crate::signer::Signer;
+use crate::utils::{CBAdvError, Result};
 use serde::{Deserialize, Serialize};
+use serde_with::{serde_as, DefaultOnError, DisplayFromStr};
 use std::fmt;
 use uuid::Uuid;
 
 /// Various order types.
-#[allow(dead_code)]
 #[derive(Serialize, Deserialize, Debug)]
 pub enum OrderType {
     /// A Market order.
@@ -34,7 +35,6 @@ impl fmt::Display for OrderType {
 }
 
 /// Order side, BUY or SELL.
-#[allow(dead_code)]
 #[derive(Serialize, Deserialize, Debug)]
 pub enum OrderSide {
     /// Buying a product.
@@ -53,7 +53,6 @@ impl fmt::Display for OrderSide {
 }
 
 /// Order status, OPEN, CANCELLED, and EXPIRED.
-#[allow(dead_code)]
 #[derive(Serialize, Deserialize, Debug)]
 pub enum OrderStatus {
     OPEN,
@@ -72,15 +71,19 @@ impl fmt::Display for OrderStatus {
 }
 
 /// Order updates for a user from a websocket.
-#[allow(dead_code)]
+#[serde_as]
 #[derive(Serialize, Deserialize, Debug)]
 pub struct OrderUpdate {
     pub r#type: String,
     pub client_order_id: String,
-    pub cumulative_quantity: String,
-    pub leaves_quantity: String,
-    pub avg_price: String,
-    pub total_fees: String,
+    #[serde_as(as = "DisplayFromStr")]
+    pub cumulative_quantity: f64,
+    #[serde_as(as = "DisplayFromStr")]
+    pub leaves_quantity: f64,
+    #[serde_as(as = "DisplayFromStr")]
+    pub avg_price: f64,
+    #[serde_as(as = "DisplayFromStr")]
+    pub total_fees: f64,
     pub status: String,
     pub product_id: String,
     pub creation_time: String,
@@ -89,7 +92,6 @@ pub struct OrderUpdate {
 }
 
 /// Market Immediate or Cancel.
-#[allow(dead_code)]
 #[derive(Serialize, Deserialize, Debug)]
 struct MarketIOC {
     /// Amount of quote currency to spend on order. Required for BUY orders.
@@ -99,7 +101,6 @@ struct MarketIOC {
 }
 
 /// Limit Good til Cancelled.
-#[allow(dead_code)]
 #[derive(Serialize, Deserialize, Debug)]
 struct LimitGTC {
     /// Amount of base currency to spend on order.
@@ -111,7 +112,6 @@ struct LimitGTC {
 }
 
 /// Limit Good til Time (Date).
-#[allow(dead_code)]
 #[derive(Serialize, Deserialize, Debug)]
 struct LimitGTD {
     /// Amount of base currency to spend on order.
@@ -125,7 +125,6 @@ struct LimitGTD {
 }
 
 /// Stop Limit Good til Cancelled.
-#[allow(dead_code)]
 #[derive(Serialize, Deserialize, Debug)]
 struct StopLimitGTC {
     /// Amount of base currency to spend on order.
@@ -139,7 +138,6 @@ struct StopLimitGTC {
 }
 
 /// Stop Limit Good til Time (Date).
-#[allow(dead_code)]
 #[derive(Serialize, Deserialize, Debug)]
 struct StopLimitGTD {
     /// Amount of base currency to spend on order.
@@ -155,7 +153,6 @@ struct StopLimitGTD {
 }
 
 /// Create Order Configuration.
-#[allow(dead_code)]
 #[derive(Serialize, Deserialize, Default, Debug)]
 struct OrderConfiguration {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -171,7 +168,6 @@ struct OrderConfiguration {
 }
 
 /// Represents an order created to BUY or SELL.
-#[allow(dead_code)]
 #[derive(Serialize, Deserialize, Debug)]
 struct CreateOrder {
     pub client_order_id: String,
@@ -181,14 +177,13 @@ struct CreateOrder {
 }
 
 /// Represents a vector of orders IDs to cancel.
-#[allow(dead_code)]
 #[derive(Serialize, Deserialize, Debug)]
 struct CancelOrders {
     pub order_ids: Vec<String>,
 }
 
 /// Represents an Order received from the API.
-#[allow(dead_code)]
+#[serde_as]
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Order {
     pub order_id: String,
@@ -201,19 +196,27 @@ pub struct Order {
     pub time_in_force: String,
     pub created_time: String,
 
-    pub completion_percentage: String,
-    pub filled_size: String,
-    pub average_filled_price: String,
-    pub fee: String,
-    pub number_of_fills: String,
-    pub filled_value: String,
+    #[serde_as(as = "DisplayFromStr")]
+    pub completion_percentage: f64,
+    #[serde_as(as = "DisplayFromStr")]
+    pub filled_size: f64,
+    #[serde_as(as = "DisplayFromStr")]
+    pub average_filled_price: f64,
+    #[serde_as(as = "DefaultOnError")]
+    pub fee: f64,
+    #[serde_as(as = "DisplayFromStr")]
+    pub number_of_fills: u32,
+    #[serde_as(as = "DisplayFromStr")]
+    pub filled_value: f64,
 
     pub pending_cancel: bool,
     pub size_in_quote: bool,
 
-    pub total_fees: String,
+    #[serde_as(as = "DisplayFromStr")]
+    pub total_fees: f64,
     pub size_inclusive_of_fees: bool,
-    pub total_value_after_fees: String,
+    #[serde_as(as = "DisplayFromStr")]
+    pub total_value_after_fees: f64,
 
     pub trigger_status: String,
     pub order_type: String,
@@ -225,7 +228,7 @@ pub struct Order {
 }
 
 /// Represents a fill received from the API.
-#[allow(dead_code)]
+#[serde_as]
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Fill {
     pub entry_id: String,
@@ -233,9 +236,12 @@ pub struct Fill {
     pub order_id: String,
     pub trade_time: String,
     pub trade_type: String,
-    pub price: String,
-    pub size: String,
-    pub commission: String,
+    #[serde_as(as = "DisplayFromStr")]
+    pub price: f64,
+    #[serde_as(as = "DisplayFromStr")]
+    pub size: f64,
+    #[serde_as(as = "DefaultOnError")]
+    pub commission: f64,
     pub product_id: String,
     pub sequence_timestamp: String,
     pub liquidity_indicator: String,
@@ -245,7 +251,6 @@ pub struct Fill {
 }
 
 /// Represents a list of orders received from the API.
-#[allow(dead_code)]
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ListedOrders {
     pub orders: Vec<Order>,
@@ -254,7 +259,6 @@ pub struct ListedOrders {
 }
 
 /// Represents a list of fills received from the API.
-#[allow(dead_code)]
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ListedFills {
     pub orders: Vec<Fill>,
@@ -262,7 +266,6 @@ pub struct ListedFills {
 }
 
 /// Represents a create order response from the API.
-#[allow(dead_code)]
 #[derive(Serialize, Deserialize, Debug)]
 pub struct OrderResponse {
     pub success: bool,
@@ -271,21 +274,18 @@ pub struct OrderResponse {
 }
 
 /// Represents a cancel order response from the API.
-#[allow(dead_code)]
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CancelOrdersResponse {
     results: Vec<OrderResponse>,
 }
 
 /// Represents an order when obtaining a single order from the API.
-#[allow(dead_code)]
 #[derive(Serialize, Deserialize, Debug)]
 struct OrderStatusResponse {
     pub order: Order,
 }
 
 /// Represents parameters that are optional for List Orders API request.
-#[allow(dead_code)]
 #[derive(Serialize, Default, Debug)]
 pub struct ListOrdersQuery {
     /// Optional string of the product ID. Defaults to null, or fetch for all products.
@@ -293,7 +293,7 @@ pub struct ListOrdersQuery {
     /// Note: Cannot pair OPEN orders with other order types.
     pub order_status: Option<Vec<OrderStatus>>,
     /// A pagination limit with no default set. If has_next is true, additional orders are available to be fetched with pagination; also the cursor value in the response can be passed as cursor parameter in the subsequent request.
-    pub limit: Option<i32>,
+    pub limit: Option<u32>,
     /// Start date to fetch orders from, inclusive.
     pub start_date: Option<String>,
     /// An optional end date for the query window, exclusive. If provided only orders with creation time before this date will be returned.
@@ -369,7 +369,6 @@ impl fmt::Display for ListOrdersQuery {
 }
 
 /// Represents parameters that are optional for List Fills API request.
-#[allow(dead_code)]
 #[derive(Serialize, Default, Debug)]
 pub struct ListFillsQuery {
     /// ID of the order.
@@ -381,7 +380,7 @@ pub struct ListFillsQuery {
     /// End date. Only fills with a trade time before this start date are returned.
     pub end_sequence_timestamp: Option<String>,
     /// Maximum number of fills to return in response. Defaults to 100.
-    pub limit: Option<i32>,
+    pub limit: Option<u32>,
     /// Cursor used for pagination. When provided, the response returns responses after this cursor.
     pub cursor: Option<String>,
 }
@@ -551,7 +550,7 @@ impl OrderAPI {
     ///
     /// * `product_id` - A string that represents the product's ID.
     /// * `side` - A string that represents the side: BUY or SELL
-    /// * `size` - A string that represents the size to buy or sell.
+    /// * `size` - A 64-bit float that represents the size to buy or sell.
     ///
     /// # Endpoint / Reference
     ///
@@ -563,7 +562,7 @@ impl OrderAPI {
         &self,
         product_id: &str,
         side: &str,
-        size: &str,
+        size: &f64,
     ) -> Result<OrderResponse> {
         let market = if side == "BUY" {
             MarketIOC {
@@ -591,8 +590,8 @@ impl OrderAPI {
     ///
     /// * `product_id` - A string that represents the product's ID.
     /// * `side` - A string that represents the side: BUY or SELL
-    /// * `size` - A string that represents the size to buy or sell.
-    /// * `price` - A string that represents the price to buy or sell.
+    /// * `size` - A 64-bit float that represents the size to buy or sell.
+    /// * `price` - A 64-bit float that represents the price to buy or sell.
     /// * `post_only` - A boolean that represents MAKER or TAKER.
     ///
     /// # Endpoint / Reference
@@ -605,8 +604,8 @@ impl OrderAPI {
         &self,
         product_id: &str,
         side: &str,
-        size: &str,
-        price: &str,
+        size: &f64,
+        price: &f64,
         post_only: bool,
     ) -> Result<OrderResponse> {
         let limit = LimitGTC {
@@ -629,8 +628,8 @@ impl OrderAPI {
     ///
     /// * `product_id` - A string that represents the product's ID.
     /// * `side` - A string that represents the side: BUY or SELL
-    /// * `size` - A string that represents the size to buy or sell.
-    /// * `price` - A string that represents the price to buy or sell.
+    /// * `size` - A 64-bit float that represents the size to buy or sell.
+    /// * `price` - A 64-bit float that represents the price to buy or sell.
     /// * `end_time` - A string that represents the time to kill the order.
     /// * `post_only` - A boolean that represents MAKER or TAKER.
     ///
@@ -644,8 +643,8 @@ impl OrderAPI {
         &self,
         product_id: &str,
         side: &str,
-        size: &str,
-        price: &str,
+        size: &f64,
+        price: &f64,
         end_time: &str,
         post_only: bool,
     ) -> Result<OrderResponse> {
@@ -670,7 +669,7 @@ impl OrderAPI {
     ///
     /// * `product_id` - A string that represents the product's ID.
     /// * `side` - A string that represents the side: BUY or SELL
-    /// * `size` - A string that represents the size to buy or sell.
+    /// * `size` - A 64-bit float that represents the size to buy or sell.
     /// * `limit_price` - Ceiling price for which the order should get filled.
     /// * `stop_price` - Price at which the order should trigger - if stop direction is Up, then the order will trigger when the last trade price goes above this, otherwise order will trigger when last trade price goes below this price.
     /// * `stop_direction` - Possible values: [UNKNOWN_STOP_DIRECTION, STOP_DIRECTION_STOP_UP, STOP_DIRECTION_STOP_DOWN]
@@ -685,9 +684,9 @@ impl OrderAPI {
         &self,
         product_id: &str,
         side: &str,
-        size: &str,
-        limit_price: &str,
-        stop_price: &str,
+        size: &f64,
+        limit_price: &f64,
+        stop_price: &f64,
         stop_direction: &str,
     ) -> Result<OrderResponse> {
         let stoplimit = StopLimitGTC {
@@ -711,7 +710,7 @@ impl OrderAPI {
     ///
     /// * `product_id` - A string that represents the product's ID.
     /// * `side` - A string that represents the side: BUY or SELL
-    /// * `size` - A string that represents the size to buy or sell.
+    /// * `size` - A 64-bit float that represents the size to buy or sell.
     /// * `limit_price` - Ceiling price for which the order should get filled.
     /// * `stop_price` - Price at which the order should trigger - if stop direction is Up, then the order will trigger when the last trade price goes above this, otherwise order will trigger when last trade price goes below this price.
     /// * `stop_direction` - Possible values: [UNKNOWN_STOP_DIRECTION, STOP_DIRECTION_STOP_UP, STOP_DIRECTION_STOP_DOWN]
@@ -727,9 +726,9 @@ impl OrderAPI {
         &self,
         product_id: &str,
         side: &str,
-        size: &str,
-        limit_price: &str,
-        stop_price: &str,
+        size: &f64,
+        limit_price: &f64,
+        stop_price: &f64,
         stop_direction: &str,
         end_time: &str,
     ) -> Result<OrderResponse> {

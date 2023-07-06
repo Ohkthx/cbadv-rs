@@ -4,54 +4,72 @@
 //! This allows you to obtain product information such as: Ticker (Market Trades), Product and
 //! Currency information, Product Book, and Best Bids and Asks for multiple products.
 
+use crate::signer::Signer;
 use crate::time;
-use crate::utils::{CBAdvError, Result, Signer};
+use crate::utils::{CBAdvError, Result};
 use serde::{Deserialize, Serialize};
+use serde_with::{serde_as, DisplayFromStr};
 use std::fmt;
 
 /// Represents a Product received from the Websocket API.
-#[allow(dead_code)]
+#[serde_as]
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ProductUpdate {
     pub product_type: String,
     pub id: String,
     pub base_currency: String,
     pub quote_currency: String,
-    pub base_increment: String,
-    pub quote_increment: String,
+    #[serde_as(as = "DisplayFromStr")]
+    pub base_increment: f64,
+    #[serde_as(as = "DisplayFromStr")]
+    pub quote_increment: f64,
     pub display_name: String,
     pub status: String,
     pub status_message: String,
-    pub min_market_funds: String,
+    #[serde_as(as = "DisplayFromStr")]
+    pub min_market_funds: f64,
 }
 
 /// Represents a Market Trade received from the Websocket API.
-#[allow(dead_code)]
+#[serde_as]
 #[derive(Serialize, Deserialize, Debug)]
 pub struct MarketTradesUpdate {
     pub trade_id: String,
     pub product_id: String,
-    pub price: String,
-    pub size: String,
+    #[serde_as(as = "DisplayFromStr")]
+    pub price: f64,
+    #[serde_as(as = "DisplayFromStr")]
+    pub size: f64,
     pub side: String,
     pub time: String,
 }
 
 /// Represents a Product received from the REST API.
-#[allow(dead_code)]
+#[serde_as]
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Product {
     pub product_id: String,
-    pub price: String,
-    pub price_percentage_change_24h: String,
-    pub volume_24h: String,
-    pub volume_percentage_change_24h: String,
-    pub base_increment: String,
-    pub quote_increment: String,
-    pub quote_min_size: String,
-    pub quote_max_size: String,
-    pub base_min_size: String,
-    pub base_max_size: String,
+    #[serde_as(as = "DisplayFromStr")]
+    pub price: f64,
+    #[serde_as(as = "DisplayFromStr")]
+    pub price_percentage_change_24h: f64,
+    #[serde_as(as = "DisplayFromStr")]
+    pub volume_24h: f64,
+    #[serde_as(as = "DisplayFromStr")]
+    pub volume_percentage_change_24h: f64,
+    #[serde_as(as = "DisplayFromStr")]
+    pub base_increment: f64,
+    #[serde_as(as = "DisplayFromStr")]
+    pub quote_increment: f64,
+    #[serde_as(as = "DisplayFromStr")]
+    pub quote_min_size: f64,
+    #[serde_as(as = "DisplayFromStr")]
+    pub quote_max_size: f64,
+    #[serde_as(as = "DisplayFromStr")]
+    pub base_min_size: f64,
+    #[serde_as(as = "DisplayFromStr")]
+    pub base_max_size: f64,
+
     pub base_name: String,
     pub quote_name: String,
     pub watched: bool,
@@ -73,18 +91,21 @@ pub struct Product {
     pub base_display_symbol: String,
     pub quote_display_symbol: String,
     pub view_only: bool,
+    #[serde_as(as = "DisplayFromStr")]
+    pub price_increment: f64,
 }
 
 /// Represents a Bid or an Ask entry for a product.
-#[allow(dead_code)]
+#[serde_as]
 #[derive(Serialize, Deserialize, Debug)]
 pub struct BidAsk {
-    pub price: String,
-    pub size: String,
+    #[serde_as(as = "DisplayFromStr")]
+    pub price: f64,
+    #[serde_as(as = "DisplayFromStr")]
+    pub size: f64,
 }
 
 /// Represents a product book for a product.
-#[allow(dead_code)]
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ProductBook {
     pub product_id: String,
@@ -94,57 +115,75 @@ pub struct ProductBook {
 }
 
 /// Represents a candle for a product.
-#[allow(dead_code)]
+#[serde_as]
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Candle {
-    pub start: String,
-    pub low: String,
-    pub high: String,
-    pub open: String,
-    pub close: String,
-    pub volume: String,
+    #[serde_as(as = "DisplayFromStr")]
+    pub start: f64,
+    #[serde_as(as = "DisplayFromStr")]
+    pub low: f64,
+    #[serde_as(as = "DisplayFromStr")]
+    pub high: f64,
+    #[serde_as(as = "DisplayFromStr")]
+    pub open: f64,
+    #[serde_as(as = "DisplayFromStr")]
+    pub close: f64,
+    #[serde_as(as = "DisplayFromStr")]
+    pub volume: f64,
 }
 
 /// Represents a trade for a product.
-#[allow(dead_code)]
+#[serde_as]
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Trade {
     pub trade_id: String,
     pub product_id: String,
-    pub price: String,
-    pub size: String,
+    #[serde_as(as = "DisplayFromStr")]
+    pub price: f64,
+    #[serde_as(as = "DisplayFromStr")]
+    pub size: f64,
     pub time: String,
     pub side: String,
+    // NOTE: (20230705) API gives an empty string not a number.
     pub bid: String,
+    // NOTE: (20230705) API gives an empty string not a number.
     pub ask: String,
 }
 
 /// Represents a Ticker update received from the Websocket API.
-#[allow(dead_code)]
+#[serde_as]
 #[derive(Serialize, Deserialize, Debug)]
 pub struct TickerUpdate {
     pub r#type: String,
     pub product_id: String,
-    pub price: String,
-    pub volume_24_h: String,
-    pub low_24_h: String,
-    pub high_24_h: String,
-    pub low_52_w: String,
-    pub high_52_w: String,
-    pub price_percent_chg_24_h: String,
+    #[serde_as(as = "DisplayFromStr")]
+    pub price: f64,
+    #[serde_as(as = "DisplayFromStr")]
+    pub volume_24_h: f64,
+    #[serde_as(as = "DisplayFromStr")]
+    pub low_24_h: f64,
+    #[serde_as(as = "DisplayFromStr")]
+    pub high_24_h: f64,
+    #[serde_as(as = "DisplayFromStr")]
+    pub low_52_w: f64,
+    #[serde_as(as = "DisplayFromStr")]
+    pub high_52_w: f64,
+    #[serde_as(as = "DisplayFromStr")]
+    pub price_percent_chg_24_h: f64,
 }
 
 /// Represents a ticker for a product.
-#[allow(dead_code)]
+#[serde_as]
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Ticker {
     pub trades: Vec<Trade>,
-    pub best_bid: String,
-    pub best_ask: String,
+    #[serde_as(as = "DisplayFromStr")]
+    pub best_bid: f64,
+    #[serde_as(as = "DisplayFromStr")]
+    pub best_ask: f64,
 }
 
 /// Represents a list of Products received from the API.
-#[allow(dead_code)]
 #[derive(Serialize, Deserialize, Debug)]
 struct ListProductsResponse {
     pub products: Vec<Product>,
@@ -152,34 +191,30 @@ struct ListProductsResponse {
 }
 
 /// Represents a candle response from the API.
-#[allow(dead_code)]
 #[derive(Serialize, Deserialize, Debug)]
 struct CandleResponse {
     pub candles: Vec<Candle>,
 }
 
 /// Represents a best bid and ask response from the API.
-#[allow(dead_code)]
 #[derive(Serialize, Deserialize, Debug)]
 struct BidAskResponse {
     pub pricebooks: Vec<ProductBook>,
 }
 
 /// Represents a product book response from the API.
-#[allow(dead_code)]
 #[derive(Serialize, Deserialize, Debug)]
 struct ProductBookResponse {
     pub pricebook: ProductBook,
 }
 
 /// Represents parameters that are optional for List Products API request.
-#[allow(dead_code)]
 #[derive(Serialize, Default, Debug)]
 pub struct ListProductsQuery {
     /// A limit describing how many products to return.
-    pub limit: Option<i32>,
+    pub limit: Option<u32>,
     /// Number of products to offset before returning.
-    pub offset: Option<i32>,
+    pub offset: Option<u32>,
     /// Type of products to return. Valid options: SPOT or FUTURE
     pub product_type: Option<String>,
     /// List of product IDs to return.
@@ -207,7 +242,10 @@ impl fmt::Display for ListProductsQuery {
         };
 
         query = match &self.product_ids {
-            Some(v) => format!("{}&product_ids={}", query, v.join("&product_ids=")),
+            Some(v) => {
+                let ids: String = v.iter().map(|p| format!("&product_ids={p}")).collect();
+                format!("{}{}", query, ids)
+            }
             _ => query,
         };
 
@@ -219,11 +257,10 @@ impl fmt::Display for ListProductsQuery {
 }
 
 /// Represents parameters for Ticker Product API request.
-#[allow(dead_code)]
 #[derive(Serialize, Debug)]
 pub struct TickerQuery {
     /// Number of trades to return.
-    pub limit: i32,
+    pub limit: u32,
 }
 
 impl fmt::Display for TickerQuery {

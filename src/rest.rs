@@ -4,15 +4,13 @@
 //! This is the primary method of accessing the endpoints and handles all of the configurations and
 //! negotiations for the user.
 
-use crate::utils::Signer;
-
 use crate::account::AccountAPI;
 use crate::fee::FeeAPI;
 use crate::order::OrderAPI;
 use crate::product::ProductAPI;
+use crate::signer::Signer;
 
 /// Represents a Client for the API.
-#[allow(dead_code)]
 pub struct Client {
     /// Gives access to the Account API.
     pub account: AccountAPI,

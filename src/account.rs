@@ -3,21 +3,23 @@
 //! `account` gives access to the Account API and the various endpoints associated with it.
 //! This allows you to obtain account information either by account UUID or in bulk (all accounts).
 
-use crate::utils::{CBAdvError, Result, Signer};
+use crate::signer::Signer;
+use crate::utils::{CBAdvError, Result};
 use async_recursion::async_recursion;
 use serde::{Deserialize, Serialize};
+use serde_with::{serde_as, DisplayFromStr};
 use std::fmt;
 
 /// Represents a Balance for either Available or Held funds.
-#[allow(dead_code)]
+#[serde_as]
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Balance {
-    pub value: String,
+    #[serde_as(as = "DisplayFromStr")]
+    pub value: f64,
     pub currency: String,
 }
 
 /// Represents an Account received from the API.
-#[allow(dead_code)]
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Account {
     pub uuid: String,
@@ -35,28 +37,25 @@ pub struct Account {
 }
 
 /// Represents a list of accounts received from the API.
-#[allow(dead_code)]
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ListedAccounts {
     pub accounts: Vec<Account>,
     pub has_next: bool,
     pub cursor: String,
-    pub size: i32,
+    pub size: u32,
 }
 
 /// Represents an account response from the API.
-#[allow(dead_code)]
 #[derive(Serialize, Deserialize, Debug)]
 struct AccountResponse {
     pub account: Account,
 }
 
 /// Represents parameters that are optional for List Account API request.
-#[allow(dead_code)]
 #[derive(Serialize, Default, Debug)]
 pub struct ListAccountsQuery {
     /// Amount to obtain, default 49 maximum is 250.
-    pub limit: Option<i32>,
+    pub limit: Option<u32>,
     /// Returns accounts after the cursor provided.
     pub cursor: Option<String>,
 }

@@ -14,6 +14,7 @@ pub mod fee;
 pub mod order;
 pub mod product;
 pub mod rest;
+mod signer;
 pub mod time;
 pub mod utils;
 pub mod websocket;

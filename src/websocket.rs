@@ -6,12 +6,13 @@
 
 use crate::order::OrderUpdate;
 use crate::product::{MarketTradesUpdate, ProductUpdate, TickerUpdate};
+use crate::signer::Signer;
 use crate::time;
-use crate::utils::{CBAdvError, Result, Signer};
-
+use crate::utils::{CBAdvError, Result};
 use futures_util::stream::{SplitSink, SplitStream};
 use futures_util::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
+use serde_with::{serde_as, DisplayFromStr};
 use std::fmt;
 use tokio::net::TcpStream;
 use tokio_tungstenite::{connect_async, tungstenite, MaybeTlsStream, WebSocketStream};
@@ -20,7 +21,7 @@ type Socket = WebSocketStream<MaybeTlsStream<TcpStream>>;
 type Callback = fn(Result<Message>);
 
 /// WebSocket Channels that can be subscribed to.
-#[allow(dead_code, non_camel_case_types)]
+#[allow(non_camel_case_types)]
 #[derive(Serialize, Deserialize, Debug)]
 pub enum Channel {
     /// Sends all products and currencies on a preset interval.
@@ -76,12 +77,15 @@ pub enum Message {
 }
 
 /// Data received from the WebSocket for Level2 Events.
+#[serde_as]
 #[derive(Deserialize, Debug)]
 pub struct Level2Update {
     pub side: String,
     pub event_time: String,
-    pub price_level: String,
-    pub new_quantity: String,
+    #[serde_as(as = "DisplayFromStr")]
+    pub price_level: f64,
+    #[serde_as(as = "DisplayFromStr")]
+    pub new_quantity: f64,
 }
 
 /// Data received from the WebSocket for Subscription Update Events.
@@ -153,7 +157,6 @@ pub struct SubscribeEvent {
 }
 
 /// Subscribe Event received from the WebSocket, contained inside the Subscribe Message.
-#[allow(dead_code)]
 #[derive(Deserialize, Debug)]
 pub struct StatusMessage {
     pub channel: String,
@@ -164,7 +167,6 @@ pub struct StatusMessage {
 }
 
 /// Message received from the WebSocket API. Contains updates on products and currencies.
-#[allow(dead_code)]
 #[derive(Deserialize, Debug)]
 pub struct TickerMessage {
     pub channel: String,
@@ -176,7 +178,6 @@ pub struct TickerMessage {
 
 /// Message received from the WebSocket API. All order updates for a products. Best way to
 /// keep a snapshot of the order book.
-#[allow(dead_code)]
 #[derive(Deserialize, Debug)]
 pub struct Level2Message {
     pub channel: String,
@@ -187,7 +188,6 @@ pub struct Level2Message {
 }
 
 /// Message received from the WebSocket API. Contains order updates strictly for the user.
-#[allow(dead_code)]
 #[derive(Deserialize, Debug)]
 pub struct UserMessage {
     pub channel: String,
@@ -198,7 +198,6 @@ pub struct UserMessage {
 }
 
 /// Message received from the WebSocket API. Real-time updates everytime a market trade happens.
-#[allow(dead_code)]
 #[derive(Deserialize, Debug)]
 pub struct MarketTradesMessage {
     pub channel: String,
@@ -210,7 +209,6 @@ pub struct MarketTradesMessage {
 
 /// Message received from the WebSocket API. Real-time pings from the server to keep connections
 /// open.
-#[allow(dead_code)]
 #[derive(Deserialize, Debug)]
 pub struct HeartbeatsMessage {
     pub channel: String,
@@ -221,7 +219,6 @@ pub struct HeartbeatsMessage {
 }
 
 /// Message received from the WebSocket API. Provides updates for the current subscriptions.
-#[allow(dead_code)]
 #[derive(Deserialize, Debug)]
 pub struct SubscribeMessage {
     pub channel: String,
@@ -232,7 +229,6 @@ pub struct SubscribeMessage {
 }
 
 /// Subscription is sent to the WebSocket to enable updates for specified Channels.
-#[allow(dead_code)]
 #[derive(Serialize, Deserialize, Debug)]
 struct Subscription {
     pub r#type: String,
@@ -245,7 +241,6 @@ struct Subscription {
 
 /// Represents a Client for the Websocket API. Provides easy-access to subscribing and listening to
 /// the WebSocket.
-#[allow(dead_code)]
 pub struct Client {
     /// Signs the messages sent.
     signer: Signer,
