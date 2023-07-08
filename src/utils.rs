@@ -36,3 +36,11 @@ impl fmt::Display for CBAdvError {
         }
     }
 }
+
+/// Prints out a debug message, wraps `println!` macro.
+#[macro_export]
+macro_rules! debugln {
+    ($fmt:expr $(, $($arg:tt)*)?) => {
+        println!(concat!("[DEBUG] ", $fmt), $($($arg)*)?);
+    };
+}

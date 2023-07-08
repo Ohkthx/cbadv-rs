@@ -13,7 +13,7 @@ use std::fmt;
 
 /// Represents a Product received from the Websocket API.
 #[serde_as]
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Debug)]
 pub struct ProductUpdate {
     pub product_type: String,
     pub id: String,
@@ -32,7 +32,7 @@ pub struct ProductUpdate {
 
 /// Represents a Market Trade received from the Websocket API.
 #[serde_as]
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Debug)]
 pub struct MarketTradesUpdate {
     pub trade_id: String,
     pub product_id: String,
@@ -44,9 +44,43 @@ pub struct MarketTradesUpdate {
     pub time: String,
 }
 
+/// Session details for the product.
+#[derive(Deserialize, Debug)]
+pub struct SessionDetails {
+    pub is_session_open: bool,
+    pub open_time: String,
+    pub close_time: String,
+}
+
+/// Perpetual details for the product.
+#[derive(Deserialize, Debug)]
+pub struct PerpetualDetails {
+    pub open_interest: String,
+    pub funding_rate: String,
+    pub funding_time: String,
+}
+
+/// Future details for the product.
+#[serde_as]
+#[derive(Deserialize, Debug)]
+pub struct FutureDetails {
+    pub venue: String,
+    pub contract_code: String,
+    pub contract_expiry: String,
+    pub contract_size: String,
+    pub contract_root_unit: String,
+    pub group_description: String,
+    pub contract_expiry_timezone: String,
+    pub group_short_description: String,
+    pub risk_managed_by: String,
+    pub contract_expiry_type: String,
+    pub perpetual_details: Option<PerpetualDetails>,
+    pub contract_display_name: String,
+}
+
 /// Represents a Product received from the REST API.
 #[serde_as]
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Debug)]
 pub struct Product {
     pub product_id: String,
     #[serde_as(as = "DisplayFromStr")]
@@ -84,7 +118,7 @@ pub struct Product {
     pub product_type: String,
     pub quote_currency_id: String,
     pub base_currency_id: String,
-    pub fcm_trading_session_details: Option<String>,
+    pub fcm_trading_session_details: Option<SessionDetails>,
     pub mid_market_price: String,
     pub alias: String,
     pub alias_to: Vec<String>,
@@ -93,11 +127,12 @@ pub struct Product {
     pub view_only: bool,
     #[serde_as(as = "DisplayFromStr")]
     pub price_increment: f64,
+    pub future_product_details: Option<FutureDetails>,
 }
 
 /// Represents a Bid or an Ask entry for a product.
 #[serde_as]
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Debug)]
 pub struct BidAsk {
     #[serde_as(as = "DisplayFromStr")]
     pub price: f64,
@@ -106,7 +141,7 @@ pub struct BidAsk {
 }
 
 /// Represents a product book for a product.
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Debug)]
 pub struct ProductBook {
     pub product_id: String,
     pub time: String,
@@ -116,7 +151,7 @@ pub struct ProductBook {
 
 /// Represents a candle for a product.
 #[serde_as]
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Debug)]
 pub struct Candle {
     #[serde_as(as = "DisplayFromStr")]
     pub start: f64,
@@ -134,7 +169,7 @@ pub struct Candle {
 
 /// Represents a trade for a product.
 #[serde_as]
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Debug)]
 pub struct Trade {
     pub trade_id: String,
     pub product_id: String,
@@ -152,7 +187,7 @@ pub struct Trade {
 
 /// Represents a Ticker update received from the Websocket API.
 #[serde_as]
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Debug)]
 pub struct TickerUpdate {
     pub r#type: String,
     pub product_id: String,
@@ -174,7 +209,7 @@ pub struct TickerUpdate {
 
 /// Represents a ticker for a product.
 #[serde_as]
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Debug)]
 pub struct Ticker {
     pub trades: Vec<Trade>,
     #[serde_as(as = "DisplayFromStr")]
@@ -184,26 +219,27 @@ pub struct Ticker {
 }
 
 /// Represents a list of Products received from the API.
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Debug)]
 struct ListProductsResponse {
     pub products: Vec<Product>,
-    pub num_products: i32,
+    // Note:  Disabled because the user can call `len()` on the Vector.
+    // pub num_products: i32,
 }
 
 /// Represents a candle response from the API.
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Debug)]
 struct CandleResponse {
     pub candles: Vec<Candle>,
 }
 
 /// Represents a best bid and ask response from the API.
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Debug)]
 struct BidAskResponse {
     pub pricebooks: Vec<ProductBook>,
 }
 
 /// Represents a product book response from the API.
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Debug)]
 struct ProductBookResponse {
     pub pricebook: ProductBook,
 }

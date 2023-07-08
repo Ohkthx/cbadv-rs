@@ -229,7 +229,7 @@ pub struct SubscribeMessage {
 }
 
 /// Subscription is sent to the WebSocket to enable updates for specified Channels.
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Debug)]
 struct Subscription {
     pub r#type: String,
     pub product_ids: Vec<String>,

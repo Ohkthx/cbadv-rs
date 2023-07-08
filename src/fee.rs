@@ -10,7 +10,7 @@ use serde_with::{serde_as, DisplayFromStr};
 use std::fmt;
 
 #[serde_as]
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Debug)]
 pub struct FeeTier {
     pub pricing_tier: String,
     #[serde_as(as = "DisplayFromStr")]
@@ -24,14 +24,14 @@ pub struct FeeTier {
 }
 
 #[serde_as]
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Debug)]
 pub struct MarginRate {
     #[serde_as(as = "DisplayFromStr")]
     pub value: f64,
 }
 
 #[serde_as]
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Debug)]
 pub struct Tax {
     #[serde_as(as = "DisplayFromStr")]
     pub value: f64,
@@ -39,7 +39,7 @@ pub struct Tax {
 }
 
 /// Represents the transaction summary for fees received from the API.
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Debug)]
 pub struct TransactionSummary {
     pub total_volume: f64,
     pub total_fees: f64,

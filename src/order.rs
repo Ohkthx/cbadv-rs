@@ -72,7 +72,7 @@ impl fmt::Display for OrderStatus {
 
 /// Order updates for a user from a websocket.
 #[serde_as]
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Debug)]
 pub struct OrderUpdate {
     pub r#type: String,
     pub client_order_id: String,
@@ -92,7 +92,7 @@ pub struct OrderUpdate {
 }
 
 /// Market Immediate or Cancel.
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Debug)]
 struct MarketIOC {
     /// Amount of quote currency to spend on order. Required for BUY orders.
     pub quote_size: Option<String>,
@@ -101,7 +101,7 @@ struct MarketIOC {
 }
 
 /// Limit Good til Cancelled.
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Debug)]
 struct LimitGTC {
     /// Amount of base currency to spend on order.
     pub base_size: String,
@@ -112,7 +112,7 @@ struct LimitGTC {
 }
 
 /// Limit Good til Time (Date).
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Debug)]
 struct LimitGTD {
     /// Amount of base currency to spend on order.
     pub base_size: String,
@@ -125,7 +125,7 @@ struct LimitGTD {
 }
 
 /// Stop Limit Good til Cancelled.
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Debug)]
 struct StopLimitGTC {
     /// Amount of base currency to spend on order.
     pub base_size: String,
@@ -138,7 +138,7 @@ struct StopLimitGTC {
 }
 
 /// Stop Limit Good til Time (Date).
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Debug)]
 struct StopLimitGTD {
     /// Amount of base currency to spend on order.
     pub base_size: String,
@@ -153,7 +153,7 @@ struct StopLimitGTD {
 }
 
 /// Create Order Configuration.
-#[derive(Serialize, Deserialize, Default, Debug)]
+#[derive(Serialize, Default, Debug)]
 struct OrderConfiguration {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub market_market_ioc: Option<MarketIOC>,
@@ -168,7 +168,7 @@ struct OrderConfiguration {
 }
 
 /// Represents an order created to BUY or SELL.
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Debug)]
 struct CreateOrder {
     pub client_order_id: String,
     pub product_id: String,
@@ -177,14 +177,14 @@ struct CreateOrder {
 }
 
 /// Represents a vector of orders IDs to cancel.
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Debug)]
 struct CancelOrders {
     pub order_ids: Vec<String>,
 }
 
 /// Represents an Order received from the API.
 #[serde_as]
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Debug)]
 pub struct Order {
     pub order_id: String,
     pub client_order_id: String,
@@ -229,7 +229,7 @@ pub struct Order {
 
 /// Represents a fill received from the API.
 #[serde_as]
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Debug)]
 pub struct Fill {
     pub entry_id: String,
     pub trade_id: String,
@@ -251,7 +251,7 @@ pub struct Fill {
 }
 
 /// Represents a list of orders received from the API.
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Debug)]
 pub struct ListedOrders {
     pub orders: Vec<Order>,
     pub has_next: bool,
@@ -259,14 +259,14 @@ pub struct ListedOrders {
 }
 
 /// Represents a list of fills received from the API.
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Debug)]
 pub struct ListedFills {
     pub orders: Vec<Fill>,
     pub cursor: String,
 }
 
 /// Represents a create order response from the API.
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Debug)]
 pub struct OrderResponse {
     pub success: bool,
     pub failure_reason: String,
@@ -274,13 +274,13 @@ pub struct OrderResponse {
 }
 
 /// Represents a cancel order response from the API.
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Debug)]
 pub struct CancelOrdersResponse {
     results: Vec<OrderResponse>,
 }
 
 /// Represents an order when obtaining a single order from the API.
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Debug)]
 struct OrderStatusResponse {
     pub order: Order,
 }

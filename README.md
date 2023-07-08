@@ -19,9 +19,9 @@
         <img src="https://img.shields.io/github/repo-size/Ohkthx/cbadv-rs?style=for-the-badge&logoColor=a6e3a1&labelColor=11111b&color=a6e3a1"
 </p>
 
-# cbadv-rs, Coinbase Advanced API
+# Asynchronous Coinbase Advanced API
 
-`cbadv-rs` grants access to the **Coinbase Advanced** REST and WebSocket API.
+The objective of this crate is to grant asynchronous access to the **Coinbase Advanced** REST and WebSocket API. Included with the crate are ways to organize your API Keys and Secrets inside of a configuration file.
 
 This project is current a work-in-progress. Changes between versions can vary greatly as this API becomes more refined and adapts to Coinbase Advances changing state. I ask you to understand that I am not liable for any issues you may encounter while this project is in this state and encourage you to verify and test before committing to using this yourself in a serious manner.
 
@@ -33,7 +33,8 @@ cbadv = { git = "https://github.com/ohkthx/cbadv-rs" }
 ```
 
 ## Features
-- Easy-to-use Client.
+- Asynchronous.
+- Easy-to-use REST and WebSocket clients.
 - Configuration file to hold API Key and API Secret.
 - Covers all REST endpoints currently accessible (20230705).
 - Covers all WebSocket endpoints currently accessible (20230705).
@@ -113,10 +114,15 @@ Copy the `config.toml.sample` to `config.toml` and add in your API information. 
 Check above in the **Covered API requests** section for possibly covered examples.
 
 - **Account API**: [account_api_example.rs](https://github.com/Ohkthx/cbadv-rs/tree/main/src/bin/account_api_example.rs)
+  - Try with: `cargo run --bin account_api_example`
 - **Product API**: [product_api_example.rs](https://github.com/Ohkthx/cbadv-rs/tree/main/src/bin/product_api_example.rs)
+  - Try with: `cargo run --bin product_api_example`
 - **Fee API**: [fee_api_example.rs](https://github.com/Ohkthx/cbadv-rs/tree/main/src/bin/fee_api_example.rs)
+  - Try with: `cargo run --bin fee_api_example`
 - **Order API**: [order_api_example.rs](https://github.com/Ohkthx/cbadv-rs/tree/main/src/bin/order_api_example.rs)
+  - Try with: `cargo run --bin order_api_example`
 - **WebSocket API**: [websocket_example.rs](https://github.com/Ohkthx/cbadv-rs/tree/main/src/bin/websocket_example.rs)
+  - Try with: `cargo run --bin websocket_example`
 
 ## Tips Appreciated!
 

@@ -1,12 +1,34 @@
+//! # Account API Example, check out the Account API for all functionality.
+//!
+//! Shows how to:
+//! - Obtain multiple accounts.
+//! - Obtain specific account by ID (Product Name)
+//! - Obtain specific account by UUID.
+
 use cbadv::account::ListAccountsQuery;
 use cbadv::{config, rest};
+use std::process::exit;
 
 #[tokio::main]
 async fn main() {
     let product_name: &str = "BTC";
 
     // Load the configuration file.
-    let config = config::load("config.toml").unwrap();
+    let config: config::Config = match config::load("config.toml") {
+        Ok(c) => c,
+        Err(_) => {
+            println!("Could not load configuration file.");
+            if config::exists("config.toml") {
+                println!("Make sure it is a valid configuration file.");
+                exit(1);
+            }
+
+            // Create a new configuration file.
+            config::new().save("config.toml").unwrap();
+            println!("Empty configuration file created, please update it.");
+            exit(1);
+        }
+    };
 
     // Create a client to interact with the API.
     let client = rest::Client::new(&config.cb_api_key, &config.cb_api_secret);
@@ -52,7 +74,7 @@ async fn main() {
     }
 
     // Get a singular account based on the UUID.
-    println!("\n\nObtaining Account: {}", account_uuid);
+    println!("\n\nObtaining Account by UUID: {}", account_uuid);
     match client.account.get(&account_uuid).await {
         Ok(account) => println!("{:#?}", account),
         Err(error) => println!("Unable to get account: {}", error),

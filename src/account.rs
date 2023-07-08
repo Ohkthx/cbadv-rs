@@ -7,12 +7,12 @@ use crate::signer::Signer;
 use crate::utils::{CBAdvError, Result};
 use async_recursion::async_recursion;
 use serde::{Deserialize, Serialize};
-use serde_with::{serde_as, DisplayFromStr};
+use serde_with::{serde_as, DefaultOnNull, DisplayFromStr};
 use std::fmt;
 
 /// Represents a Balance for either Available or Held funds.
 #[serde_as]
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Debug)]
 pub struct Balance {
     #[serde_as(as = "DisplayFromStr")]
     pub value: f64,
@@ -20,7 +20,8 @@ pub struct Balance {
 }
 
 /// Represents an Account received from the API.
-#[derive(Serialize, Deserialize, Debug)]
+#[serde_as]
+#[derive(Deserialize, Debug)]
 pub struct Account {
     pub uuid: String,
     pub name: String,
@@ -30,14 +31,15 @@ pub struct Account {
     pub active: bool,
     pub created_at: String,
     pub updated_at: String,
-    pub deleted_at: Option<String>,
+    #[serde_as(as = "DefaultOnNull")]
+    pub deleted_at: String,
     pub r#type: String,
     pub ready: bool,
     pub hold: Balance,
 }
 
 /// Represents a list of accounts received from the API.
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Debug)]
 pub struct ListedAccounts {
     pub accounts: Vec<Account>,
     pub has_next: bool,
@@ -46,7 +48,7 @@ pub struct ListedAccounts {
 }
 
 /// Represents an account response from the API.
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Debug)]
 struct AccountResponse {
     pub account: Account,
 }
