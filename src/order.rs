@@ -442,7 +442,7 @@ impl OrderAPI {
     ///
     /// * `signer` - A Signer that include the API Key & Secret along with a client to make
     /// requests.
-    pub fn new(signer: Signer) -> Self {
+    pub(crate) fn new(signer: Signer) -> Self {
         Self { signer }
     }
 

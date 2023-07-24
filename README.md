@@ -35,7 +35,7 @@ cbadv = { git = "https://github.com/ohkthx/cbadv-rs" }
 ## Features
 - Asynchronous.
 - Easy-to-use REST and WebSocket clients.
-- Configuration file to hold API Key and API Secret.
+- Configuration file to hold API Key and API Secret. `features = ["config"]`
 - Covers all REST endpoints currently accessible (20230705).
 - Covers all WebSocket endpoints currently accessible (20230705).
 
@@ -103,26 +103,33 @@ These functions were created to cover common functionality but not initially par
 
 Test all endpoints that are currently untested.
 
-## Configuration
+## Configuration Feature
 
-The default configuration is unusable due to the API requiring a Key and Secret. You can create, modify, and delete API Keys and Secrets with this [link](https://www.coinbase.com/settings/api).
+Configuration requires you to add the 'config' feature (`features = ["config"]`) to your `Cargo.toml`. The default configuration is unusable due to the API requiring a Key and Secret. You can create, modify, and delete API Keys and Secrets with this [link](https://www.coinbase.com/settings/api).
 
 Copy the `config.toml.sample` to `config.toml` and add in your API information. The `config.toml` file will automatically be read on launch to access your accounts API information. Unlike the depreciated Coinbase Pro API, there's no longer access to Public API endpoints. All access requires authentication. The key and secret is authentication requirements for HTTP requests to be properly [signed](https://docs.cloud.coinbase.com/advanced-trade-api/docs/rest-api-auth) and accepted by Coinbase.
+
+Example of enabled `config` feature in `Cargo.toml`.
+
+```toml
+[dependencies]
+cbadv = { version = "*", features = ["config"] }
+```
 
 ## Examples
 
 Check above in the **Covered API requests** section for possibly covered examples.
 
-- **Account API**: [account_api_example.rs](https://github.com/Ohkthx/cbadv-rs/tree/main/src/bin/account_api_example.rs)
-  - Try with: `cargo run --bin account_api_example`
-- **Product API**: [product_api_example.rs](https://github.com/Ohkthx/cbadv-rs/tree/main/src/bin/product_api_example.rs)
-  - Try with: `cargo run --bin product_api_example`
-- **Fee API**: [fee_api_example.rs](https://github.com/Ohkthx/cbadv-rs/tree/main/src/bin/fee_api_example.rs)
-  - Try with: `cargo run --bin fee_api_example`
-- **Order API**: [order_api_example.rs](https://github.com/Ohkthx/cbadv-rs/tree/main/src/bin/order_api_example.rs)
-  - Try with: `cargo run --bin order_api_example`
-- **WebSocket API**: [websocket_example.rs](https://github.com/Ohkthx/cbadv-rs/tree/main/src/bin/websocket_example.rs)
-  - Try with: `cargo run --bin websocket_example`
+- **Account API**: [account_api.rs](https://github.com/Ohkthx/cbadv-rs/tree/main/examples/account_api.rs)
+  - Try with: `cargo run --example account_api --features="config"`
+- **Product API**: [product_api.rs](https://github.com/Ohkthx/cbadv-rs/tree/main/examples/product_api.rs)
+  - Try with: `cargo run --example product_api --features="config"`
+- **Fee API**: [fee_api.rs](https://github.com/Ohkthx/cbadv-rs/tree/main/examples/fee_api.rs)
+  - Try with: `cargo run --example fee_api --features="config"`
+- **Order API**: [order_api.rs](https://github.com/Ohkthx/cbadv-rs/tree/main/examples/order_api.rs)
+  - Try with: `cargo run --example order_api --features="config"`
+- **WebSocket API**: [websocket.rs](https://github.com/Ohkthx/cbadv-rs/tree/main/examples/websocket.rs)
+  - Try with: `cargo run --example websocket --features="config"`
 
 ## Tips Appreciated!
 

@@ -8,8 +8,13 @@
 //! exist. I hold no responsibility for any issues that occur by using this software and welcome
 //! contributions.
 
-pub mod account;
+#![cfg_attr(all(test, feature = "full"), deny(unreachable_pub))]
+#![cfg_attr(all(test, feature = "full"), deny(warnings))]
+
+#[cfg(feature = "config")]
 pub mod config;
+
+pub mod account;
 pub mod fee;
 pub mod order;
 pub mod product;

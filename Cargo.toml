@@ -1,30 +1,59 @@
 [package]
 name = "cbadv"
 license = "MIT"
-version = "1.1.3"
+version = "1.1.4"
 edition = "2021"
 description = "Asynchronous Coinbase Advanced REST and WebSocket API"
 readme = "README.md"
 homepage = "https://github.com/Ohkthx/cbadv-rs"
 repository = "https://github.com/Ohkthx/cbadv-rs"
 keywords = ["trading", "coinbase", "coinbasepro", "coinbaseadvanced", "crypto"]
-exclude = ["commit_msg", "*.toml", "configs/", "target/", "src/bin/"]
+include = ["*/**.rs"]
 
+[features]
+default = []
+full = ["config"]
+config = ["dep:toml"]
+
+[[example]]
+name = "account_api"
+path = "examples/account_api.rs"
+required-features = ["config"]
+
+[[example]]
+name = "product_api"
+path = "examples/product_api.rs"
+required-features = ["config"]
+
+[[example]]
+name = "fee_api"
+path = "examples/fee_api.rs"
+required-features = ["config"]
+
+[[example]]
+name = "order_api"
+path = "examples/order_api.rs"
+required-features = ["config"]
+
+[[example]]
+name = "websocket"
+path = "examples/websocket.rs"
+required-features = ["config"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-reqwest = { version = "0.11", features = ["json"] } # Making HTTP requests.
+reqwest = {version = "0.11", features = ["json"]} # Making HTTP requests.
 futures = "0.3" # Async / await blocks
-tokio = { version = "1.12.0", features = ["full"] } # Async runtime
+tokio = {version = "1.12.0", features = ["full"]} # Async runtime
 hmac = "0.12.1" # Signing requests with a signature.
 sha2 = "0.10.6" # Signing requests with a signature.
 hex = "0.4.3" # Convert signature for HTTP headers.
 serde_json = "1.0.96" # Converting Configuration file and Objects from API.
 serde_with = "3.0.0" # Converting from strings to other data types.
-serde = { version = "1.0.163", features = ["derive"] } # Converting Configuration file and Objects from API.
-toml = "0.7.3" # Creating Configuration file.
-uuid = {version = "1.3.4", features = ["v4", "fast-rng", "macro-diagnostics"] } # Create Client ID for orders.
+serde = {version = "1.0.163", features = ["derive"]} # Converting Configuration file and Objects from API.
+toml = {version = "0.7.3", optional = true} # Creating Configuration file.
+uuid = {version = "1.3.4", features = ["v4", "fast-rng", "macro-diagnostics"]} # Create Client ID for orders.
 async-recursion = "1.0.4" # Recursive async functions require this.
-tokio-tungstenite = {version = "0.19.0", features = ["native-tls"] } # WebSocket requirement.
+tokio-tungstenite = {version = "0.19.0", features = ["native-tls"]} # WebSocket requirement.
 futures-util = "0.3.28" # Required for the WebSocket client.

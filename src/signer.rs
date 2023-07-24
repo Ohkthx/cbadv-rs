@@ -12,14 +12,12 @@ use reqwest::{header, Method, Response, StatusCode};
 use serde::Serialize;
 use sha2::Sha256;
 
-type HmacSha256 = Hmac<Sha256>;
-
 /// Root URI for the API service.
 const ROOT_URI: &str = "https://api.coinbase.com";
 
 /// Creates and signs HTTP Requests to the API.
 #[derive(Debug, Clone)]
-pub struct Signer {
+pub(crate) struct Signer {
     /// API Key provided by the service.
     pub api_key: String,
     /// API Secret provided by the service.
@@ -59,7 +57,7 @@ impl Signer {
         let prehash = format!("{}{}{}{}", timestamp, method, resource, body);
 
         // Create the signature.
-        let mut mac = HmacSha256::new_from_slice(self.api_secret.as_bytes())
+        let mut mac = Hmac::<Sha256>::new_from_slice(self.api_secret.as_bytes())
             .expect("Failed to generate a signature.");
         mac.update(prehash.as_bytes());
         let signature = mac.finalize();
@@ -90,7 +88,7 @@ impl Signer {
         let prehash = format!("{}{}{}", timestamp, channel, product_ids.join(","));
 
         // Create the signature.
-        let mut mac = HmacSha256::new_from_slice(self.api_secret.as_bytes())
+        let mut mac = Hmac::<Sha256>::new_from_slice(self.api_secret.as_bytes())
             .expect("Failed to generate a signature.");
         mac.update(prehash.as_bytes());
         let signature = mac.finalize();
