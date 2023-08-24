@@ -55,8 +55,11 @@ impl fmt::Display for OrderSide {
 /// Order status, OPEN, CANCELLED, and EXPIRED.
 #[derive(Serialize, Deserialize, Debug)]
 pub enum OrderStatus {
+    /// Implies the order is still available and not closed.
     OPEN,
+    /// Order was closed by cancellation.
     CANCELLED,
+    /// Order was closed by expiration.
     EXPIRED,
 }
 
@@ -74,20 +77,29 @@ impl fmt::Display for OrderStatus {
 #[serde_as]
 #[derive(Deserialize, Debug)]
 pub struct OrderUpdate {
+    /// Type of the update.
     pub r#type: String,
+    /// Client Order ID (Normally a UUID)
     pub client_order_id: String,
     #[serde_as(as = "DisplayFromStr")]
     pub cumulative_quantity: f64,
     #[serde_as(as = "DisplayFromStr")]
     pub leaves_quantity: f64,
+    /// Average price for the order.
     #[serde_as(as = "DisplayFromStr")]
     pub avg_price: f64,
+    /// Total fees for the order.
     #[serde_as(as = "DisplayFromStr")]
     pub total_fees: f64,
+    /// Status of the order.
     pub status: String,
+    /// Product ID.
     pub product_id: String,
+    /// Date-time when the order was created.
     pub creation_time: String,
+    /// BUY or SELL.
     pub order_side: String,
+    /// Type of the order.
     pub order_type: String,
 }
 
@@ -155,14 +167,19 @@ struct StopLimitGTD {
 /// Create Order Configuration.
 #[derive(Serialize, Default, Debug)]
 struct OrderConfiguration {
+    /// Market Order
     #[serde(skip_serializing_if = "Option::is_none")]
     pub market_market_ioc: Option<MarketIOC>,
+    /// Limit Order, Good til Cancelled
     #[serde(skip_serializing_if = "Option::is_none")]
     pub limit_limit_gtc: Option<LimitGTC>,
+    /// Limit Order, Good til Date (time)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub limit_limit_gtd: Option<LimitGTD>,
+    /// Stop Limit Order, Good til Cancelled
     #[serde(skip_serializing_if = "Option::is_none")]
     pub stop_limit_stop_limit_gtc: Option<StopLimitGTC>,
+    /// Stop Limit Order, Good til Date (time)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub stop_limit_stop_limit_gtd: Option<StopLimitGTD>,
 }
@@ -170,15 +187,20 @@ struct OrderConfiguration {
 /// Represents an order created to BUY or SELL.
 #[derive(Serialize, Debug)]
 struct CreateOrder {
+    /// Client Order ID (UUID)
     pub client_order_id: String,
+    /// Product ID (pair)
     pub product_id: String,
+    /// Order Side: BUY or SELL.
     pub side: String,
+    /// Configuration for the order.
     pub order_configuration: OrderConfiguration,
 }
 
 /// Represents a vector of orders IDs to cancel.
 #[derive(Serialize, Debug)]
 struct CancelOrders {
+    /// Vector of Order IDs to cancel.
     pub order_ids: Vec<String>,
 }
 
@@ -186,44 +208,65 @@ struct CancelOrders {
 #[serde_as]
 #[derive(Deserialize, Debug)]
 pub struct Order {
+    /// The unique id for this order.
     pub order_id: String,
+    /// Client specified ID of order.
     pub client_order_id: String,
+    /// The product this order was created for e.g. 'BTC-USD'
     pub product_id: String,
+    /// The id of the User owning this Order.
     pub user_id: String,
-
+    /// Possible values: [UNKNOWN_ORDER_SIDE, BUY, SELL]
     pub side: String,
+    /// Possible values: [OPEN, FILLED, CANCELLED, EXPIRED, FAILED, UNKNOWN_ORDER_STATUS]
     pub status: String,
+    /// Possible values: [UNKNOWN_TIME_IN_FORCE, GOOD_UNTIL_DATE_TIME, GOOD_UNTIL_CANCELLED, IMMEDIATE_OR_CANCEL, FILL_OR_KILL]
     pub time_in_force: String,
+    /// Timestamp for when the order was created.
     pub created_time: String,
-
+    /// The percent of total order amount that has been filled.
     #[serde_as(as = "DisplayFromStr")]
     pub completion_percentage: f64,
+    /// The portion (in base currency) of total order amount that has been filled.
     #[serde_as(as = "DisplayFromStr")]
     pub filled_size: f64,
+    /// The average of all prices of fills for this order.
     #[serde_as(as = "DisplayFromStr")]
     pub average_filled_price: f64,
+    /// Commission amount.
     #[serde_as(as = "DefaultOnError")]
     pub fee: f64,
+    /// Number of fills that have been posted for this order.
     #[serde_as(as = "DisplayFromStr")]
     pub number_of_fills: u32,
+    /// The portion (in quote current) of total order amount that has been filled.
     #[serde_as(as = "DisplayFromStr")]
     pub filled_value: f64,
-
+    /// Whether a cancel request has been initiated for the order, and not yet completed.
     pub pending_cancel: bool,
+    /// Whether the order was placed with quote currency/
     pub size_in_quote: bool,
-
+    /// The total fees for the order.
     #[serde_as(as = "DisplayFromStr")]
     pub total_fees: f64,
+    /// Whether the order size includes fees.
     pub size_inclusive_of_fees: bool,
+    /// Derived field: filled_value + total_fees for buy orders and filled_value - total_fees for sell orders.
     #[serde_as(as = "DisplayFromStr")]
     pub total_value_after_fees: f64,
-
+    /// Possible values: [UNKNOWN_TRIGGER_STATUS, INVALID_ORDER_TYPE, STOP_PENDING, STOP_TRIGGERED]
     pub trigger_status: String,
+    /// Possible values: [UNKNOWN_ORDER_TYPE, MARKET, LIMIT, STOP, STOP_LIMIT]
     pub order_type: String,
+    /// Possible values: [REJECT_REASON_UNSPECIFIED]
     pub reject_reason: String,
+    /// True if the order is fully filled, false otherwise.
     pub settled: bool,
+    /// Possible values: [SPOT, FUTURE]
     pub product_type: String,
+    /// Message stating why the order was rejected.
     pub reject_message: String,
+    /// Message stating why the order was canceled.
     pub cancel_message: String,
 }
 
@@ -429,6 +472,7 @@ impl fmt::Display for ListFillsQuery {
 
 /// Provides access to the Order API for the service.
 pub struct OrderAPI {
+    /// Object used to sign requests made to the API.
     signer: Signer,
 }
 

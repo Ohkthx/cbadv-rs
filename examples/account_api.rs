@@ -33,41 +33,45 @@ async fn main() {
     // Create a client to interact with the API.
     let client = rest::Client::new(&config.cb_api_key, &config.cb_api_secret);
 
-    // Parameters to send to the API.
-    let query = ListAccountsQuery {
-        // limit: Some(50),
-        ..Default::default()
-    };
-
     // Pull accounts by ID.
-    println!("Obtaining account by ID.");
+    println!("Obtaining account by ID (non-standard).");
     match client.account.get_by_id(&product_name, None).await {
         Ok(account) => println!("{:#?}", account),
         Err(error) => println!("Unable to get account: {}", error),
     }
 
-    // Pull all accounts.
-    println!("\n\nObtaining ALL Accounts.");
+    // Pull accounts by ID.
     let mut account_uuid = "".to_string();
+    println!("\n\nObtaining ALL accounts (non-standard).");
+    match client.account.get_all(None).await {
+        Ok(accounts) => {
+            println!("Obtained {:#?} accounts.", accounts.len());
+
+            // Find the UUID of an account to pull at the end.
+            match accounts.iter().position(|r| &r.currency == product_name) {
+                Some(index) => {
+                    let account = accounts.get(index).unwrap();
+                    account_uuid = account.uuid.clone();
+                }
+                None => println!("Out of bounds, could not find account."),
+            }
+        }
+        Err(error) => println!("Unable to get accounts: {}", error),
+    }
+
+    // Parameters to send to the API.
+    let query = ListAccountsQuery {
+        // limit: Some(250),
+        ..Default::default()
+    };
+
+    // Pull all accounts.
+    println!("\n\nObtaining Bulk Accounts.");
     match client.account.get_bulk(&query).await {
         Ok(accounts) => {
             println!("Accounts obtained: {:#?}", accounts.accounts.len());
             for acct in accounts.accounts.iter() {
                 println!("Account name: {}", acct.currency);
-            }
-
-            match accounts
-                .accounts
-                .iter()
-                .position(|r| &r.currency == product_name)
-            {
-                Some(index) => {
-                    println!("Account index: {}", index);
-                    let account = accounts.accounts.get(index).unwrap();
-                    account_uuid = account.uuid.clone();
-                    println!("{:#?}", account);
-                }
-                None => println!("Out of bounds, could not find account."),
             }
         }
         Err(error) => println!("Unable to get all accounts: {}", error),

@@ -65,13 +65,13 @@ async fn main() {
     println!("\n\nGetting multiple products.");
     let query = ListProductsQuery {
         limit: Some(5),
-        product_ids: Some(vec!["BTC-USD".to_string()]),
+        product_ids: Some(vec!["BTC-USD".to_string(), "ETH-USD".to_string()]),
         ..Default::default()
     };
 
     // Pull multiple products from the Product API.
     match client.product.get_bulk(&query).await {
-        Ok(products) => println!("{:#?}", products),
+        Ok(products) => println!("Obtained {:#?} products", products.len()),
         Err(error) => println!("Unable to get products: {}", error),
     }
 

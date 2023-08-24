@@ -19,13 +19,13 @@
         <img src="https://img.shields.io/github/repo-size/Ohkthx/cbadv-rs?style=for-the-badge&logoColor=a6e3a1&labelColor=11111b&color=a6e3a1"
 </p>
 
-# Asynchronous Coinbase Advanced API
+# Asynchronous CoinBase Advanced API
 
-The objective of this crate is to grant asynchronous access to the **Coinbase Advanced** REST and WebSocket API. Included with the crate are ways to organize your API Keys and Secrets inside of a configuration file.
+The objective of this crate is to grant asynchronous access to the **CoinBase Advanced** REST and WebSocket API. Included with the crate are ways to organize your API Keys and Secrets inside of a configuration file.
 
-This project is current a work-in-progress. Changes between versions can vary greatly as this API becomes more refined and adapts to Coinbase Advances changing state. I ask you to understand that I am not liable for any issues you may encounter while this project is in this state and encourage you to verify and test before committing to using this yourself in a serious manner.
+This project is current a work-in-progress. Changes between versions can vary greatly as this API becomes more refined and adapts to CoinBase Advances changing state. I ask you to understand that I am not liable for any issues you may encounter while this project is in this state and encourage you to verify and test before committing to using this yourself in a serious manner.
 
-Contributions are encouraged! The API reference can be seen at [Coinbase Advanced API](https://docs.cloud.coinbase.com/advanced-trade-api/reference). If you wish to add this to your project, either use `cargo add cbadv` or add the following line to your dependencies section in **Cargo.toml**:
+Contributions are encouraged! The API reference can be seen at [CoinBase Advanced API](https://docs.cloud.coinbase.com/advanced-trade-api/reference). If you wish to add this to your project, either use `cargo add cbadv` or add the following line to your dependencies section in **Cargo.toml**:
 
 ```toml
 [dependencies]
@@ -91,10 +91,12 @@ Client: `use cbadv::rest::Client`
 
 ### Added Requests
 
-These functions were created to cover common functionality but not initially part of the Coinbase Advanced API. They may require several API requests to accomplish their results.
+These functions were created to cover common functionality but not initially part of the CoinBase Advanced API. They may require several API requests to accomplish their results.
 
 - **Accounts** [client.account]
   - Get Account by ID [client.account.get_by_id] - Gets an account by the ID (ex BTC or ETH)
+  - Get All [client.account.get_all] - Gets all accounts.
+
 - **Orders** [client.order]
   - Get All Orders [client.order.get_all] - Obtains all orders for a product.
   - Cancel All Orders [client.order.cancel_all] - Cancels all OPEN orders for a product.
@@ -107,7 +109,7 @@ Test all endpoints that are currently untested.
 
 Configuration requires you to add the 'config' feature (`features = ["config"]`) to your `Cargo.toml`. The default configuration is unusable due to the API requiring a Key and Secret. You can create, modify, and delete API Keys and Secrets with this [link](https://www.coinbase.com/settings/api).
 
-Copy the `config.toml.sample` to `config.toml` and add in your API information. The `config.toml` file will automatically be read on launch to access your accounts API information. Unlike the depreciated Coinbase Pro API, there's no longer access to Public API endpoints. All access requires authentication. The key and secret is authentication requirements for HTTP requests to be properly [signed](https://docs.cloud.coinbase.com/advanced-trade-api/docs/rest-api-auth) and accepted by Coinbase.
+Copy the `config.toml.sample` to `config.toml` and add in your API information. The `config.toml` file will automatically be read on launch to access your accounts API information. Unlike the depreciated CoinBase Pro API, there's no longer access to Public API endpoints. All access requires authentication. The key and secret is authentication requirements for HTTP requests to be properly [signed](https://docs.cloud.coinbase.com/advanced-trade-api/docs/rest-api-auth) and accepted by CoinBase.
 
 Example of enabled `config` feature in `Cargo.toml`.
 
@@ -121,15 +123,15 @@ cbadv = { version = "*", features = ["config"] }
 Check above in the **Covered API requests** section for possibly covered examples.
 
 - **Account API**: [account_api.rs](https://github.com/Ohkthx/cbadv-rs/tree/main/examples/account_api.rs)
-  - Try with: `cargo run --example account_api --features="config"`
+  - `cargo run --example account_api --features="config"`
 - **Product API**: [product_api.rs](https://github.com/Ohkthx/cbadv-rs/tree/main/examples/product_api.rs)
-  - Try with: `cargo run --example product_api --features="config"`
+  - `cargo run --example product_api --features="config"`
 - **Fee API**: [fee_api.rs](https://github.com/Ohkthx/cbadv-rs/tree/main/examples/fee_api.rs)
-  - Try with: `cargo run --example fee_api --features="config"`
+  - `cargo run --example fee_api --features="config"`
 - **Order API**: [order_api.rs](https://github.com/Ohkthx/cbadv-rs/tree/main/examples/order_api.rs)
-  - Try with: `cargo run --example order_api --features="config"`
+  - `cargo run --example order_api --features="config"`
 - **WebSocket API**: [websocket.rs](https://github.com/Ohkthx/cbadv-rs/tree/main/examples/websocket.rs)
-  - Try with: `cargo run --example websocket --features="config"`
+  - `cargo run --example websocket --features="config"`
 
 ## Tips Appreciated!
 

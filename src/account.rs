@@ -14,8 +14,10 @@ use std::fmt;
 #[serde_as]
 #[derive(Deserialize, Debug)]
 pub struct Balance {
+    /// Value for the currency available or held.
     #[serde_as(as = "DisplayFromStr")]
     pub value: f64,
+    /// Denomination of the currency.
     pub currency: String,
 }
 
@@ -23,38 +25,55 @@ pub struct Balance {
 #[serde_as]
 #[derive(Deserialize, Debug)]
 pub struct Account {
+    /// Unique identifier for account.
     pub uuid: String,
+    /// Name for the account.
     pub name: String,
+    /// Currency symbol for the account.
     pub currency: String,
+    /// Current available balance for the account.
     pub available_balance: Balance,
+    /// Whether or not this account is the user's primary account.
     pub default: bool,
+    /// Whether or not this account is active and okay to use.
     pub active: bool,
+    /// Time at which this account was created.
     pub created_at: String,
+    /// Time at which this account was updated.
     pub updated_at: String,
+    /// Time at which this account was deleted.
     #[serde_as(as = "DefaultOnNull")]
     pub deleted_at: String,
+    /// Possible values: [ACCOUNT_TYPE_UNSPECIFIED, ACCOUNT_TYPE_CRYPTO, ACCOUNT_TYPE_FIAT, ACCOUNT_TYPE_VAULT]
     pub r#type: String,
+    /// Whether or not this account is ready to trade.
     pub ready: bool,
+    /// Current balance on hold.
     pub hold: Balance,
 }
 
 /// Represents a list of accounts received from the API.
 #[derive(Deserialize, Debug)]
 pub struct ListedAccounts {
+    /// Accounts returned from the API.
     pub accounts: Vec<Account>,
+    /// Whether there are additional pages for this query.
     pub has_next: bool,
+    /// Cursor for paginating. Users can use this string to pass in the next call to this endpoint, and repeat this process to fetch all accounts through pagination.
     pub cursor: String,
+    /// Number of accounts returned.
     pub size: u32,
 }
 
 /// Represents an account response from the API.
 #[derive(Deserialize, Debug)]
 struct AccountResponse {
+    /// Account returned from the API.
     pub account: Account,
 }
 
 /// Represents parameters that are optional for List Account API request.
-#[derive(Serialize, Default, Debug)]
+#[derive(Serialize, Default, Debug, Clone)]
 pub struct ListAccountsQuery {
     /// Amount to obtain, default 49 maximum is 250.
     pub limit: Option<u32>,
@@ -86,6 +105,7 @@ impl fmt::Display for ListAccountsQuery {
 
 /// Provides access to the Account API for the service.
 pub struct AccountAPI {
+    /// Object used to sign requests made to the API.
     signer: Signer,
 }
 
@@ -164,6 +184,38 @@ impl AccountAPI {
                 }
             }
             Err(error) => Err(error),
+        }
+    }
+
+    /// Obtains all accounts available to the API Key. Use a larger limit in the query to decrease
+    /// the amount of API calls. Recursively makes calls to obtain all accounts.
+    ///
+    /// NOTE: NOT A STANDARD API FUNCTION. QoL function that may require additional API requests than
+    /// normal.
+    ///
+    /// # Arguments
+    ///
+    /// * `query` - Optional parameters, should default to None unless you want additional control.
+    #[async_recursion]
+    pub async fn get_all(&self, query: Option<ListAccountsQuery>) -> Result<Vec<Account>> {
+        let mut query = match query {
+            Some(p) => p,
+            None => ListAccountsQuery::default(),
+        };
+
+        // Obtain until there are not anymore accounts.
+        match self.get_bulk(&query).await {
+            Ok(mut listed) => {
+                if listed.has_next {
+                    query.cursor = Some(listed.cursor);
+                    match self.get_all(Some(query)).await {
+                        Ok(mut accounts) => listed.accounts.append(&mut accounts),
+                        Err(error) => return Err(error),
+                    }
+                }
+                Ok(listed.accounts)
+            }
+            Err(error) => return Err(error),
         }
     }
 

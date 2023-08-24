@@ -8,24 +8,34 @@ use crate::signer::Signer;
 use crate::time;
 use crate::utils::{CBAdvError, Result};
 use serde::{Deserialize, Serialize};
-use serde_with::{serde_as, DisplayFromStr};
+use serde_with::{serde_as, DefaultOnError, DisplayFromStr};
 use std::fmt;
 
 /// Represents a Product received from the Websocket API.
 #[serde_as]
 #[derive(Deserialize, Debug)]
 pub struct ProductUpdate {
+    /// Type of the product.
     pub product_type: String,
+    /// ID of the product.
     pub id: String,
+    /// Symbol of the base currency.
     pub base_currency: String,
+    /// Symbol of the quote currency.
     pub quote_currency: String,
+    /// Minimum amount base value can be increased or decreased at once.
     #[serde_as(as = "DisplayFromStr")]
     pub base_increment: f64,
+    /// Minimum amount quote value can be increased or decreased at once.
     #[serde_as(as = "DisplayFromStr")]
     pub quote_increment: f64,
+    /// Name of the product.
     pub display_name: String,
+    /// Status of the product.
     pub status: String,
+    /// Additional status message.
     pub status_message: String,
+    /// Minimum amount of funds.
     #[serde_as(as = "DisplayFromStr")]
     pub min_market_funds: f64,
 }
@@ -34,21 +44,30 @@ pub struct ProductUpdate {
 #[serde_as]
 #[derive(Deserialize, Debug)]
 pub struct MarketTradesUpdate {
+    /// Trade identity.
     pub trade_id: String,
+    /// ID of the product.
     pub product_id: String,
+    /// Price of the product.
     #[serde_as(as = "DisplayFromStr")]
     pub price: f64,
+    /// Size for the trade.
     #[serde_as(as = "DisplayFromStr")]
     pub size: f64,
+    /// Side: BUY or SELL.
     pub side: String,
+    /// Time for the market trade.
     pub time: String,
 }
 
 /// Session details for the product.
 #[derive(Deserialize, Debug)]
 pub struct SessionDetails {
+    /// Whether or not the session is currently open.
     pub is_session_open: bool,
+    /// Time the session opened.
     pub open_time: String,
+    /// Time the session closed.
     pub close_time: String,
 }
 
@@ -69,12 +88,17 @@ pub struct FutureDetails {
     pub contract_expiry: String,
     pub contract_size: String,
     pub contract_root_unit: String,
+    /// Descriptive name for the product series, eg "Nano Bitcoin Futures".
     pub group_description: String,
     pub contract_expiry_timezone: String,
+    /// Short version of the group_description, eg "Nano BTC".
     pub group_short_description: String,
+    /// Possible values: [UNKNOWN_RISK_MANAGEMENT_TYPE, MANAGED_BY_FCM, MANAGED_BY_VENUE]
     pub risk_managed_by: String,
+    /// Possible values: [UNKNOWN_CONTRACT_EXPIRY_TYPE, EXPIRING]
     pub contract_expiry_type: String,
     pub perpetual_details: Option<PerpetualDetails>,
+    /// Name of the contract.
     pub contract_display_name: String,
 }
 
@@ -82,51 +106,84 @@ pub struct FutureDetails {
 #[serde_as]
 #[derive(Deserialize, Debug)]
 pub struct Product {
+    /// The trading pair.
     pub product_id: String,
+    /// The current price for the product, in quote currency.
     #[serde_as(as = "DisplayFromStr")]
     pub price: f64,
-    #[serde_as(as = "DisplayFromStr")]
+    /// The amount the price of the product has changed, in percent, in the last 24 hours.
+    #[serde_as(as = "DefaultOnError")]
     pub price_percentage_change_24h: f64,
-    #[serde_as(as = "DisplayFromStr")]
+    /// The trading volume for the product in the last 24 hours.
+    #[serde_as(as = "DefaultOnError")]
     pub volume_24h: f64,
-    #[serde_as(as = "DisplayFromStr")]
+    /// The percentage amount the volume of the product has changed in the last 24 hours.
+    #[serde_as(as = "DefaultOnError")]
     pub volume_percentage_change_24h: f64,
+    /// Minimum amount base value can be increased or decreased at once.
     #[serde_as(as = "DisplayFromStr")]
     pub base_increment: f64,
+    /// Minimum amount quote value can be increased or decreased at once.
     #[serde_as(as = "DisplayFromStr")]
     pub quote_increment: f64,
+    /// Minimum size that can be represented of quote currency.
     #[serde_as(as = "DisplayFromStr")]
     pub quote_min_size: f64,
+    /// Maximum size that can be represented of quote currency.
     #[serde_as(as = "DisplayFromStr")]
     pub quote_max_size: f64,
+    /// Minimum size that can be represented of base currency.
     #[serde_as(as = "DisplayFromStr")]
     pub base_min_size: f64,
+    /// Maximum size that can be represented of base currency.
     #[serde_as(as = "DisplayFromStr")]
     pub base_max_size: f64,
-
+    /// Name of the base currency.
     pub base_name: String,
+    /// Name of the quote currency.
     pub quote_name: String,
+    /// Whether or not the product is on the user's watchlist.
     pub watched: bool,
+    /// Whether or not the product is disabled for trading.
     pub is_disabled: bool,
+    /// Whether or not the product is 'new'.
     pub new: bool,
+    /// Status of the product.
     pub status: String,
+    /// Whether or not orders of the product can only be cancelled, not placed or edited.
     pub cancel_only: bool,
+    /// Whether or not orders of the product can only be limit orders, not market orders.
     pub limit_only: bool,
+    /// Whether or not orders of the product can only be posted, not cancelled.
     pub post_only: bool,
+    /// Whether or not the product is disabled for trading for all market participants.
     pub trading_disabled: bool,
+    /// Whether or not the product is in auction mode.
     pub auction_mode: bool,
+    /// Possible values: [SPOT, FUTURE]
     pub product_type: String,
+    /// Symbol of the quote currency.
     pub quote_currency_id: String,
+    /// Symbol of the base currency.
     pub base_currency_id: String,
+    /// Session details.
     pub fcm_trading_session_details: Option<SessionDetails>,
+    /// The current midpoint of the bid-ask spread, in quote currency.
     pub mid_market_price: String,
+    /// Product id for the corresponding unified book.
     pub alias: String,
+    /// Product ids that this product serves as an alias for.
     pub alias_to: Vec<String>,
+    /// Symbol of the base display currency.
     pub base_display_symbol: String,
+    /// Symbol of the quote display currency.
     pub quote_display_symbol: String,
+    /// Whether or not the product is in view only mode.
     pub view_only: bool,
+    /// Minimum amount price can be increased or decreased at once.
     #[serde_as(as = "DisplayFromStr")]
     pub price_increment: f64,
+    /// Future product details.
     pub future_product_details: Option<FutureDetails>,
 }
 
@@ -134,8 +191,10 @@ pub struct Product {
 #[serde_as]
 #[derive(Deserialize, Debug)]
 pub struct BidAsk {
+    /// Current bid or ask price.
     #[serde_as(as = "DisplayFromStr")]
     pub price: f64,
+    /// Current bid or ask size.
     #[serde_as(as = "DisplayFromStr")]
     pub size: f64,
 }
@@ -143,9 +202,13 @@ pub struct BidAsk {
 /// Represents a product book for a product.
 #[derive(Deserialize, Debug)]
 pub struct ProductBook {
+    /// The trading pair.
     pub product_id: String,
+    /// Time of the product book.
     pub time: String,
+    /// Array of current bids.
     pub bids: Vec<BidAsk>,
+    /// Array of current asks.
     pub asks: Vec<BidAsk>,
 }
 
@@ -153,16 +216,22 @@ pub struct ProductBook {
 #[serde_as]
 #[derive(Deserialize, Debug)]
 pub struct Candle {
+    /// Timestamp for bucket start time, in UNIX time.
     #[serde_as(as = "DisplayFromStr")]
     pub start: f64,
+    /// Lowest price during the bucket interval.
     #[serde_as(as = "DisplayFromStr")]
     pub low: f64,
+    /// Highest price during the bucket interval.
     #[serde_as(as = "DisplayFromStr")]
     pub high: f64,
+    /// Opening price (first trade) in the bucket interval.
     #[serde_as(as = "DisplayFromStr")]
     pub open: f64,
+    /// Closing price (last trade) in the bucket interval.
     #[serde_as(as = "DisplayFromStr")]
     pub close: f64,
+    /// Volume of trading activity during the bucket interval.
     #[serde_as(as = "DisplayFromStr")]
     pub volume: f64,
 }
@@ -171,17 +240,25 @@ pub struct Candle {
 #[serde_as]
 #[derive(Deserialize, Debug)]
 pub struct Trade {
+    /// The ID of the trade that was placed.
     pub trade_id: String,
+    /// The trading pair.
     pub product_id: String,
+    /// The price of the trade, in quote currency.
     #[serde_as(as = "DisplayFromStr")]
     pub price: f64,
+    /// The size of the trade, in base currency.
     #[serde_as(as = "DisplayFromStr")]
     pub size: f64,
+    /// The time of the trade.
     pub time: String,
+    /// Possible values: [UNKNOWN_ORDER_SIDE, BUY, SELL]
     pub side: String,
-    // NOTE: (20230705) API gives an empty string not a number.
+    /// The best bid for the `product_id`, in quote currency.
+    /// NOTE: (20230705) API gives an empty string not a number.
     pub bid: String,
-    // NOTE: (20230705) API gives an empty string not a number.
+    /// The best ask for the `product_id`, in quote currency.
+    /// NOTE: (20230705) API gives an empty string not a number.
     pub ask: String,
 }
 
@@ -189,20 +266,29 @@ pub struct Trade {
 #[serde_as]
 #[derive(Deserialize, Debug)]
 pub struct TickerUpdate {
+    /// Ticker update type.
     pub r#type: String,
+    /// Product ID (Pair, ex 'BTC-USD')
     pub product_id: String,
+    /// Current price for the product.
     #[serde_as(as = "DisplayFromStr")]
     pub price: f64,
+    /// 24hr Volume for the product.
     #[serde_as(as = "DisplayFromStr")]
     pub volume_24_h: f64,
+    /// 24hr Lowest price.
     #[serde_as(as = "DisplayFromStr")]
     pub low_24_h: f64,
+    /// 24hr Highest price.
     #[serde_as(as = "DisplayFromStr")]
     pub high_24_h: f64,
+    /// 52w (52 weeks) Lowest price.
     #[serde_as(as = "DisplayFromStr")]
     pub low_52_w: f64,
+    /// 52w (52 weeks) Highest price.
     #[serde_as(as = "DisplayFromStr")]
     pub high_52_w: f64,
+    /// 24hr Price percentage change.
     #[serde_as(as = "DisplayFromStr")]
     pub price_percent_chg_24_h: f64,
 }
@@ -211,9 +297,12 @@ pub struct TickerUpdate {
 #[serde_as]
 #[derive(Deserialize, Debug)]
 pub struct Ticker {
+    /// List of trades for the product.
     pub trades: Vec<Trade>,
+    /// The best bid for the `product_id`, in quote currency.
     #[serde_as(as = "DisplayFromStr")]
     pub best_bid: f64,
+    /// The best ask for the `product_id`, in quote currency.
     #[serde_as(as = "DisplayFromStr")]
     pub best_ask: f64,
 }
@@ -221,26 +310,31 @@ pub struct Ticker {
 /// Represents a list of Products received from the API.
 #[derive(Deserialize, Debug)]
 struct ListProductsResponse {
+    /// Array of objects, each representing one product.
     pub products: Vec<Product>,
-    // Note:  Disabled because the user can call `len()` on the Vector.
+    // Number of products that were returned.
+    // NOTE: Disabled because `.len()` exists on the vector.
     // pub num_products: i32,
 }
 
 /// Represents a candle response from the API.
 #[derive(Deserialize, Debug)]
 struct CandleResponse {
+    /// Array of candles for the product.
     pub candles: Vec<Candle>,
 }
 
 /// Represents a best bid and ask response from the API.
 #[derive(Deserialize, Debug)]
 struct BidAskResponse {
+    /// Array of product books.
     pub pricebooks: Vec<ProductBook>,
 }
 
 /// Represents a product book response from the API.
 #[derive(Deserialize, Debug)]
 struct ProductBookResponse {
+    /// Price book for the product.
     pub pricebook: ProductBook,
 }
 
@@ -308,6 +402,7 @@ impl fmt::Display for TickerQuery {
 
 /// Provides access to the Product API for the service.
 pub struct ProductAPI {
+    /// Object used to sign requests made to the API.
     signer: Signer,
 }
 
