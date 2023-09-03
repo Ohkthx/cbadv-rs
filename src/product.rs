@@ -218,7 +218,7 @@ pub struct ProductBook {
 pub struct Candle {
     /// Timestamp for bucket start time, in UNIX time.
     #[serde_as(as = "DisplayFromStr")]
-    pub start: f64,
+    pub start: i64,
     /// Lowest price during the bucket interval.
     #[serde_as(as = "DisplayFromStr")]
     pub low: f64,

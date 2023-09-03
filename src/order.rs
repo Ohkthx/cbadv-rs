@@ -254,11 +254,11 @@ pub struct Order {
     /// Derived field: filled_value + total_fees for buy orders and filled_value - total_fees for sell orders.
     #[serde_as(as = "DisplayFromStr")]
     pub total_value_after_fees: f64,
-    /// Possible values: [UNKNOWN_TRIGGER_STATUS, INVALID_ORDER_TYPE, STOP_PENDING, STOP_TRIGGERED]
+    /// Possible values: \[UNKNOWN_TRIGGER_STATUS, INVALID_ORDER_TYPE, STOP_PENDING, STOP_TRIGGERED\]
     pub trigger_status: String,
-    /// Possible values: [UNKNOWN_ORDER_TYPE, MARKET, LIMIT, STOP, STOP_LIMIT]
+    /// Possible values: \[UNKNOWN_ORDER_TYPE, MARKET, LIMIT, STOP, STOP_LIMIT\]
     pub order_type: String,
-    /// Possible values: [REJECT_REASON_UNSPECIFIED]
+    /// Possible values: \[REJECT_REASON_UNSPECIFIED\]
     pub reject_reason: String,
     /// True if the order is fully filled, false otherwise.
     pub settled: bool,

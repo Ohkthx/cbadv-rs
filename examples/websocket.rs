@@ -18,6 +18,7 @@ fn parser_callback(msg: Result<Message>) {
     let rcvd = match msg {
         Ok(value) => match value {
             Message::Status(v) => format!("{:?}", v),
+            Message::Candles(v) => format!("{:?}", v),
             Message::Ticker(v) => format!("{:?}", v),
             Message::TickerBatch(v) => format!("{:?}", v),
             Message::Level2(v) => format!("{:?}", v),
@@ -66,7 +67,7 @@ async fn main() {
     client.subscribe(Channel::USER, &products).await.unwrap();
 
     // Get updates on products and currencies.
-    client.subscribe(Channel::STATUS, &products).await.unwrap();
+    client.subscribe(Channel::CANDLES, &products).await.unwrap();
 
     // Heartbeats is a great way to keep a connection alive and not timeout.
     client

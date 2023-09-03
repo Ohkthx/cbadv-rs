@@ -54,6 +54,7 @@ Client: `use cbadv::websocket::Client`
 - **Unsubscribe** [client.unsubscribe]
 - **Channels Supported**
   - Status [Channel::STATUS]
+  - Candles [Channel::CANDLES]
   - Ticker [Channel::TICKER]
   - Ticker Batch [Channel::TICKER_BATCH]
   - Level2 [Channel::LEVEL2]

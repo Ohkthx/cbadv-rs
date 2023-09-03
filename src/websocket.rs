@@ -5,7 +5,7 @@
 //! for large amount of constantly changing data.
 
 use crate::order::OrderUpdate;
-use crate::product::{MarketTradesUpdate, ProductUpdate, TickerUpdate};
+use crate::product::{Candle, MarketTradesUpdate, ProductUpdate, TickerUpdate};
 use crate::signer::Signer;
 use crate::time;
 use crate::utils::{CBAdvError, Result};
@@ -26,6 +26,8 @@ type Callback = fn(Result<Message>);
 pub enum Channel {
     /// Sends all products and currencies on a preset interval.
     STATUS,
+    /// Updates every second. Candles are grouped into buckets (granularities) of five minutes.
+    CANDLES,
     /// Real-time price updates every time a match happens.
     TICKER,
     /// Real-time price updates every 5000 milli-seconds.
@@ -44,6 +46,7 @@ impl fmt::Display for Channel {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Channel::STATUS => write!(f, "status"),
+            Channel::CANDLES => write!(f, "candles"),
             Channel::TICKER => write!(f, "ticker"),
             Channel::TICKER_BATCH => write!(f, "ticker_batch"),
             Channel::LEVEL2 => write!(f, "level2"),
@@ -60,6 +63,8 @@ impl fmt::Display for Channel {
 pub enum Message {
     /// Sends all products and currencies on a preset interval.
     Status(StatusMessage),
+    /// Updates every second. Candles are grouped into buckets (granularities) of five minutes.
+    Candles(CandlesMessage),
     /// Real-time price updates every time a match happens.
     Ticker(TickerMessage),
     /// All updates and easiest way to keep order book snapshot
@@ -114,6 +119,13 @@ pub struct StatusEvent {
     pub products: Vec<ProductUpdate>,
 }
 
+/// Candles Event received from the WebSocket, contained inside the Candles Message.
+#[derive(Deserialize, Debug)]
+pub struct CandlesEvent {
+    pub r#type: String,
+    pub candles: Vec<Candle>,
+}
+
 /// Ticker Event received from the WebSocket, contained inside the Ticker Message.
 #[derive(Deserialize, Debug)]
 pub struct TickerEvent {
@@ -156,7 +168,7 @@ pub struct SubscribeEvent {
     pub subscriptions: SubscribeUpdate,
 }
 
-/// Subscribe Event received from the WebSocket, contained inside the Subscribe Message.
+/// Message received from the WebSocket API. Contains updates on product statuses.
 #[derive(Deserialize, Debug)]
 pub struct StatusMessage {
     pub channel: String,
@@ -164,6 +176,16 @@ pub struct StatusMessage {
     pub timestamp: String,
     pub sequence_num: u64,
     pub events: Vec<StatusEvent>,
+}
+
+/// Message received from the WebSocket API. Contains updates on candles.
+#[derive(Deserialize, Debug)]
+pub struct CandlesMessage {
+    pub channel: String,
+    pub client_id: String,
+    pub timestamp: String,
+    pub sequence_num: u64,
+    pub events: Vec<CandlesEvent>,
 }
 
 /// Message received from the WebSocket API. Contains updates on products and currencies.
