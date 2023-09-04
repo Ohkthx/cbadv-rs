@@ -97,7 +97,8 @@ These functions were created to cover common functionality but not initially par
 - **Accounts** [client.account]
   - Get Account by ID [client.account.get_by_id] - Gets an account by the ID (ex BTC or ETH)
   - Get All [client.account.get_all] - Gets all accounts.
-
+- **Products** [client.product]
+  - Get Candles (Extended) [client.product.candles_ext] - Obtains more than the limit (300) candles.
 - **Orders** [client.order]
   - Get All Orders [client.order.get_all] - Obtains all orders for a product.
   - Cancel All Orders [client.order.cancel_all] - Cancels all OPEN orders for a product.

@@ -11,6 +11,9 @@ use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, DefaultOnError, DisplayFromStr};
 use std::fmt;
 
+/// Maximum amount returned.
+const CANDLE_MAXIMUM: usize = 300;
+
 /// Represents a Product received from the Websocket API.
 #[serde_as]
 #[derive(Deserialize, Debug)]
@@ -218,7 +221,7 @@ pub struct ProductBook {
 pub struct Candle {
     /// Timestamp for bucket start time, in UNIX time.
     #[serde_as(as = "DisplayFromStr")]
-    pub start: i64,
+    pub start: u64,
     /// Lowest price during the bucket interval.
     #[serde_as(as = "DisplayFromStr")]
     pub low: f64,
@@ -497,6 +500,10 @@ impl ProductAPI {
 
     /// Obtains bulk products from the API.
     ///
+    /// # Arguments
+    ///
+    /// * `query` - Query used to obtain products.
+    ///
     /// # Endpoint / Reference
     ///
     #[allow(rustdoc::bare_urls)]
@@ -515,6 +522,11 @@ impl ProductAPI {
 
     /// Obtains candles for a specific product.
     ///
+    /// # Arguments
+    ///
+    /// * `product_id` - A string the represents the product's ID.
+    /// * `query` - Span of time to obtain.
+    ///
     /// # Endpoint / Reference
     ///
     #[allow(rustdoc::bare_urls)]
@@ -532,7 +544,64 @@ impl ProductAPI {
         }
     }
 
+    /// Obtains candles for a specific product extended. This will exceed the 300 limit threshold
+    /// and try to obtain the amount specified.
+    ///
+    /// NOTE: NOT A STANDARD API FUNCTION. QoL function that may require additional API requests than
+    /// normal.
+    ///
+    /// # Arguments
+    ///
+    /// * `product_id` - A string the represents the product's ID.
+    /// * `query` - Span of time to obtain.
+    pub async fn candles_ext(&self, product_id: &str, query: &time::Span) -> Result<Vec<Candle>> {
+        let resource = format!("{}/{}/candles", Self::RESOURCE, product_id);
+
+        // Make a copy of the query.
+        let end = query.end;
+        let interval = query.granularity as u64;
+        let maximum = CANDLE_MAXIMUM as u64;
+        let granularity = &time::Granularity::from_secs(query.granularity);
+
+        // Create new span.
+        let mut span = time::Span::new(query.start, end, granularity);
+        span.end = time::after(query.start, interval * maximum);
+        if span.end > end {
+            span.end = end;
+        }
+
+        let mut candles: Vec<Candle> = vec![];
+        while span.count() > 0 {
+            match self.signer.get(&resource, &span.to_string()).await {
+                Ok(value) => match value.json::<CandleResponse>().await {
+                    Ok(resp) => candles.extend(resp.candles),
+                    Err(_) => return Err(CBAdvError::BadParse("candle object".to_string())),
+                },
+                Err(error) => return Err(error),
+            }
+
+            // Update to get additional candles.
+            span.start = span.end;
+            span.end = time::after(span.start, interval as u64 * (CANDLE_MAXIMUM as u64));
+            if span.end > end {
+                span.end = end;
+            }
+
+            // Stop condition.
+            if span.start > span.end {
+                span.start = span.end;
+            }
+        }
+
+        Ok(candles)
+    }
+
     /// Obtains product ticker from the API.
+    ///
+    /// # Arguments
+    ///
+    /// * `product_id` - A string the represents the product's ID.
+    /// * `query` - Amount of products to get.
     ///
     /// # Endpoint / Reference
     ///

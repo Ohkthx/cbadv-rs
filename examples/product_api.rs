@@ -77,18 +77,24 @@ async fn main() {
 
     // Pull candles.
     println!("\n\nGetting candles for: {}.", product_pair);
+    let granularity = time::Granularity::OneDay;
+    let interval = time::Granularity::to_secs(&granularity) as u64;
     let end = time::now();
-    let start = time::before(end, 60 * 300);
-    let time_span = time::Span::new(start, end, time::Granularity::OneMinute);
+    let start = time::before(end, interval * 730);
+    let time_span = time::Span::new(start, end, &granularity);
+    println!("Intervals collecting: {}", time_span.count());
     match client
         .product
-        .candles(product_pair.clone(), &time_span)
+        .candles_ext(product_pair.clone(), &time_span)
         .await
     {
-        Ok(candles) => match candles.get(0) {
-            Some(candle) => println!("{:#?}", candle),
-            None => println!("Out of bounds, no candles obtained."),
-        },
+        Ok(candles) => {
+            println!("Obtained {} candles.", candles.len());
+            match candles.get(0) {
+                Some(candle) => println!("{:#?}", candle),
+                None => println!("Out of bounds, no candles obtained."),
+            }
+        }
         Err(error) => println!("Unable to get candles: {}", error),
     }
 

@@ -36,7 +36,7 @@ pub enum Granularity {
 
 impl Granularity {
     /// Converts a Granularity into seconds.
-    pub fn to_seconds(granularity: Granularity) -> u32 {
+    pub fn to_secs(granularity: &Granularity) -> u32 {
         match granularity {
             Granularity::OneMinute => ONE_MINUTE,
             Granularity::FiveMinute => ONE_MINUTE * 5,
@@ -54,7 +54,7 @@ impl Granularity {
     }
 
     /// Converts from seconds to Granularity.
-    pub fn from_seconds(granularity: u32) -> Granularity {
+    pub fn from_secs(granularity: u32) -> Granularity {
         match granularity {
             ONE_MINUTE => Granularity::OneMinute,
             FIVE_MINUTE => Granularity::FiveMinute,
@@ -93,8 +93,8 @@ impl Span {
     /// * `start` - An unsigned int that holds the start point of the span.
     /// * `end` - An unsigned int that holds the end point of the span.
     /// * `granularity` - A Granularity that represents blocks of time in seconds.
-    pub fn new(start: u64, end: u64, granularity: Granularity) -> Self {
-        let granularity_sec = Granularity::to_seconds(granularity);
+    pub fn new(start: u64, end: u64, granularity: &Granularity) -> Self {
+        let granularity_sec = Granularity::to_secs(&granularity);
 
         // Clean the time, they have to be the correct offset.
         // end = end - (end % granularity_sec as u64);
@@ -106,12 +106,20 @@ impl Span {
             granularity: granularity_sec,
         }
     }
+
+    /// Total amount of intervals within the span.
+    pub fn count(&self) -> usize {
+        // Clean the time, they have to be the correct offset.
+        let end = self.end - (self.end % self.granularity as u64);
+        let start = self.start - (self.start % self.granularity as u64);
+        ((end - start) / self.granularity as u64) as usize
+    }
 }
 
 impl fmt::Display for Span {
     /// Converts the object into HTTP request parameters.
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let granularity = Granularity::from_seconds(self.granularity);
+        let granularity = Granularity::from_secs(self.granularity);
         let granularity_str: &str = match granularity {
             Granularity::OneMinute => "ONE_MINUTE",
             Granularity::FiveMinute => "FIVE_MINUTE",
