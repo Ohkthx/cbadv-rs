@@ -11,7 +11,7 @@ use std::fmt;
 
 /// Pricing tier for user, determined by notional (USD) volume.
 #[serde_as]
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct FeeTier {
     /// Current fee teir for the user.
     pub pricing_tier: String,
@@ -31,7 +31,7 @@ pub struct FeeTier {
 
 /// Represents a decimal number with precision.
 #[serde_as]
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct MarginRate {
     /// Value of the margin rate.
     #[serde_as(as = "DisplayFromStr")]
@@ -40,7 +40,7 @@ pub struct MarginRate {
 
 // Represents a Tax.
 #[serde_as]
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Tax {
     /// Amount of tax.
     #[serde_as(as = "DisplayFromStr")]
@@ -50,7 +50,7 @@ pub struct Tax {
 }
 
 /// Represents the transaction summary for fees received from the API.
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct TransactionSummary {
     /// Total volume across assets, denoted in USD.
     pub total_volume: f64,

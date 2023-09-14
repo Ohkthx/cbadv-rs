@@ -13,7 +13,7 @@ const CURRENT_CONFIG_VERSION: u8 = 1;
 // NOTE: This should match `Config` except new fields are set as 'Option'.
 //       Do not forget to update `Config::from_raw()`
 /// Configuration used for loading and setting defaults.
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 struct RawConfig {
     /// Version of the Configuration file.
     pub version: Option<u8>,
@@ -28,7 +28,7 @@ struct RawConfig {
 // NOTE: Do not forget to update `RawConfig`, `CURRENT_CONFIG_VERSION`,
 //       and `Config::from_raw()` if new fields are added.
 /// Configuration for API settings. Loaded from a file.
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Config {
     /// Version of the Configuration file.
     pub version: u8,

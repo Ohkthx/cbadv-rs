@@ -16,7 +16,7 @@ const CANDLE_MAXIMUM: usize = 300;
 
 /// Represents a Product received from the Websocket API.
 #[serde_as]
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ProductUpdate {
     /// Type of the product.
     pub product_type: String,
@@ -45,7 +45,7 @@ pub struct ProductUpdate {
 
 /// Represents a Market Trade received from the Websocket API.
 #[serde_as]
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct MarketTradesUpdate {
     /// Trade identity.
     pub trade_id: String,
@@ -64,7 +64,7 @@ pub struct MarketTradesUpdate {
 }
 
 /// Session details for the product.
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SessionDetails {
     /// Whether or not the session is currently open.
     pub is_session_open: bool,
@@ -75,7 +75,7 @@ pub struct SessionDetails {
 }
 
 /// Perpetual details for the product.
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PerpetualDetails {
     pub open_interest: String,
     pub funding_rate: String,
@@ -84,7 +84,7 @@ pub struct PerpetualDetails {
 
 /// Future details for the product.
 #[serde_as]
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct FutureDetails {
     pub venue: String,
     pub contract_code: String,
@@ -107,7 +107,7 @@ pub struct FutureDetails {
 
 /// Represents a Product received from the REST API.
 #[serde_as]
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Product {
     /// The trading pair.
     pub product_id: String,
@@ -192,7 +192,7 @@ pub struct Product {
 
 /// Represents a Bid or an Ask entry for a product.
 #[serde_as]
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct BidAsk {
     /// Current bid or ask price.
     #[serde_as(as = "DisplayFromStr")]
@@ -203,7 +203,7 @@ pub struct BidAsk {
 }
 
 /// Represents a product book for a product.
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ProductBook {
     /// The trading pair.
     pub product_id: String,
@@ -217,7 +217,7 @@ pub struct ProductBook {
 
 /// Represents a candle for a product.
 #[serde_as]
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Candle {
     /// Timestamp for bucket start time, in UNIX time.
     #[serde_as(as = "DisplayFromStr")]
@@ -241,7 +241,7 @@ pub struct Candle {
 
 /// Represents a trade for a product.
 #[serde_as]
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Trade {
     /// The ID of the trade that was placed.
     pub trade_id: String,
@@ -267,7 +267,7 @@ pub struct Trade {
 
 /// Represents a Ticker update received from the Websocket API.
 #[serde_as]
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct TickerUpdate {
     /// Ticker update type.
     pub r#type: String,
@@ -298,7 +298,7 @@ pub struct TickerUpdate {
 
 /// Represents a ticker for a product.
 #[serde_as]
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Ticker {
     /// List of trades for the product.
     pub trades: Vec<Trade>,

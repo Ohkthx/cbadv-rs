@@ -11,7 +11,7 @@ use std::fmt;
 use uuid::Uuid;
 
 /// Various order types.
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum OrderType {
     /// A Market order.
     MARKET,
@@ -35,7 +35,7 @@ impl fmt::Display for OrderType {
 }
 
 /// Order side, BUY or SELL.
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum OrderSide {
     /// Buying a product.
     BUY,
@@ -53,7 +53,7 @@ impl fmt::Display for OrderSide {
 }
 
 /// Order status, OPEN, CANCELLED, and EXPIRED.
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum OrderStatus {
     /// Implies the order is still available and not closed.
     OPEN,
@@ -75,7 +75,7 @@ impl fmt::Display for OrderStatus {
 
 /// Order updates for a user from a websocket.
 #[serde_as]
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct OrderUpdate {
     /// Type of the update.
     pub r#type: String,
@@ -206,7 +206,7 @@ struct CancelOrders {
 
 /// Represents an Order received from the API.
 #[serde_as]
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Order {
     /// The unique id for this order.
     pub order_id: String,
@@ -272,7 +272,7 @@ pub struct Order {
 
 /// Represents a fill received from the API.
 #[serde_as]
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Fill {
     pub entry_id: String,
     pub trade_id: String,

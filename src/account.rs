@@ -12,7 +12,7 @@ use std::fmt;
 
 /// Represents a Balance for either Available or Held funds.
 #[serde_as]
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Balance {
     /// Value for the currency available or held.
     #[serde_as(as = "DisplayFromStr")]
@@ -23,7 +23,7 @@ pub struct Balance {
 
 /// Represents an Account received from the API.
 #[serde_as]
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Account {
     /// Unique identifier for account.
     pub uuid: String,
