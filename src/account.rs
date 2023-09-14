@@ -4,25 +4,22 @@
 //! This allows you to obtain account information either by account UUID or in bulk (all accounts).
 
 use crate::signer::Signer;
-use crate::utils::{CBAdvError, Result};
+use crate::utils::{from_str, CBAdvError, Result};
 use async_recursion::async_recursion;
 use serde::{Deserialize, Serialize};
-use serde_with::{serde_as, DefaultOnNull, DisplayFromStr};
 use std::fmt;
 
 /// Represents a Balance for either Available or Held funds.
-#[serde_as]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Balance {
     /// Value for the currency available or held.
-    #[serde_as(as = "DisplayFromStr")]
+    #[serde(deserialize_with = "from_str")]
     pub value: f64,
     /// Denomination of the currency.
     pub currency: String,
 }
 
 /// Represents an Account received from the API.
-#[serde_as]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Account {
     /// Unique identifier for account.
@@ -42,7 +39,7 @@ pub struct Account {
     /// Time at which this account was updated.
     pub updated_at: String,
     /// Time at which this account was deleted.
-    #[serde_as(as = "DefaultOnNull")]
+    #[serde(deserialize_with = "from_str")]
     pub deleted_at: String,
     /// Possible values: [ACCOUNT_TYPE_UNSPECIFIED, ACCOUNT_TYPE_CRYPTO, ACCOUNT_TYPE_FIAT, ACCOUNT_TYPE_VAULT]
     pub r#type: String,

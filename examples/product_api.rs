@@ -64,8 +64,8 @@ async fn main() {
 
     println!("\n\nGetting multiple products.");
     let query = ListProductsQuery {
-        limit: Some(5),
-        product_ids: Some(vec!["BTC-USD".to_string(), "ETH-USD".to_string()]),
+        // limit: Some(500),
+        // product_ids: Some(vec!["BTC-USD".to_string(), "ETH-USD".to_string()]),
         ..Default::default()
     };
 

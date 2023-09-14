@@ -4,9 +4,8 @@
 //! These allow you to obtain past created orders, create new orders, and cancel orders.
 
 use crate::signer::Signer;
-use crate::utils::{CBAdvError, Result};
+use crate::utils::{from_str, CBAdvError, Result};
 use serde::{Deserialize, Serialize};
-use serde_with::{serde_as, DefaultOnError, DisplayFromStr};
 use std::fmt;
 use uuid::Uuid;
 
@@ -74,22 +73,21 @@ impl fmt::Display for OrderStatus {
 }
 
 /// Order updates for a user from a websocket.
-#[serde_as]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct OrderUpdate {
     /// Type of the update.
     pub r#type: String,
     /// Client Order ID (Normally a UUID)
     pub client_order_id: String,
-    #[serde_as(as = "DisplayFromStr")]
+    #[serde(deserialize_with = "from_str")]
     pub cumulative_quantity: f64,
-    #[serde_as(as = "DisplayFromStr")]
+    #[serde(deserialize_with = "from_str")]
     pub leaves_quantity: f64,
     /// Average price for the order.
-    #[serde_as(as = "DisplayFromStr")]
+    #[serde(deserialize_with = "from_str")]
     pub avg_price: f64,
     /// Total fees for the order.
-    #[serde_as(as = "DisplayFromStr")]
+    #[serde(deserialize_with = "from_str")]
     pub total_fees: f64,
     /// Status of the order.
     pub status: String,
@@ -205,7 +203,6 @@ struct CancelOrders {
 }
 
 /// Represents an Order received from the API.
-#[serde_as]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Order {
     /// The unique id for this order.
@@ -225,34 +222,34 @@ pub struct Order {
     /// Timestamp for when the order was created.
     pub created_time: String,
     /// The percent of total order amount that has been filled.
-    #[serde_as(as = "DisplayFromStr")]
+    #[serde(deserialize_with = "from_str")]
     pub completion_percentage: f64,
     /// The portion (in base currency) of total order amount that has been filled.
-    #[serde_as(as = "DisplayFromStr")]
+    #[serde(deserialize_with = "from_str")]
     pub filled_size: f64,
     /// The average of all prices of fills for this order.
-    #[serde_as(as = "DisplayFromStr")]
+    #[serde(deserialize_with = "from_str")]
     pub average_filled_price: f64,
     /// Commission amount.
-    #[serde_as(as = "DefaultOnError")]
+    #[serde(deserialize_with = "from_str")]
     pub fee: f64,
     /// Number of fills that have been posted for this order.
-    #[serde_as(as = "DisplayFromStr")]
+    #[serde(deserialize_with = "from_str")]
     pub number_of_fills: u32,
     /// The portion (in quote current) of total order amount that has been filled.
-    #[serde_as(as = "DisplayFromStr")]
+    #[serde(deserialize_with = "from_str")]
     pub filled_value: f64,
     /// Whether a cancel request has been initiated for the order, and not yet completed.
     pub pending_cancel: bool,
     /// Whether the order was placed with quote currency/
     pub size_in_quote: bool,
     /// The total fees for the order.
-    #[serde_as(as = "DisplayFromStr")]
+    #[serde(deserialize_with = "from_str")]
     pub total_fees: f64,
     /// Whether the order size includes fees.
     pub size_inclusive_of_fees: bool,
     /// Derived field: filled_value + total_fees for buy orders and filled_value - total_fees for sell orders.
-    #[serde_as(as = "DisplayFromStr")]
+    #[serde(deserialize_with = "from_str")]
     pub total_value_after_fees: f64,
     /// Possible values: \[UNKNOWN_TRIGGER_STATUS, INVALID_ORDER_TYPE, STOP_PENDING, STOP_TRIGGERED\]
     pub trigger_status: String,
@@ -271,7 +268,6 @@ pub struct Order {
 }
 
 /// Represents a fill received from the API.
-#[serde_as]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Fill {
     pub entry_id: String,
@@ -279,11 +275,11 @@ pub struct Fill {
     pub order_id: String,
     pub trade_time: String,
     pub trade_type: String,
-    #[serde_as(as = "DisplayFromStr")]
+    #[serde(deserialize_with = "from_str")]
     pub price: f64,
-    #[serde_as(as = "DisplayFromStr")]
+    #[serde(deserialize_with = "from_str")]
     pub size: f64,
-    #[serde_as(as = "DefaultOnError")]
+    #[serde(deserialize_with = "from_str")]
     pub commission: f64,
     pub product_id: String,
     pub sequence_timestamp: String,

@@ -2,10 +2,11 @@
 //!
 //! `utils` is a collection of helpful tools that may be required throughout the rest of the API.
 
-use std::fmt;
+use serde::{Deserialize, Deserializer};
+use std::{fmt, result, str};
 
 /// Used to return objects from the API to the end-user.
-pub type Result<T> = std::result::Result<T, CBAdvError>;
+pub type Result<T> = result::Result<T, CBAdvError>;
 
 /// Types of errors that can occur.
 #[derive(Debug)]
@@ -35,6 +36,22 @@ impl fmt::Display for CBAdvError {
             CBAdvError::BadConnection(value) => write!(f, "could not connect: {}", value),
         }
     }
+}
+
+/// Deserializes from a string, using the default value if there is an error or is null.
+pub(crate) fn from_str<'de, S, D>(deserializer: D) -> result::Result<S, D::Error>
+where
+    S: str::FromStr + Default,
+    S::Err: fmt::Display,
+    D: Deserializer<'de>,
+{
+    // Used to catch null values and default them.
+    let s: String = match Deserialize::deserialize(deserializer) {
+        Ok(value) => value,
+        Err(_) => String::default(),
+    };
+
+    Ok(S::from_str(&s).unwrap_or_default())
 }
 
 /// Prints out a debug message, wraps `println!` macro.

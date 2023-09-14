@@ -4,46 +4,42 @@
 //! Currently the only endpoint available is the Transaction Summary endpoint.
 
 use crate::signer::Signer;
-use crate::utils::{CBAdvError, Result};
+use crate::utils::{from_str, CBAdvError, Result};
 use serde::{Deserialize, Serialize};
-use serde_with::{serde_as, DisplayFromStr};
 use std::fmt;
 
 /// Pricing tier for user, determined by notional (USD) volume.
-#[serde_as]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct FeeTier {
     /// Current fee teir for the user.
     pub pricing_tier: String,
     /// Lower bound (inclusive) of pricing tier in notional volume.
-    #[serde_as(as = "DisplayFromStr")]
+    #[serde(deserialize_with = "from_str")]
     pub usd_from: u32,
     /// Upper bound (exclusive) of pricing tier in notional volume.
-    #[serde_as(as = "DisplayFromStr")]
+    #[serde(deserialize_with = "from_str")]
     pub usd_to: u32,
     /// Taker fee rate, applied if the order takes liquidity.
-    #[serde_as(as = "DisplayFromStr")]
+    #[serde(deserialize_with = "from_str")]
     pub taker_fee_rate: f64,
     /// Maker fee rate, applied if the order creates liquidity.
-    #[serde_as(as = "DisplayFromStr")]
+    #[serde(deserialize_with = "from_str")]
     pub maker_fee_rate: f64,
 }
 
 /// Represents a decimal number with precision.
-#[serde_as]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct MarginRate {
     /// Value of the margin rate.
-    #[serde_as(as = "DisplayFromStr")]
+    #[serde(deserialize_with = "from_str")]
     pub value: f64,
 }
 
 // Represents a Tax.
-#[serde_as]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Tax {
     /// Amount of tax.
-    #[serde_as(as = "DisplayFromStr")]
+    #[serde(deserialize_with = "from_str")]
     pub value: f64,
     /// Type of tax. Possible values: [INCLUSIVE, EXCLUSIVE]
     pub r#type: String,

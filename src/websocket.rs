@@ -8,11 +8,10 @@ use crate::order::OrderUpdate;
 use crate::product::{Candle, MarketTradesUpdate, ProductUpdate, TickerUpdate};
 use crate::signer::Signer;
 use crate::time;
-use crate::utils::{CBAdvError, Result};
+use crate::utils::{from_str, CBAdvError, Result};
 use futures_util::stream::{SplitSink, SplitStream};
 use futures_util::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
-use serde_with::{serde_as, DisplayFromStr};
 use std::fmt;
 use tokio::net::TcpStream;
 use tokio_tungstenite::{connect_async, tungstenite, MaybeTlsStream, WebSocketStream};
@@ -82,14 +81,13 @@ pub enum Message {
 }
 
 /// Data received from the WebSocket for Level2 Events.
-#[serde_as]
 #[derive(Deserialize, Debug)]
 pub struct Level2Update {
     pub side: String,
     pub event_time: String,
-    #[serde_as(as = "DisplayFromStr")]
+    #[serde(deserialize_with = "from_str")]
     pub price_level: f64,
-    #[serde_as(as = "DisplayFromStr")]
+    #[serde(deserialize_with = "from_str")]
     pub new_quantity: f64,
 }
 

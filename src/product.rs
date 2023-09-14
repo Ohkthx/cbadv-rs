@@ -6,16 +6,14 @@
 
 use crate::signer::Signer;
 use crate::time;
-use crate::utils::{CBAdvError, Result};
+use crate::utils::{from_str, CBAdvError, Result};
 use serde::{Deserialize, Serialize};
-use serde_with::{serde_as, DefaultOnError, DisplayFromStr};
 use std::fmt;
 
 /// Maximum amount returned.
 const CANDLE_MAXIMUM: usize = 300;
 
 /// Represents a Product received from the Websocket API.
-#[serde_as]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ProductUpdate {
     /// Type of the product.
@@ -27,10 +25,10 @@ pub struct ProductUpdate {
     /// Symbol of the quote currency.
     pub quote_currency: String,
     /// Minimum amount base value can be increased or decreased at once.
-    #[serde_as(as = "DisplayFromStr")]
+    #[serde(deserialize_with = "from_str")]
     pub base_increment: f64,
     /// Minimum amount quote value can be increased or decreased at once.
-    #[serde_as(as = "DisplayFromStr")]
+    #[serde(deserialize_with = "from_str")]
     pub quote_increment: f64,
     /// Name of the product.
     pub display_name: String,
@@ -39,12 +37,11 @@ pub struct ProductUpdate {
     /// Additional status message.
     pub status_message: String,
     /// Minimum amount of funds.
-    #[serde_as(as = "DisplayFromStr")]
+    #[serde(deserialize_with = "from_str")]
     pub min_market_funds: f64,
 }
 
 /// Represents a Market Trade received from the Websocket API.
-#[serde_as]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct MarketTradesUpdate {
     /// Trade identity.
@@ -52,10 +49,10 @@ pub struct MarketTradesUpdate {
     /// ID of the product.
     pub product_id: String,
     /// Price of the product.
-    #[serde_as(as = "DisplayFromStr")]
+    #[serde(deserialize_with = "from_str")]
     pub price: f64,
     /// Size for the trade.
-    #[serde_as(as = "DisplayFromStr")]
+    #[serde(deserialize_with = "from_str")]
     pub size: f64,
     /// Side: BUY or SELL.
     pub side: String,
@@ -83,7 +80,6 @@ pub struct PerpetualDetails {
 }
 
 /// Future details for the product.
-#[serde_as]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct FutureDetails {
     pub venue: String,
@@ -106,40 +102,39 @@ pub struct FutureDetails {
 }
 
 /// Represents a Product received from the REST API.
-#[serde_as]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Product {
     /// The trading pair.
     pub product_id: String,
     /// The current price for the product, in quote currency.
-    #[serde_as(as = "DisplayFromStr")]
+    #[serde(deserialize_with = "from_str")]
     pub price: f64,
     /// The amount the price of the product has changed, in percent, in the last 24 hours.
-    #[serde_as(as = "DefaultOnError")]
+    #[serde(deserialize_with = "from_str")]
     pub price_percentage_change_24h: f64,
     /// The trading volume for the product in the last 24 hours.
-    #[serde_as(as = "DefaultOnError")]
+    #[serde(deserialize_with = "from_str")]
     pub volume_24h: f64,
     /// The percentage amount the volume of the product has changed in the last 24 hours.
-    #[serde_as(as = "DefaultOnError")]
+    #[serde(deserialize_with = "from_str")]
     pub volume_percentage_change_24h: f64,
     /// Minimum amount base value can be increased or decreased at once.
-    #[serde_as(as = "DisplayFromStr")]
+    #[serde(deserialize_with = "from_str")]
     pub base_increment: f64,
     /// Minimum amount quote value can be increased or decreased at once.
-    #[serde_as(as = "DisplayFromStr")]
+    #[serde(deserialize_with = "from_str")]
     pub quote_increment: f64,
     /// Minimum size that can be represented of quote currency.
-    #[serde_as(as = "DisplayFromStr")]
+    #[serde(deserialize_with = "from_str")]
     pub quote_min_size: f64,
     /// Maximum size that can be represented of quote currency.
-    #[serde_as(as = "DisplayFromStr")]
+    #[serde(deserialize_with = "from_str")]
     pub quote_max_size: f64,
     /// Minimum size that can be represented of base currency.
-    #[serde_as(as = "DisplayFromStr")]
+    #[serde(deserialize_with = "from_str")]
     pub base_min_size: f64,
     /// Maximum size that can be represented of base currency.
-    #[serde_as(as = "DisplayFromStr")]
+    #[serde(deserialize_with = "from_str")]
     pub base_max_size: f64,
     /// Name of the base currency.
     pub base_name: String,
@@ -184,21 +179,20 @@ pub struct Product {
     /// Whether or not the product is in view only mode.
     pub view_only: bool,
     /// Minimum amount price can be increased or decreased at once.
-    #[serde_as(as = "DisplayFromStr")]
+    #[serde(deserialize_with = "from_str")]
     pub price_increment: f64,
     /// Future product details.
     pub future_product_details: Option<FutureDetails>,
 }
 
 /// Represents a Bid or an Ask entry for a product.
-#[serde_as]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct BidAsk {
     /// Current bid or ask price.
-    #[serde_as(as = "DisplayFromStr")]
+    #[serde(deserialize_with = "from_str")]
     pub price: f64,
     /// Current bid or ask size.
-    #[serde_as(as = "DisplayFromStr")]
+    #[serde(deserialize_with = "from_str")]
     pub size: f64,
 }
 
@@ -216,31 +210,29 @@ pub struct ProductBook {
 }
 
 /// Represents a candle for a product.
-#[serde_as]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Candle {
     /// Timestamp for bucket start time, in UNIX time.
-    #[serde_as(as = "DisplayFromStr")]
+    #[serde(deserialize_with = "from_str")]
     pub start: u64,
     /// Lowest price during the bucket interval.
-    #[serde_as(as = "DisplayFromStr")]
+    #[serde(deserialize_with = "from_str")]
     pub low: f64,
     /// Highest price during the bucket interval.
-    #[serde_as(as = "DisplayFromStr")]
+    #[serde(deserialize_with = "from_str")]
     pub high: f64,
     /// Opening price (first trade) in the bucket interval.
-    #[serde_as(as = "DisplayFromStr")]
+    #[serde(deserialize_with = "from_str")]
     pub open: f64,
     /// Closing price (last trade) in the bucket interval.
-    #[serde_as(as = "DisplayFromStr")]
+    #[serde(deserialize_with = "from_str")]
     pub close: f64,
     /// Volume of trading activity during the bucket interval.
-    #[serde_as(as = "DisplayFromStr")]
+    #[serde(deserialize_with = "from_str")]
     pub volume: f64,
 }
 
 /// Represents a trade for a product.
-#[serde_as]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Trade {
     /// The ID of the trade that was placed.
@@ -248,10 +240,10 @@ pub struct Trade {
     /// The trading pair.
     pub product_id: String,
     /// The price of the trade, in quote currency.
-    #[serde_as(as = "DisplayFromStr")]
+    #[serde(deserialize_with = "from_str")]
     pub price: f64,
     /// The size of the trade, in base currency.
-    #[serde_as(as = "DisplayFromStr")]
+    #[serde(deserialize_with = "from_str")]
     pub size: f64,
     /// The time of the trade.
     pub time: String,
@@ -266,7 +258,6 @@ pub struct Trade {
 }
 
 /// Represents a Ticker update received from the Websocket API.
-#[serde_as]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct TickerUpdate {
     /// Ticker update type.
@@ -274,39 +265,38 @@ pub struct TickerUpdate {
     /// Product ID (Pair, ex 'BTC-USD')
     pub product_id: String,
     /// Current price for the product.
-    #[serde_as(as = "DisplayFromStr")]
+    #[serde(deserialize_with = "from_str")]
     pub price: f64,
     /// 24hr Volume for the product.
-    #[serde_as(as = "DisplayFromStr")]
+    #[serde(deserialize_with = "from_str")]
     pub volume_24_h: f64,
     /// 24hr Lowest price.
-    #[serde_as(as = "DisplayFromStr")]
+    #[serde(deserialize_with = "from_str")]
     pub low_24_h: f64,
     /// 24hr Highest price.
-    #[serde_as(as = "DisplayFromStr")]
+    #[serde(deserialize_with = "from_str")]
     pub high_24_h: f64,
     /// 52w (52 weeks) Lowest price.
-    #[serde_as(as = "DisplayFromStr")]
+    #[serde(deserialize_with = "from_str")]
     pub low_52_w: f64,
     /// 52w (52 weeks) Highest price.
-    #[serde_as(as = "DisplayFromStr")]
+    #[serde(deserialize_with = "from_str")]
     pub high_52_w: f64,
     /// 24hr Price percentage change.
-    #[serde_as(as = "DisplayFromStr")]
+    #[serde(deserialize_with = "from_str")]
     pub price_percent_chg_24_h: f64,
 }
 
 /// Represents a ticker for a product.
-#[serde_as]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Ticker {
     /// List of trades for the product.
     pub trades: Vec<Trade>,
     /// The best bid for the `product_id`, in quote currency.
-    #[serde_as(as = "DisplayFromStr")]
+    #[serde(deserialize_with = "from_str")]
     pub best_bid: f64,
     /// The best ask for the `product_id`, in quote currency.
-    #[serde_as(as = "DisplayFromStr")]
+    #[serde(deserialize_with = "from_str")]
     pub best_ask: f64,
 }
 
