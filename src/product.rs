@@ -257,6 +257,16 @@ pub struct Trade {
     pub ask: String,
 }
 
+/// Represents a Candle update received from the Websocket API.
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct CandleUpdate {
+    /// Product ID (Pair, ex 'BTC-USD')
+    pub product_id: String,
+    /// Candle for the update.
+    #[serde(flatten)]
+    pub data: Candle,
+}
+
 /// Represents a Ticker update received from the Websocket API.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct TickerUpdate {

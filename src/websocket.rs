@@ -5,7 +5,7 @@
 //! for large amount of constantly changing data.
 
 use crate::order::OrderUpdate;
-use crate::product::{Candle, MarketTradesUpdate, ProductUpdate, TickerUpdate};
+use crate::product::{CandleUpdate, MarketTradesUpdate, ProductUpdate, TickerUpdate};
 use crate::signer::Signer;
 use crate::time;
 use crate::utils::{from_str, CBAdvError, Result};
@@ -121,7 +121,7 @@ pub struct StatusEvent {
 #[derive(Deserialize, Debug)]
 pub struct CandlesEvent {
     pub r#type: String,
-    pub candles: Vec<Candle>,
+    pub candles: Vec<CandleUpdate>,
 }
 
 /// Ticker Event received from the WebSocket, contained inside the Ticker Message.
