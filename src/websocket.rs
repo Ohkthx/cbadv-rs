@@ -20,6 +20,16 @@ type Socket = WebSocketStream<MaybeTlsStream<TcpStream>>;
 pub type Callback = fn(Result<Message>);
 pub type WebSocketReader = SplitStream<Socket>;
 
+/// Used to pass objects to the listener for greater control over message processing.
+pub trait MessageCallback {
+    /// This is called when processing a message from the WebSocket.
+    ///
+    /// # Arguments
+    ///
+    /// * `msg` - Message or Error received from the WebSocket.
+    fn message_callback(&mut self, msg: Result<Message>);
+}
+
 /// WebSocket Channels that can be subscribed to.
 #[allow(non_camel_case_types)]
 #[derive(Serialize, Deserialize, Debug)]
@@ -312,9 +322,9 @@ impl Client {
     /// * `reader` - Allows the listener to receive messages. `Obtained from connect``.
     /// * `callback` - A callback function that is trigger and passed the Message received via
     /// WebSocket, if an error occurred.
-    pub async fn listener(reader: WebSocketReader, callback: Callback) -> Result<()> {
+    pub async fn listener(reader: WebSocketReader, callback: Callback) {
         // Read messages and send to the callback as they come in.
-        let read_future = reader.for_each(|message| async {
+        let read_future = reader.for_each(|message| {
             let data = message.unwrap().to_string();
 
             // Parse the message.
@@ -325,10 +335,46 @@ impl Client {
                     data
                 )))),
             }
+
+            async {}
         });
 
-        read_future.await;
-        Ok(())
+        read_future.await
+    }
+
+    /// Starts the listener with a callback object that implements the `MessageCallback` trait.
+    /// This allows the user to get objects out of the WebSocket stream for additional processing.
+    /// the WebSocket. If it is unable to parse an object received, the user is supplied
+    /// CBAdvError::BadParse along with the data it failed to parse.
+    ///
+    /// # Arguments
+    ///
+    /// * `reader` - Allows the listener to receive messages. `Obtained from connect``.
+    /// * `callback_obj` - A callback object that implements `MessageCallback` trait.
+    pub async fn listener_with<T>(reader: WebSocketReader, callback_obj: T)
+    where
+        T: MessageCallback,
+    {
+        // Make the callback object mutable.
+        let mut obj: T = callback_obj;
+
+        // Read messages and send to the callback as they come in.
+        let read_future = reader.for_each(|message| {
+            let data: String = message.unwrap().to_string();
+
+            // Parse the message.
+            match serde_json::from_str(&data) {
+                Ok(message) => obj.message_callback(Ok(message)),
+                _ => obj.message_callback(Err(CBAdvError::BadParse(format!(
+                    "unable to parse message: {}",
+                    data
+                )))),
+            }
+
+            async {}
+        });
+
+        read_future.await
     }
 
     /// Updates the WebSocket with either additional subscriptions or unsubscriptions. This is
@@ -419,6 +465,22 @@ impl Client {
 /// * `reader` - Allows the listener to receive messages. `Obtained from connect``.
 /// * `callback` - A callback function that is trigger and passed the Message received via
 /// WebSocket, if an error occurred.
-pub async fn listener(reader: WebSocketReader, callback: Callback) -> Result<()> {
+pub async fn listener(reader: WebSocketReader, callback: Callback) {
     Client::listener(reader, callback).await
+}
+
+/// Starts the listener with a callback object that implements the `MessageCallback` trait.
+/// This allows the user to get objects out of the WebSocket stream for additional processing.
+/// the WebSocket. If it is unable to parse an object received, the user is supplied
+/// CBAdvError::BadParse along with the data it failed to parse.
+///
+/// # Arguments
+///
+/// * `reader` - Allows the listener to receive messages. `Obtained from connect``.
+/// * `callback_obj` - A callback object that implements `MessageCallback` trait.
+pub async fn listener_with<T>(reader: WebSocketReader, callback_obj: T)
+where
+    T: MessageCallback,
+{
+    Client::listener_with(reader, callback_obj).await
 }
