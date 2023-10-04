@@ -17,7 +17,8 @@ use tokio::net::TcpStream;
 use tokio_tungstenite::{connect_async, tungstenite, MaybeTlsStream, WebSocketStream};
 
 type Socket = WebSocketStream<MaybeTlsStream<TcpStream>>;
-type Callback = fn(Result<Message>);
+pub type Callback = fn(Result<Message>);
+pub type WebSocketReader = SplitStream<Socket>;
 
 /// WebSocket Channels that can be subscribed to.
 #[allow(non_camel_case_types)]
@@ -265,7 +266,7 @@ pub struct Client {
     /// Signs the messages sent.
     signer: Signer,
     /// Writes data to the stream, gets sent to the API.
-    pub socket_tx: Option<SplitSink<Socket, tungstenite::Message>>,
+    socket_tx: Option<SplitSink<Socket, tungstenite::Message>>,
 }
 
 impl Client {
@@ -288,7 +289,7 @@ impl Client {
 
     /// Connects to the WebSocket. This is required before subscribing, unsubscribing, and
     /// listening for updates. A reader is returned to allow for `listener` to parse events.
-    pub async fn connect(&mut self) -> Result<SplitStream<Socket>> {
+    pub async fn connect(&mut self) -> Result<WebSocketReader> {
         match connect_async(Self::RESOURCE).await {
             Ok((socket, _)) => {
                 let (sink, stream) = socket.split();
@@ -311,7 +312,7 @@ impl Client {
     /// * `reader` - Allows the listener to receive messages. `Obtained from connect``.
     /// * `callback` - A callback function that is trigger and passed the Message received via
     /// WebSocket, if an error occurred.
-    pub async fn listener(reader: SplitStream<Socket>, callback: Callback) -> Result<()> {
+    pub async fn listener(reader: WebSocketReader, callback: Callback) -> Result<()> {
         // Read messages and send to the callback as they come in.
         let read_future = reader.for_each(|message| async {
             let data = message.unwrap().to_string();
@@ -418,6 +419,6 @@ impl Client {
 /// * `reader` - Allows the listener to receive messages. `Obtained from connect``.
 /// * `callback` - A callback function that is trigger and passed the Message received via
 /// WebSocket, if an error occurred.
-pub async fn listener(reader: SplitStream<Socket>, callback: Callback) -> Result<()> {
+pub async fn listener(reader: WebSocketReader, callback: Callback) -> Result<()> {
     Client::listener(reader, callback).await
 }
