@@ -342,7 +342,10 @@ impl Client {
     pub async fn listener(reader: WebSocketReader, callback: Callback) {
         // Read messages and send to the callback as they come in.
         let read_future = reader.for_each(|message| {
-            let data = message.unwrap().to_string();
+            let data: String = match message {
+                Ok(value) => value.to_string(),
+                Err(err) => format!("websocket sent the following error, {}", err),
+            };
 
             // Parse the message.
             match serde_json::from_str(&data) {
@@ -377,7 +380,10 @@ impl Client {
 
         // Read messages and send to the callback as they come in.
         let read_future = reader.for_each(|message| {
-            let data: String = message.unwrap().to_string();
+            let data: String = match message {
+                Ok(value) => value.to_string(),
+                Err(err) => format!("websocket sent the following error, {}", err),
+            };
 
             // Parse the message.
             match serde_json::from_str(&data) {
