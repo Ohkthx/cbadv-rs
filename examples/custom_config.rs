@@ -3,39 +3,44 @@
 //! Shows how to:
 //! - Define a custom configuration file and use it with the API.
 
-use cbadv::{config, rest, traits::ConfigFile};
+use cbadv::config::{self, APIConfig, ConfigFile};
+use cbadv::rest;
 use serde::{Deserialize, Serialize};
 use std::process::exit;
 
-#[derive(Serialize, Deserialize, Debug, Clone, Default)]
-pub struct MyConfig {
-    pub version: u8,
-    pub cb_api_key: String,
-    pub cb_api_secret: String,
-    pub debug: bool,
+/// `[general]` section in the configuration file.
+#[derive(Serialize, Deserialize, Debug, Clone)]
+struct GeneralConfig {
+    /// Product being obtained for testing purposes.
     pub product_id: String,
 }
 
+/// Custom configuration with a `[general]` section containing a `product_id`.
+#[derive(Serialize, Deserialize, Debug, Clone)]
+struct MyConfig {
+    /// `[general]` section.
+    pub general: GeneralConfig,
+    /// `[coinbase]` section of the configuration.
+    pub coinbase: APIConfig,
+}
+
 impl MyConfig {
+    /// Creates a new instance of the custom configuration.
     pub fn new() -> Self {
-        Self {
-            cb_api_key: "YOUR_COINBASE_API_KEY_HERE".to_string(),
-            cb_api_secret: "YOUR_COINBASE_API_SECRET_HERE".to_string(),
+        let general = GeneralConfig {
             product_id: "BTC-USD".to_string(),
-            ..Default::default()
+        };
+
+        Self {
+            general,
+            coinbase: config::new(),
         }
     }
 }
 
 impl ConfigFile for MyConfig {
-    /// API Key provided by the service.
-    fn cb_api_key(&self) -> &str {
-        &self.cb_api_key
-    }
-
-    /// API Secret provided by the service.
-    fn cb_api_secret(&self) -> &str {
-        &self.cb_api_secret
+    fn coinbase(&self) -> &APIConfig {
+        &self.coinbase
     }
 }
 
@@ -44,10 +49,10 @@ async fn main() {
     // Load the configuration file.
     let config: MyConfig = match config::load("config.toml") {
         Ok(c) => c,
-        Err(_) => {
+        Err(err) => {
             println!("Could not load configuration file.");
             if config::exists("config.toml") {
-                println!("Make sure it is a valid configuration file.");
+                println!("File exists, {}", err);
                 exit(1);
             }
 
@@ -62,8 +67,8 @@ async fn main() {
     let client = rest::Client::from_config(&config);
 
     // Pull a singular product from the Product API.
-    println!("Getting product: {}.", config.product_id);
-    let product = match client.product.get(&config.product_id).await {
+    println!("Getting product: {}.", config.general.product_id);
+    let product = match client.product.get(&config.general.product_id).await {
         Ok(p) => p,
         Err(err) => {
             println!("{}", err);

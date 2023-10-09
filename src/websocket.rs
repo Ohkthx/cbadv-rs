@@ -8,7 +8,6 @@ use crate::order::OrderUpdate;
 use crate::product::{CandleUpdate, MarketTradesUpdate, ProductUpdate, TickerUpdate};
 use crate::signer::Signer;
 use crate::time;
-use crate::traits::ConfigFile;
 use crate::utils::{from_str, CBAdvError, Result};
 use futures_util::stream::{SplitSink, SplitStream};
 use futures_util::{SinkExt, StreamExt};
@@ -16,6 +15,9 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 use tokio::net::TcpStream;
 use tokio_tungstenite::{connect_async, tungstenite, MaybeTlsStream, WebSocketStream};
+
+#[cfg(feature = "config")]
+use crate::config::ConfigFile;
 
 type Socket = WebSocketStream<MaybeTlsStream<TcpStream>>;
 pub type Callback = fn(Result<Message>);
@@ -304,11 +306,12 @@ impl Client {
     /// # Arguments
     ///
     /// * `config` - Configuration that implements ConfigFile trait.
-    pub fn from_config<T>(config: T) -> Self
+    #[cfg(feature = "config")]
+    pub fn from_config<T>(config: &T) -> Self
     where
         T: ConfigFile,
     {
-        Client::new(config.cb_api_key(), config.cb_api_secret())
+        Self::new(&config.coinbase().api_key, &config.coinbase().api_secret)
     }
 
     /// Connects to the WebSocket. This is required before subscribing, unsubscribing, and
@@ -457,6 +460,16 @@ impl Client {
         self.update(channel, product_ids, true).await
     }
 
+    /// Shorthand version of `subscribe`.
+    ///
+    /// # Arguments
+    ///
+    /// * `channel` - The Channel that is being subscribed to.
+    /// * `product_ids` - A vector of product IDs to listen for.
+    pub async fn sub(&mut self, channel: Channel, product_ids: &Vec<String>) -> Result<()> {
+        self.subscribe(channel, product_ids).await
+    }
+
     /// Unsubscribes from the product IDs for the Channel provided. This will stop additional updates
     /// coming in via the `listener` for these products.
     ///
@@ -467,6 +480,30 @@ impl Client {
     pub async fn unsubscribe(&mut self, channel: Channel, product_ids: &Vec<String>) -> Result<()> {
         self.update(channel, product_ids, false).await
     }
+
+    /// Shorthand version of `unsubscribe`.
+    ///
+    /// # Arguments
+    ///
+    /// * `channel` - The Channel that is being changed to.
+    /// * `product_ids` - A vector of product IDs to no longer listen for.
+    pub async fn unsub(&mut self, channel: Channel, product_ids: &Vec<String>) -> Result<()> {
+        self.unsubscribe(channel, product_ids).await
+    }
+}
+
+/// Creates a new instance of a Client using a configuration file. This is a wrapper for
+/// Signer and contains a socket to the WebSocket.
+///
+/// # Arguments
+///
+/// * `config` - Configuration that implements ConfigFile trait.
+#[cfg(feature = "config")]
+pub fn from_config<T>(config: &T) -> Client
+where
+    T: ConfigFile,
+{
+    Client::new(&config.coinbase().api_key, &config.coinbase().api_secret)
 }
 
 /// Starts the listener which returns Messages via a callback function provided by the user.

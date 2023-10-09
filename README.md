@@ -50,8 +50,8 @@ Most of the documentation can be accessed by clicking the following link: [docs.
 Client: `use cbadv::websocket::Client`
 
 - **Authentication** [client.connect]
-- **Subscribe** [client.subscribe]
-- **Unsubscribe** [client.unsubscribe]
+- **Subscribe** [client.subscribe / client.sub]
+- **Unsubscribe** [client.unsubscribe / client.unsub]
 - **Channels Supported**
   - Status [Channel::STATUS]
   - Candles [Channel::CANDLES]
@@ -112,6 +112,8 @@ Test all endpoints that are currently untested.
 Configuration requires you to add the 'config' feature (`features = ["config"]`) to your `Cargo.toml`. The default configuration is unusable due to the API requiring a Key and Secret. You can create, modify, and delete API Keys and Secrets with this [link](https://www.coinbase.com/settings/api).
 
 Copy the `config.toml.sample` to `config.toml` and add in your API information. The `config.toml` file will automatically be read on launch to access your accounts API information. Unlike the depreciated CoinBase Pro API, there's no longer access to Public API endpoints. All access requires authentication. The key and secret is authentication requirements for HTTP requests to be properly [signed](https://docs.cloud.coinbase.com/advanced-trade-api/docs/rest-api-auth) and accepted by CoinBase.
+
+__**Custom configurations**__ can be created with additional sections beyond just `[coinbase]`. See [custom_config.toml.sample](https://github.com/Ohkthx/cbadv-rs/tree/main/custom_config.toml.sample) for an example of the configuration file. An example of how to implement and create a custom configuration file can be seen in [custom_config.rs](https://github.com/Ohkthx/cbadv-rs/tree/main/examples/custom_config.rs).
 
 Example of enabled `config` feature in `Cargo.toml`.
 

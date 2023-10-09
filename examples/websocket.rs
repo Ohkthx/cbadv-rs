@@ -6,9 +6,9 @@
 //! - Subscribe to channels.
 //! - Unsubscribe to channels.
 
+use cbadv::config::{self, BaseConfig};
 use cbadv::utils::Result;
-use cbadv::websocket::{Channel, Client, Message, MessageCallback};
-use cbadv::{config, websocket};
+use cbadv::websocket::{self, Channel, Message, MessageCallback};
 use std::process::exit;
 use tokio;
 
@@ -46,24 +46,24 @@ impl MessageCallback for CallbackObject {
 #[tokio::main]
 async fn main() {
     // Load the configuration file.
-    let config: config::Config = match config::load("config.toml") {
+    let config: BaseConfig = match config::load("config.toml") {
         Ok(c) => c,
-        Err(_) => {
+        Err(err) => {
             println!("Could not load configuration file.");
             if config::exists("config.toml") {
-                println!("Make sure it is a valid configuration file.");
+                println!("File exists, {}", err);
                 exit(1);
             }
 
             // Create a new configuration file.
-            config::new().save("config.toml").unwrap();
+            config::create_base_config("config.toml").unwrap();
             println!("Empty configuration file created, please update it.");
             exit(1);
         }
     };
 
     // Create a client to interact with the API.
-    let mut client = Client::new(&config.cb_api_key, &config.cb_api_secret);
+    let mut client = websocket::from_config(&config);
 
     // Callback Object
     let cb_obj: CallbackObject = CallbackObject { total_processed: 0 };
@@ -77,22 +77,16 @@ async fn main() {
     let products = vec!["BTC-USD".to_string(), "ETH-USD".to_string()];
 
     // Subscribe to user orders.
-    client.subscribe(Channel::USER, &products).await.unwrap();
+    client.sub(Channel::USER, &products).await.unwrap();
 
-    // Get updates on products and currencies.
-    client.subscribe(Channel::CANDLES, &products).await.unwrap();
+    // Get updates (subscribe) on products and currencies.
+    client.sub(Channel::CANDLES, &products).await.unwrap();
 
     // Heartbeats is a great way to keep a connection alive and not timeout.
-    client
-        .subscribe(Channel::HEARTBEATS, &vec![])
-        .await
-        .unwrap();
+    client.sub(Channel::HEARTBEATS, &vec![]).await.unwrap();
 
-    // Stop obtaining updates on products and currencies.
-    client
-        .unsubscribe(Channel::STATUS, &products)
-        .await
-        .unwrap();
+    // Stop obtaining (unsubscribe) updates on products and currencies.
+    client.unsub(Channel::STATUS, &products).await.unwrap();
 
     // Passes the parser callback and listens for messages.
     listener.await.unwrap();

@@ -13,8 +13,6 @@
 
 #[cfg(feature = "config")]
 pub mod config;
-#[cfg(feature = "config")]
-pub use config::Config;
 
 pub mod account;
 pub mod fee;
@@ -22,7 +20,6 @@ pub mod order;
 pub mod product;
 mod signer;
 pub mod time;
-pub mod traits;
 pub mod utils;
 
 pub mod rest;

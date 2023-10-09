@@ -9,7 +9,9 @@ use crate::fee::FeeAPI;
 use crate::order::OrderAPI;
 use crate::product::ProductAPI;
 use crate::signer::Signer;
-use crate::traits::ConfigFile;
+
+#[cfg(feature = "config")]
+use crate::config::ConfigFile;
 
 /// Represents a Client for the API.
 pub struct Client {
@@ -44,11 +46,12 @@ impl Client {
     /// # Arguments
     ///
     /// * `config` - Configuration that implements ConfigFile trait.
+    #[cfg(feature = "config")]
     pub fn from_config<T>(config: &T) -> Self
     where
         T: ConfigFile,
     {
-        Self::new(config.cb_api_key(), config.cb_api_secret())
+        Self::new(&config.coinbase().api_key, &config.coinbase().api_secret)
     }
 }
 
@@ -67,6 +70,7 @@ pub fn new(key: &str, secret: &str) -> Client {
 /// # Arguments
 ///
 /// * `config` - Configuration that implements ConfigFile trait.
+#[cfg(feature = "config")]
 pub fn from_config<T>(config: &T) -> Client
 where
     T: ConfigFile,

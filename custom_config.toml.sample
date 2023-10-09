@@ -1,4 +1,8 @@
 # This needs to be renamed to 'config.toml' before it can be used.
+# Check 'examples/custom_config.rs' for more details.
+
+[general]
+product_id = "BTC-USD"
 
 [coinbase]
 version = 1
