@@ -8,6 +8,7 @@ use crate::order::OrderUpdate;
 use crate::product::{CandleUpdate, MarketTradesUpdate, ProductUpdate, TickerUpdate};
 use crate::signer::Signer;
 use crate::time;
+use crate::traits::ConfigFile;
 use crate::utils::{from_str, CBAdvError, Result};
 use futures_util::stream::{SplitSink, SplitStream};
 use futures_util::{SinkExt, StreamExt};
@@ -295,6 +296,19 @@ impl Client {
             signer: Signer::new(key.to_string(), secret.to_string()),
             socket_tx: None,
         }
+    }
+
+    /// Creates a new instance of a Client using a configuration file. This is a wrapper for
+    /// Signer and contains a socket to the WebSocket.
+    ///
+    /// # Arguments
+    ///
+    /// * `config` - Configuration that implements ConfigFile trait.
+    pub fn from_config<T>(config: T) -> Self
+    where
+        T: ConfigFile,
+    {
+        Client::new(config.cb_api_key(), config.cb_api_secret())
     }
 
     /// Connects to the WebSocket. This is required before subscribing, unsubscribing, and

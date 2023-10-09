@@ -134,6 +134,8 @@ Check above in the **Covered API requests** section for possibly covered example
   - `cargo run --example order_api --features="config"`
 - **WebSocket API**: [websocket.rs](https://github.com/Ohkthx/cbadv-rs/tree/main/examples/websocket.rs)
   - `cargo run --example websocket --features="config"`
+- **Custom Config**: [custom_config.rs](https://github.com/Ohkthx/cbadv-rs/tree/main/examples/custom_config.rs)
+  - `cargo run --example custom_config --features="config"`
 
 ## Tips Appreciated!
 

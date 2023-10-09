@@ -9,6 +9,7 @@ use crate::fee::FeeAPI;
 use crate::order::OrderAPI;
 use crate::product::ProductAPI;
 use crate::signer::Signer;
+use crate::traits::ConfigFile;
 
 /// Represents a Client for the API.
 pub struct Client {
@@ -37,6 +38,18 @@ impl Client {
             order: OrderAPI::new(Signer::new(key.to_string(), secret.to_string())),
         }
     }
+
+    /// Creates a new instance of a Client using a configuration file. This is a wrapper for the various APIs and Signer.
+    ///
+    /// # Arguments
+    ///
+    /// * `config` - Configuration that implements ConfigFile trait.
+    pub fn from_config<T>(config: &T) -> Self
+    where
+        T: ConfigFile,
+    {
+        Self::new(config.cb_api_key(), config.cb_api_secret())
+    }
 }
 
 /// Creates a new instance of a Client. This is a wrapper for the various APIs and Signer.
@@ -47,4 +60,16 @@ impl Client {
 /// * `secret` - A string that holds the secret for the API service.
 pub fn new(key: &str, secret: &str) -> Client {
     Client::new(key, secret)
+}
+
+/// Creates a new instance of a Client using a configuration file. This is a wrapper for the various APIs and Signer.
+///
+/// # Arguments
+///
+/// * `config` - Configuration that implements ConfigFile trait.
+pub fn from_config<T>(config: &T) -> Client
+where
+    T: ConfigFile,
+{
+    Client::from_config(config)
 }

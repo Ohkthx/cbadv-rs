@@ -1,7 +1,7 @@
 [package]
 name = "cbadv"
 license = "MIT"
-version = "1.1.10-beta.0"
+version = "1.1.10-beta.1"
 edition = "2021"
 description = "Asynchronous Coinbase Advanced REST and WebSocket API"
 readme = "README.md"
@@ -38,6 +38,11 @@ required-features = ["config"]
 [[example]]
 name = "websocket"
 path = "examples/websocket.rs"
+required-features = ["config"]
+
+[[example]]
+name = "custom_config"
+path = "examples/custom_config.rs"
 required-features = ["config"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

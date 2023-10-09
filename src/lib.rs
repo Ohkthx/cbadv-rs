@@ -13,13 +13,20 @@
 
 #[cfg(feature = "config")]
 pub mod config;
+#[cfg(feature = "config")]
+pub use config::Config;
 
 pub mod account;
 pub mod fee;
 pub mod order;
 pub mod product;
-pub mod rest;
 mod signer;
 pub mod time;
+pub mod traits;
 pub mod utils;
+
+pub mod rest;
+pub use rest::Client as RESTClient;
+
 pub mod websocket;
+pub use websocket::Client as WebSocketClient;

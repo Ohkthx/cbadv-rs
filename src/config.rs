@@ -4,7 +4,8 @@
 //! loading the credentials for API access without hardcoding them into source code.
 
 use crate::debugln;
-use serde::{Deserialize, Serialize};
+use crate::traits::ConfigFile;
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::fs;
 use toml;
 
@@ -58,10 +59,9 @@ impl Config {
     /// * `path` - A string slice that holds the location for the file.
     pub fn load(path: &str) -> Result<Self, &str> {
         // Load the raw version.
-        let contents = fs::read_to_string(path);
-        let raw_config: RawConfig = match contents {
-            Ok(data) => match toml::from_str(&data) {
-                Ok(config) => config,
+        let raw_config: RawConfig = match fs::read_to_string(path) {
+            Ok(contents) => match toml::from_str(&contents) {
+                Ok(value) => value,
                 Err(_) => return Err("unable to open the configuration file."),
             },
             Err(_) => return Err("unable to open the configuration file."),
@@ -122,9 +122,35 @@ impl Config {
     }
 }
 
+impl ConfigFile for Config {
+    /// API Key provided by the service.
+    fn cb_api_key(&self) -> &str {
+        &self.cb_api_key
+    }
+
+    /// API Secret provided by the service.
+    fn cb_api_secret(&self) -> &str {
+        &self.cb_api_key
+    }
+}
+
 /// Creates the default configuration. Wraps `Client::new()`
 pub fn new() -> Config {
     Config::new()
+}
+
+/// Saves a configuration to a given path.
+///
+/// # Arguments
+///
+/// * `config` - Configuration that implement ConfigFile trait.
+/// * `path` - A string slice that holds the location for the file.
+pub fn save<T>(config: &T, path: &str) -> Result<(), std::io::Error>
+where
+    T: ConfigFile + Serialize,
+{
+    let contents = toml::to_string_pretty(&config);
+    fs::write(path, contents.unwrap())
 }
 
 /// Loads a configuration from a given path.
@@ -132,8 +158,18 @@ pub fn new() -> Config {
 /// # Arguments
 ///
 /// * `path` - A string slice that holds the location for the file.
-pub fn load(path: &str) -> Result<Config, &str> {
-    Config::load(path)
+pub fn load<T>(path: &str) -> Result<T, &str>
+where
+    T: ConfigFile + DeserializeOwned,
+{
+    // Load the raw version.
+    match fs::read_to_string(path) {
+        Ok(contents) => match toml::from_str::<T>(&contents) {
+            Ok(value) => Ok(value),
+            Err(_) => return Err("unable to open the configuration file."),
+        },
+        Err(_) => return Err("unable to open the configuration file."),
+    }
 }
 
 /// Checks if the configuration file exists.
