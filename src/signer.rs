@@ -16,15 +16,46 @@ use sha2::Sha256;
 /// Root URI for the API service.
 const ROOT_URI: &str = "https://api.coinbase.com";
 
-/// REST Rate Limit, amount of tokens refreshed per second.
+/// Rate Limits for REST and WebSocket requests.
 ///
 /// # Endpoint / Reference
 ///
-/// <https://docs.cloud.coinbase.com/advanced-trade-api/docs/rest-api-rate-limits>
-const REST_TOKEN_REFRESH_RATE: f64 = 30.0;
+/// * REST: <https://docs.cloud.coinbase.com/advanced-trade-api/docs/rest-api-rate-limits>
+/// * WebSocket: <https://docs.cloud.coinbase.com/advanced-trade-api/docs/ws-rate-limits>
+struct RateLimits {}
+impl RateLimits {
+    /// Amount of tokens per second refilled.
+    const REST_REFRESH_RATE: f64 = 30.0;
+    const WEBSOCKET_REFRESH_RATE: f64 = 750.0;
 
-/// Maxmimum amount of tokens per bucket. See `REST_TOKEN_REFRESH_RATE` above.
-const REST_MAX_TOKENS: f64 = REST_TOKEN_REFRESH_RATE;
+    /// Maximum amount of tokens per bucket.
+    const REST_MAX_TOKENS: f64 = RateLimits::REST_REFRESH_RATE;
+    const WEBSOCKET_MAX_TOKENS: f64 = RateLimits::WEBSOCKET_REFRESH_RATE;
+
+    /// Amount of tokens refreshed per second.
+    ///
+    /// # Arguments
+    ///
+    /// * `is_rest` - Requester is REST Client, true, otherwise false.
+    fn refresh_rate(is_rest: bool) -> f64 {
+        match is_rest {
+            true => RateLimits::REST_REFRESH_RATE,
+            false => RateLimits::WEBSOCKET_REFRESH_RATE,
+        }
+    }
+
+    /// Maximum amount of tokens for a bucket.
+    ///
+    /// # Arguments
+    ///
+    /// * `is_rest` - Requester is REST Client, true, otherwise false.
+    fn max_tokens(is_rest: bool) -> f64 {
+        match is_rest {
+            true => RateLimits::REST_MAX_TOKENS,
+            false => RateLimits::WEBSOCKET_MAX_TOKENS,
+        }
+    }
+}
 
 /// Creates and signs HTTP Requests to the API.
 #[derive(Debug, Clone)]
@@ -36,7 +67,7 @@ pub(crate) struct Signer {
     /// Wrapped client that is responsible for making the requests.
     client: reqwest::Client,
     /// Token bucket, used for rate limiting.
-    bucket: TokenBucket,
+    pub bucket: TokenBucket,
 }
 
 /// Responsible for signing and sending HTTP requests.
@@ -47,12 +78,16 @@ impl Signer {
     ///
     /// * `api_key` - A string that holds the key for the API service.
     /// * `api_secret` - A string that holds the secret for the API service.
-    pub fn new(api_key: String, api_secret: String) -> Self {
+    /// * `is_rest` - Signer for REST Client, true, otherwise false.
+    pub fn new(api_key: String, api_secret: String, is_rest: bool) -> Self {
         Self {
             api_key,
             api_secret,
             client: reqwest::Client::new(),
-            bucket: TokenBucket::new(REST_MAX_TOKENS, REST_TOKEN_REFRESH_RATE),
+            bucket: TokenBucket::new(
+                RateLimits::max_tokens(is_rest),
+                RateLimits::refresh_rate(is_rest),
+            ),
         }
     }
 

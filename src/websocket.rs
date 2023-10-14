@@ -295,7 +295,7 @@ impl Client {
     /// * `secret` - A string that holds the secret for the API service.
     pub fn new(key: &str, secret: &str) -> Self {
         Self {
-            signer: Signer::new(key.to_string(), secret.to_string()),
+            signer: Signer::new(key.to_string(), secret.to_string(), false),
             socket_tx: None,
         }
     }
@@ -446,6 +446,10 @@ impl Client {
             Some(ref mut socket) => {
                 // Serialize and send the update to the API.
                 let body_str = serde_json::to_string(&sub).unwrap();
+
+                // Wait until a token is available to make the request. Immediately consume it.
+                self.signer.bucket.wait_on();
+
                 match socket.send(tungstenite::Message::text(body_str)).await {
                     Ok(_) => Ok(()),
                     _ => Ok(()),

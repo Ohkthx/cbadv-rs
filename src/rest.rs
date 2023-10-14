@@ -34,10 +34,10 @@ impl Client {
     /// * `secret` - A string that holds the secret for the API service.
     pub fn new(key: &str, secret: &str) -> Self {
         Self {
-            account: AccountAPI::new(Signer::new(key.to_string(), secret.to_string())),
-            product: ProductAPI::new(Signer::new(key.to_string(), secret.to_string())),
-            fee: FeeAPI::new(Signer::new(key.to_string(), secret.to_string())),
-            order: OrderAPI::new(Signer::new(key.to_string(), secret.to_string())),
+            account: AccountAPI::new(Signer::new(key.to_string(), secret.to_string(), true)),
+            product: ProductAPI::new(Signer::new(key.to_string(), secret.to_string(), true)),
+            fee: FeeAPI::new(Signer::new(key.to_string(), secret.to_string(), true)),
+            order: OrderAPI::new(Signer::new(key.to_string(), secret.to_string(), true)),
         }
     }
 
