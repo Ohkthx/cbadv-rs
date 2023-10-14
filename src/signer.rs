@@ -5,6 +5,7 @@
 //! the GET and POST requests.
 
 use crate::time;
+use crate::token_bucket::TokenBucket;
 use crate::utils::{CBAdvError, Result};
 use hex;
 use hmac::{Hmac, Mac};
@@ -15,6 +16,16 @@ use sha2::Sha256;
 /// Root URI for the API service.
 const ROOT_URI: &str = "https://api.coinbase.com";
 
+/// REST Rate Limit, amount of tokens refreshed per second.
+///
+/// # Endpoint / Reference
+///
+/// <https://docs.cloud.coinbase.com/advanced-trade-api/docs/rest-api-rate-limits>
+const REST_TOKEN_REFRESH_RATE: f64 = 30.0;
+
+/// Maxmimum amount of tokens per bucket. See `REST_TOKEN_REFRESH_RATE` above.
+const REST_MAX_TOKENS: f64 = REST_TOKEN_REFRESH_RATE;
+
 /// Creates and signs HTTP Requests to the API.
 #[derive(Debug, Clone)]
 pub(crate) struct Signer {
@@ -24,6 +35,8 @@ pub(crate) struct Signer {
     api_secret: String,
     /// Wrapped client that is responsible for making the requests.
     client: reqwest::Client,
+    /// Token bucket, used for rate limiting.
+    bucket: TokenBucket,
 }
 
 /// Responsible for signing and sending HTTP requests.
@@ -39,6 +52,7 @@ impl Signer {
             api_key,
             api_secret,
             client: reqwest::Client::new(),
+            bucket: TokenBucket::new(REST_MAX_TOKENS, REST_TOKEN_REFRESH_RATE),
         }
     }
 
@@ -101,7 +115,7 @@ impl Signer {
     ///
     /// * `resource` - A string representing the resource that is being accessed.
     /// * `query` - A string containing options / parameters for the URL.
-    pub async fn get(&self, resource: &str, query: &str) -> Result<Response> {
+    pub async fn get(&mut self, resource: &str, query: &str) -> Result<Response> {
         // Add the '?' to the beginning of the parameters if not empty.
         let prefix = match query.is_empty() {
             true => "",
@@ -114,6 +128,9 @@ impl Signer {
 
         // Create the signature and submit the request.
         let headers = self.get_http_signature(Method::GET, resource, &"".to_string());
+
+        // Wait until a token is available to make the request. Immediately consume it.
+        self.bucket.wait_on();
 
         let result = self.client.get(url).headers(headers).send().await;
         match result {
@@ -142,7 +159,7 @@ impl Signer {
     /// * `query` - A string containing options / parameters for the URL.
     /// * `body` - An object to send to the URL via POST request.
     pub async fn post<T: Serialize>(
-        &self,
+        &mut self,
         resource: &str,
         query: &str,
         body: T,
@@ -161,6 +178,9 @@ impl Signer {
         let body_str = serde_json::to_string(&body).unwrap();
         let mut headers = self.get_http_signature(Method::POST, resource, &body_str);
         headers.insert("Content-Type", "application/json".parse().unwrap());
+
+        // Wait until a token is available to make the request. Immediately consume it.
+        self.bucket.wait_on();
 
         let result = self
             .client

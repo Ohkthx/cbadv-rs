@@ -35,7 +35,7 @@ async fn main() {
     };
 
     // Create a client to interact with the API.
-    let client = rest::Client::from_config(&config);
+    let mut client = rest::Client::from_config(&config);
 
     // Pull a singular product from the Product API.
     println!("Getting product: {}.", product_pair);

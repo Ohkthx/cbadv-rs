@@ -28,7 +28,7 @@ async fn main() {
     };
 
     // Create a client to interact with the API.
-    let client = rest::Client::from_config(&config);
+    let mut client = rest::Client::from_config(&config);
 
     // Parameters to send to the API.
     let params = TransactionSummaryQuery::default();

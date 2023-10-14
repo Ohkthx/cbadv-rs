@@ -133,7 +133,7 @@ impl AccountAPI {
     /// https://api.coinbase.com/api/v3/brokerage/accounts/{account_uuid}
     ///
     /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getaccount>
-    pub async fn get(&self, account_uuid: &str) -> Result<Account> {
+    pub async fn get(&mut self, account_uuid: &str) -> Result<Account> {
         let resource = format!("{}/{}", Self::RESOURCE, account_uuid);
         match self.signer.get(&resource, "").await {
             Ok(value) => match value.json::<AccountResponse>().await {
@@ -157,7 +157,11 @@ impl AccountAPI {
     /// * `id` - Identifier for the account, such as BTC or ETH.
     /// * `query` - Optional parameters, should default to None unless you want additional control.
     #[async_recursion]
-    pub async fn get_by_id(&self, id: &str, query: Option<ListAccountsQuery>) -> Result<Account> {
+    pub async fn get_by_id(
+        &mut self,
+        id: &str,
+        query: Option<ListAccountsQuery>,
+    ) -> Result<Account> {
         let mut query = match query {
             Some(p) => p,
             None => ListAccountsQuery::default(),
@@ -194,7 +198,7 @@ impl AccountAPI {
     ///
     /// * `query` - Optional parameters, should default to None unless you want additional control.
     #[async_recursion]
-    pub async fn get_all(&self, query: Option<ListAccountsQuery>) -> Result<Vec<Account>> {
+    pub async fn get_all(&mut self, query: Option<ListAccountsQuery>) -> Result<Vec<Account>> {
         let mut query = match query {
             Some(p) => p,
             None => ListAccountsQuery::default(),
@@ -224,7 +228,7 @@ impl AccountAPI {
     /// https://api.coinbase.com/api/v3/brokerage/accounts
     ///
     /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getaccounts>
-    pub async fn get_bulk(&self, query: &ListAccountsQuery) -> Result<ListedAccounts> {
+    pub async fn get_bulk(&mut self, query: &ListAccountsQuery) -> Result<ListedAccounts> {
         match self.signer.get(Self::RESOURCE, &query.to_string()).await {
             Ok(value) => match value.json::<ListedAccounts>().await {
                 Ok(resp) => Ok(resp),

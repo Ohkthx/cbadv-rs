@@ -29,7 +29,7 @@ Contributions are encouraged! The API reference can be seen at [CoinBase Advance
 
 ```toml
 [dependencies]
-cbadv = { git = "https://github.com/ohkthx/cbadv-rs" }
+cbadv = { git = "https://github.com/ohkthx/cbadv-rs", branch = "main" }
 ```
 
 ## Features

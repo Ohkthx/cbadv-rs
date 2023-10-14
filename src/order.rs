@@ -498,7 +498,7 @@ impl OrderAPI {
     /// https://api.coinbase.com/api/v3/brokerage/orders/batch_cancel
     ///
     /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_cancelorders>
-    pub async fn cancel(&self, order_ids: &Vec<String>) -> Result<Vec<OrderResponse>> {
+    pub async fn cancel(&mut self, order_ids: &Vec<String>) -> Result<Vec<OrderResponse>> {
         let body = CancelOrders {
             order_ids: order_ids.clone(),
         };
@@ -521,7 +521,7 @@ impl OrderAPI {
     /// # Arguments
     ///
     /// * `product_id` - Product to cancel all OPEN orders for.
-    pub async fn cancel_all(&self, product_id: &str) -> Result<Vec<OrderResponse>> {
+    pub async fn cancel_all(&mut self, product_id: &str) -> Result<Vec<OrderResponse>> {
         let query = ListOrdersQuery {
             product_id: Some(product_id.to_string()),
             order_status: Some(vec![OrderStatus::OPEN]),
@@ -563,7 +563,7 @@ impl OrderAPI {
     ///
     /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_postorder>
     async fn create(
-        &self,
+        &mut self,
         product_id: &str,
         side: &str,
         configuration: OrderConfiguration,
@@ -599,7 +599,7 @@ impl OrderAPI {
     ///
     /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_postorder>
     pub async fn create_market(
-        &self,
+        &mut self,
         product_id: &str,
         side: &str,
         size: &f64,
@@ -641,7 +641,7 @@ impl OrderAPI {
     ///
     /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_postorder>
     pub async fn create_limit_gtc(
-        &self,
+        &mut self,
         product_id: &str,
         side: &str,
         size: &f64,
@@ -680,7 +680,7 @@ impl OrderAPI {
     ///
     /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_postorder>
     pub async fn create_limit_gtd(
-        &self,
+        &mut self,
         product_id: &str,
         side: &str,
         size: &f64,
@@ -721,7 +721,7 @@ impl OrderAPI {
     ///
     /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_postorder>
     pub async fn create_stop_limit_gtc(
-        &self,
+        &mut self,
         product_id: &str,
         side: &str,
         size: &f64,
@@ -763,7 +763,7 @@ impl OrderAPI {
     ///
     /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_postorder>
     pub async fn create_stop_limit_gtd(
-        &self,
+        &mut self,
         product_id: &str,
         side: &str,
         size: &f64,
@@ -800,7 +800,7 @@ impl OrderAPI {
     /// https://api.coinbase.com/api/v3/brokerage/orders/historical/{order_id}
     ///
     /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_gethistoricalorder>
-    pub async fn get(&self, order_id: &str) -> Result<Order> {
+    pub async fn get(&mut self, order_id: &str) -> Result<Order> {
         let resource = format!("{}/historical/{}", Self::RESOURCE, order_id);
         match self.signer.get(&resource, "").await {
             Ok(value) => match value.json::<OrderStatusResponse>().await {
@@ -823,7 +823,7 @@ impl OrderAPI {
     /// https://api.coinbase.com/api/v3/brokerage/orders/historical
     ///
     /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_gethistoricalorders>
-    pub async fn get_bulk(&self, query: &ListOrdersQuery) -> Result<ListedOrders> {
+    pub async fn get_bulk(&mut self, query: &ListOrdersQuery) -> Result<ListedOrders> {
         let resource = format!("{}/historical/batch", Self::RESOURCE);
         match self.signer.get(&resource, &query.to_string()).await {
             Ok(value) => match value.json::<ListedOrders>().await {
@@ -848,7 +848,7 @@ impl OrderAPI {
     /// * `product_id` - Identifier for the account, such as BTC-USD or ETH-USD.
     /// * `query` - Optional parameters, should default to None unless you want additional control.
     pub async fn get_all(
-        &self,
+        &mut self,
         product_id: &str,
         query: Option<ListOrdersQuery>,
     ) -> Result<Vec<Order>> {
@@ -887,7 +887,7 @@ impl OrderAPI {
     /// https://api.coinbase.com/api/v3/brokerage/orders/historical/fills
     ///
     /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getfills>
-    pub async fn fills(&self, query: &ListFillsQuery) -> Result<ListedFills> {
+    pub async fn fills(&mut self, query: &ListFillsQuery) -> Result<ListedFills> {
         let resource = format!("{}/historical/fills", Self::RESOURCE);
         match self.signer.get(&resource, &query.to_string()).await {
             Ok(value) => match value.json::<ListedFills>().await {

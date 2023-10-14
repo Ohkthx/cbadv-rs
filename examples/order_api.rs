@@ -40,7 +40,7 @@ async fn main() {
     };
 
     // Create a client to interact with the API.
-    let client = rest::Client::from_config(&config);
+    let mut client = rest::Client::from_config(&config);
 
     if create_trade {
         println!("Creating Order for {}.", product_pair);
