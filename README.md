@@ -90,18 +90,21 @@ Client: `use cbadv::rest::Client`
 - **Fees [client.fee]**
   - Get Transaction Summary [client.fee.get]
 
-### Added Requests
+### Added Requests and Features
 
 These functions were created to cover common functionality but not initially part of the CoinBase Advanced API. They may require several API requests to accomplish their results.
 
-- **Accounts** [client.account]
+- **REST: Accounts** [client.account]
   - Get Account by ID [client.account.get_by_id] - Gets an account by the ID (ex BTC or ETH)
   - Get All [client.account.get_all] - Gets all accounts.
-- **Products** [client.product]
+- **REST: Products** [client.product]
   - Get Candles (Extended) [client.product.candles_ext] - Obtains more than the limit (300) candles.
-- **Orders** [client.order]
+- **REST: Orders** [client.order]
   - Get All Orders [client.order.get_all] - Obtains all orders for a product.
   - Cancel All Orders [client.order.cancel_all] - Cancels all OPEN orders for a product.
+- **WebSocket: Watch Candles** [client.watch_candles]
+  - Watches candles for for updates, produces completed candles for a series.
+  - Candles have 5 minute granularities, this cannot be changed in the current API.
 
 ### TODO
 
@@ -136,6 +139,8 @@ Check above in the **Covered API requests** section for possibly covered example
   - `cargo run --example order_api --features="config"`
 - **WebSocket API**: [websocket.rs](https://github.com/Ohkthx/cbadv-rs/tree/main/examples/websocket.rs)
   - `cargo run --example websocket --features="config"`
+- **Watch Candles**: [watch_candles.rs](https://github.com/Ohkthx/cbadv-rs/tree/main/examples/watch_candles.rs)
+  - `cargo run --example watch_candles --features="config"`
 - **Custom Config**: [custom_config.rs](https://github.com/Ohkthx/cbadv-rs/tree/main/examples/custom_config.rs)
   - `cargo run --example custom_config --features="config"`
 

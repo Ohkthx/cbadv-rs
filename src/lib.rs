@@ -15,6 +15,7 @@
 pub mod config;
 
 mod signer;
+mod task_tracker;
 mod token_bucket;
 
 pub mod account;

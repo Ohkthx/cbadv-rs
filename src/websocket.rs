@@ -5,8 +5,9 @@
 //! for large amount of constantly changing data.
 
 use crate::order::OrderUpdate;
-use crate::product::{CandleUpdate, MarketTradesUpdate, ProductUpdate, TickerUpdate};
+use crate::product::{Candle, CandleUpdate, MarketTradesUpdate, ProductUpdate, TickerUpdate};
 use crate::signer::Signer;
+use crate::task_tracker::TaskTracker;
 use crate::time;
 use crate::utils::{from_str, CBAdvError, Result};
 use futures_util::stream::{SplitSink, SplitStream};
@@ -14,6 +15,7 @@ use futures_util::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use tokio::net::TcpStream;
+use tokio::task::JoinHandle;
 use tokio_tungstenite::{connect_async, tungstenite, MaybeTlsStream, WebSocketStream};
 
 #[cfg(feature = "config")]
@@ -22,6 +24,18 @@ use crate::config::ConfigFile;
 type Socket = WebSocketStream<MaybeTlsStream<TcpStream>>;
 pub type Callback = fn(Result<Message>);
 pub type WebSocketReader = SplitStream<Socket>;
+
+/// Used to pass to a callback to the candle watcher on a successful ejection.
+pub trait CandleCallback {
+    /// Called when a candle is succesfully ejected.
+    ///
+    /// # Arguments
+    ///
+    /// * `current_start` - Current UTC timestamp for a start.
+    /// * `product_id` - Product the candle belongs to.
+    /// * `candle` - Candle that was recently completed.
+    fn candle_callback(&mut self, current_start: u64, product_id: String, candle: Candle);
+}
 
 /// Used to pass objects to the listener for greater control over message processing.
 pub trait MessageCallback {
@@ -500,6 +514,44 @@ impl Client {
     pub async fn unsub(&mut self, channel: Channel, product_ids: &Vec<String>) -> Result<()> {
         self.unsubscribe(channel, product_ids).await
     }
+
+    /// Watches candles for a set of products, producing candles once they are considered complete.
+    ///
+    /// # Argument
+    ///
+    /// * `products` - Products to watch for candles for.
+    /// * `watcher` - User-defined struct that implements `CandleCallback` to send completed candles to.
+    pub async fn watch_candles<T>(
+        &mut self,
+        products: &Vec<String>,
+        watcher: T,
+    ) -> Result<JoinHandle<()>>
+    where
+        T: CandleCallback + Send + 'static,
+    {
+        // Connect and spawn a task.
+        let reader = match self.connect().await {
+            Ok(reader) => reader,
+            Err(err) => return Err(err),
+        };
+
+        // Starts task to watch candles using users watcher.
+        let listener = tokio::spawn(TaskTracker::start(reader, watcher));
+
+        // Keep the connection open.
+        match self.sub(Channel::HEARTBEATS, &vec![]).await {
+            Ok(_) => (),
+            Err(err) => return Err(err),
+        };
+
+        // Subscribe to the candle updates for the products.
+        match self.sub(Channel::CANDLES, products).await {
+            Ok(_) => (),
+            Err(err) => return Err(err),
+        };
+
+        Ok(listener)
+    }
 }
 
 /// Creates a new instance of a Client using a configuration file. This is a wrapper for
@@ -544,4 +596,22 @@ where
     T: MessageCallback,
 {
     Client::listener_with(reader, callback_obj).await
+}
+
+/// Watches candles for a set of products, producing candles once they are considered complete.
+///
+/// # Argument
+///
+/// * `client` - WebSocket client used to obtain a `reader` to listen to the socket.
+/// * `products` - Products to watch for candles for.
+/// * `watcher` - User-defined struct that implements `CandleCallback` to send completed candles to.
+pub async fn watch_candles<T>(
+    client: &mut Client,
+    products: &Vec<String>,
+    watcher: T,
+) -> Result<JoinHandle<()>>
+where
+    T: CandleCallback + Send + 'static,
+{
+    client.watch_candles(products, watcher).await
 }

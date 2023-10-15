@@ -270,57 +270,82 @@ pub struct Order {
 /// Represents a fill received from the API.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Fill {
+    /// Unique identifier for the fill.
     pub entry_id: String,
+    /// Id of the fill -- unique for all `FILL` trade_types but not unique for adjusted fills.
     pub trade_id: String,
+    /// Id of the order the fill belongs to.
     pub order_id: String,
+    /// Time at which this fill was completed.
     pub trade_time: String,
+    /// String denoting what type of fill this is. Regular fills have the value `FILL`.
+    /// Adjusted fills have possible values `REVERSAL`, `CORRECTION`, `SYNTHETIC`.
     pub trade_type: String,
+    /// Price the fill was posted at.
     #[serde(deserialize_with = "from_str")]
     pub price: f64,
+    /// Amount of order that was transacted at this fill.
     #[serde(deserialize_with = "from_str")]
     pub size: f64,
+    /// Fee amount for fill.
     #[serde(deserialize_with = "from_str")]
     pub commission: f64,
+    /// The product this order was created for.
     pub product_id: String,
+    /// Time at which this fill was posted.
     pub sequence_timestamp: String,
+    /// Possible values: [UNKNOWN_LIQUIDITY_INDICATOR, MAKER, TAKER]
     pub liquidity_indicator: String,
+    /// Whether the order was placed with quote currency.
     pub size_in_quote: bool,
+    /// User that placed the order the fill belongs to.
     pub user_id: String,
+    /// Possible values: [UNKNOWN_ORDER_SIDE, BUY, SELL]
     pub side: String,
 }
 
 /// Represents a list of orders received from the API.
 #[derive(Deserialize, Debug)]
 pub struct ListedOrders {
+    /// Vector of orders obtained.
     pub orders: Vec<Order>,
+    /// If there are additional orders.
     pub has_next: bool,
+    /// Cursor used to pull more orders.
     pub cursor: String,
 }
 
 /// Represents a list of fills received from the API.
 #[derive(Deserialize, Debug)]
 pub struct ListedFills {
+    /// Vector of filled orders.
     pub orders: Vec<Fill>,
+    /// Cursor used to pull more fills.
     pub cursor: String,
 }
 
 /// Represents a create order response from the API.
 #[derive(Deserialize, Debug)]
 pub struct OrderResponse {
+    /// Whether or not the order completed correctly.
     pub success: bool,
+    /// Reason the order failed, if it did.
     pub failure_reason: String,
+    /// Order Id of the order created.
     pub order_id: String,
 }
 
 /// Represents a cancel order response from the API.
 #[derive(Deserialize, Debug)]
 pub struct CancelOrdersResponse {
+    /// Vector of orders cancelled.
     results: Vec<OrderResponse>,
 }
 
 /// Represents an order when obtaining a single order from the API.
 #[derive(Deserialize, Debug)]
 struct OrderStatusResponse {
+    /// Order received.
     pub order: Order,
 }
 
