@@ -36,8 +36,9 @@ cbadv = { git = "https://github.com/ohkthx/cbadv-rs", branch = "main" }
 - Asynchronous.
 - Easy-to-use REST and WebSocket clients.
 - Configuration file to hold API Key and API Secret. `features = ["config"]`
-- Covers all REST endpoints currently accessible (20230705).
-- Covers all WebSocket endpoints currently accessible (20230705).
+- Covers all REST endpoints currently accessible (as of 20231016).
+- Covers all WebSocket endpoints currently accessible (as of 20231016).
+- Lots of examples! Check them out to get started.
 
 ## Documentation
 
@@ -47,7 +48,7 @@ Most of the documentation can be accessed by clicking the following link: [docs.
 
 #### WebSocket API
 
-Client: `use cbadv::websocket::Client`
+Client: `use cbadv::websocket::WebSocketClient`
 
 - **Authentication** [client.connect]
 - **Subscribe** [client.subscribe / client.sub]
@@ -64,7 +65,7 @@ Client: `use cbadv::websocket::Client`
 
 #### REST API
 
-Client: `use cbadv::rest::Client`
+Client: `use cbadv::rest::RestClient`
 
 - **Accounts [client.account]**
   - List Accounts [client.account.get_bulk]
