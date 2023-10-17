@@ -4,28 +4,28 @@
 //! This is the primary method of accessing the endpoints and handles all of the configurations and
 //! negotiations for the user.
 
-use crate::account::AccountAPI;
-use crate::fee::FeeAPI;
-use crate::order::OrderAPI;
-use crate::product::ProductAPI;
+use crate::account::AccountApi;
+use crate::fee::FeeApi;
+use crate::order::OrderApi;
+use crate::product::ProductApi;
 use crate::signer::Signer;
 
 #[cfg(feature = "config")]
 use crate::config::ConfigFile;
 
 /// Represents a Client for the API.
-pub struct Client {
+pub struct RestClient {
     /// Gives access to the Account API.
-    pub account: AccountAPI,
+    pub account: AccountApi,
     /// Gives access to the Product API.
-    pub product: ProductAPI,
+    pub product: ProductApi,
     /// Gives access to the Fee API.
-    pub fee: FeeAPI,
+    pub fee: FeeApi,
     /// Gives access to the Order API.
-    pub order: OrderAPI,
+    pub order: OrderApi,
 }
 
-impl Client {
+impl RestClient {
     /// Creates a new instance of a Client. This is a wrapper for the various APIs.
     ///
     /// # Arguments
@@ -34,10 +34,10 @@ impl Client {
     /// * `secret` - A string that holds the secret for the API service.
     pub fn new(key: &str, secret: &str) -> Self {
         Self {
-            account: AccountAPI::new(Signer::new(key.to_string(), secret.to_string(), true)),
-            product: ProductAPI::new(Signer::new(key.to_string(), secret.to_string(), true)),
-            fee: FeeAPI::new(Signer::new(key.to_string(), secret.to_string(), true)),
-            order: OrderAPI::new(Signer::new(key.to_string(), secret.to_string(), true)),
+            account: AccountApi::new(Signer::new(key.to_string(), secret.to_string(), true)),
+            product: ProductApi::new(Signer::new(key.to_string(), secret.to_string(), true)),
+            fee: FeeApi::new(Signer::new(key.to_string(), secret.to_string(), true)),
+            order: OrderApi::new(Signer::new(key.to_string(), secret.to_string(), true)),
         }
     }
 
@@ -61,8 +61,8 @@ impl Client {
 ///
 /// * `key` - A string that holds the key for the API service.
 /// * `secret` - A string that holds the secret for the API service.
-pub fn new(key: &str, secret: &str) -> Client {
-    Client::new(key, secret)
+pub fn new(key: &str, secret: &str) -> RestClient {
+    RestClient::new(key, secret)
 }
 
 /// Creates a new instance of a Client using a configuration file. This is a wrapper for the various APIs and Signer.
@@ -71,9 +71,9 @@ pub fn new(key: &str, secret: &str) -> Client {
 ///
 /// * `config` - Configuration that implements ConfigFile trait.
 #[cfg(feature = "config")]
-pub fn from_config<T>(config: &T) -> Client
+pub fn from_config<T>(config: &T) -> RestClient
 where
     T: ConfigFile,
 {
-    Client::from_config(config)
+    RestClient::from_config(config)
 }

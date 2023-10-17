@@ -26,7 +26,7 @@ pub mod time;
 pub mod utils;
 
 pub mod rest;
-pub use rest::Client as RestClient;
+pub use rest::RestClient;
 
 pub mod websocket;
-pub use websocket::Client as WebSocketClient;
+pub use websocket::WebSocketClient;

@@ -4,7 +4,7 @@
 //! These allow you to obtain past created orders, create new orders, and cancel orders.
 
 use crate::signer::Signer;
-use crate::utils::{from_str, CBAdvError, Result};
+use crate::utils::{from_str, CbAdvError, Result};
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use uuid::Uuid;
@@ -103,7 +103,7 @@ pub struct OrderUpdate {
 
 /// Market Immediate or Cancel.
 #[derive(Serialize, Debug)]
-struct MarketIOC {
+struct MarketIoc {
     /// Amount of quote currency to spend on order. Required for BUY orders.
     pub quote_size: Option<String>,
     /// Amount of base currency to spend on order. Required for SELL orders.
@@ -112,7 +112,7 @@ struct MarketIOC {
 
 /// Limit Good til Cancelled.
 #[derive(Serialize, Debug)]
-struct LimitGTC {
+struct LimitGtc {
     /// Amount of base currency to spend on order.
     pub base_size: String,
     /// Ceiling price for which the order should get filled.
@@ -123,7 +123,7 @@ struct LimitGTC {
 
 /// Limit Good til Time (Date).
 #[derive(Serialize, Debug)]
-struct LimitGTD {
+struct LimitGtd {
     /// Amount of base currency to spend on order.
     pub base_size: String,
     /// Ceiling price for which the order should get filled.
@@ -136,7 +136,7 @@ struct LimitGTD {
 
 /// Stop Limit Good til Cancelled.
 #[derive(Serialize, Debug)]
-struct StopLimitGTC {
+struct StopLimitGtc {
     /// Amount of base currency to spend on order.
     pub base_size: String,
     /// Ceiling price for which the order should get filled.
@@ -149,7 +149,7 @@ struct StopLimitGTC {
 
 /// Stop Limit Good til Time (Date).
 #[derive(Serialize, Debug)]
-struct StopLimitGTD {
+struct StopLimitGtd {
     /// Amount of base currency to spend on order.
     pub base_size: String,
     /// Ceiling price for which the order should get filled.
@@ -167,19 +167,19 @@ struct StopLimitGTD {
 struct OrderConfiguration {
     /// Market Order
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub market_market_ioc: Option<MarketIOC>,
+    pub market_market_ioc: Option<MarketIoc>,
     /// Limit Order, Good til Cancelled
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub limit_limit_gtc: Option<LimitGTC>,
+    pub limit_limit_gtc: Option<LimitGtc>,
     /// Limit Order, Good til Date (time)
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub limit_limit_gtd: Option<LimitGTD>,
+    pub limit_limit_gtd: Option<LimitGtd>,
     /// Stop Limit Order, Good til Cancelled
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub stop_limit_stop_limit_gtc: Option<StopLimitGTC>,
+    pub stop_limit_stop_limit_gtc: Option<StopLimitGtc>,
     /// Stop Limit Order, Good til Date (time)
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub stop_limit_stop_limit_gtd: Option<StopLimitGTD>,
+    pub stop_limit_stop_limit_gtd: Option<StopLimitGtd>,
 }
 
 /// Represents an order created to BUY or SELL.
@@ -492,12 +492,12 @@ impl fmt::Display for ListFillsQuery {
 }
 
 /// Provides access to the Order API for the service.
-pub struct OrderAPI {
+pub struct OrderApi {
     /// Object used to sign requests made to the API.
     signer: Signer,
 }
 
-impl OrderAPI {
+impl OrderApi {
     /// Resource for the API.
     const RESOURCE: &str = "/api/v3/brokerage/orders";
 
@@ -532,7 +532,7 @@ impl OrderAPI {
         match self.signer.post(&resource, "", body).await {
             Ok(value) => match value.json::<CancelOrdersResponse>().await {
                 Ok(resp) => Ok(resp.results),
-                Err(_) => Err(CBAdvError::BadParse("cancel order object".to_string())),
+                Err(_) => Err(CbAdvError::BadParse("cancel order object".to_string())),
             },
             Err(error) => Err(error),
         }
@@ -561,7 +561,7 @@ impl OrderAPI {
 
                 // Do nothing since no orders found.
                 if order_ids.len() == 0 {
-                    return Err(CBAdvError::NothingToDo(
+                    return Err(CbAdvError::NothingToDo(
                         "no orders found to cancel".to_string(),
                     ));
                 }
@@ -603,7 +603,7 @@ impl OrderAPI {
         match self.signer.post(Self::RESOURCE, "", body).await {
             Ok(value) => match value.json::<OrderResponse>().await {
                 Ok(resp) => Ok(resp),
-                Err(_) => Err(CBAdvError::BadParse("created order object".to_string())),
+                Err(_) => Err(CbAdvError::BadParse("created order object".to_string())),
             },
             Err(error) => Err(error),
         }
@@ -630,12 +630,12 @@ impl OrderAPI {
         size: &f64,
     ) -> Result<OrderResponse> {
         let market = if side == "BUY" {
-            MarketIOC {
+            MarketIoc {
                 quote_size: Some(size.to_string()),
                 base_size: None,
             }
         } else {
-            MarketIOC {
+            MarketIoc {
                 quote_size: None,
                 base_size: Some(size.to_string()),
             }
@@ -673,7 +673,7 @@ impl OrderAPI {
         price: &f64,
         post_only: bool,
     ) -> Result<OrderResponse> {
-        let limit = LimitGTC {
+        let limit = LimitGtc {
             base_size: size.to_string(),
             limit_price: price.to_string(),
             post_only: post_only.clone(),
@@ -713,7 +713,7 @@ impl OrderAPI {
         end_time: &str,
         post_only: bool,
     ) -> Result<OrderResponse> {
-        let limit = LimitGTD {
+        let limit = LimitGtd {
             base_size: size.to_string(),
             limit_price: price.to_string(),
             end_time: end_time.to_string(),
@@ -754,7 +754,7 @@ impl OrderAPI {
         stop_price: &f64,
         stop_direction: &str,
     ) -> Result<OrderResponse> {
-        let stoplimit = StopLimitGTC {
+        let stoplimit = StopLimitGtc {
             base_size: size.to_string(),
             limit_price: limit_price.to_string(),
             stop_price: stop_price.to_string(),
@@ -797,7 +797,7 @@ impl OrderAPI {
         stop_direction: &str,
         end_time: &str,
     ) -> Result<OrderResponse> {
-        let stoplimit = StopLimitGTD {
+        let stoplimit = StopLimitGtd {
             base_size: size.to_string(),
             limit_price: limit_price.to_string(),
             stop_price: stop_price.to_string(),
@@ -830,7 +830,7 @@ impl OrderAPI {
         match self.signer.get(&resource, "").await {
             Ok(value) => match value.json::<OrderStatusResponse>().await {
                 Ok(resp) => Ok(resp.order),
-                Err(_) => Err(CBAdvError::BadParse(
+                Err(_) => Err(CbAdvError::BadParse(
                     "could not parse order object".to_string(),
                 )),
             },
@@ -853,7 +853,7 @@ impl OrderAPI {
         match self.signer.get(&resource, &query.to_string()).await {
             Ok(value) => match value.json::<ListedOrders>().await {
                 Ok(resp) => Ok(resp),
-                Err(_) => Err(CBAdvError::BadParse(
+                Err(_) => Err(CbAdvError::BadParse(
                     "could not parse orders vector".to_string(),
                 )),
             },
@@ -917,7 +917,7 @@ impl OrderAPI {
         match self.signer.get(&resource, &query.to_string()).await {
             Ok(value) => match value.json::<ListedFills>().await {
                 Ok(resp) => Ok(resp),
-                Err(_) => Err(CBAdvError::BadParse(
+                Err(_) => Err(CbAdvError::BadParse(
                     "could not parse fills vector".to_string(),
                 )),
             },

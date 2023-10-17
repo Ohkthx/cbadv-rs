@@ -6,7 +6,7 @@
 
 use crate::time;
 use crate::token_bucket::TokenBucket;
-use crate::utils::{CBAdvError, Result};
+use crate::utils::{CbAdvError, Result};
 use hex;
 use hmac::{Hmac, Mac};
 use reqwest::{header, Method, Response, StatusCode};
@@ -174,15 +174,15 @@ impl Signer {
                 _ => {
                     let code = format!("Status Code: {}", value.status().as_u16());
                     match value.text().await {
-                        Ok(text) => Err(CBAdvError::BadStatus(format!("{}, {}", code, text))),
-                        Err(_) => Err(CBAdvError::BadStatus(format!(
+                        Ok(text) => Err(CbAdvError::BadStatus(format!("{}, {}", code, text))),
+                        Err(_) => Err(CbAdvError::BadStatus(format!(
                             "{}, could not parse error message",
                             code
                         ))),
                     }
                 }
             },
-            Err(_) => Err(CBAdvError::Unknown("GET request to API".to_string())),
+            Err(_) => Err(CbAdvError::Unknown("GET request to API".to_string())),
         }
     }
 
@@ -231,15 +231,15 @@ impl Signer {
                 _ => {
                     let code = format!("Status Code: {}", value.status().as_u16());
                     match value.text().await {
-                        Ok(text) => Err(CBAdvError::BadStatus(format!("{}, {}", code, text))),
-                        Err(_) => Err(CBAdvError::BadStatus(format!(
+                        Ok(text) => Err(CbAdvError::BadStatus(format!("{}, {}", code, text))),
+                        Err(_) => Err(CbAdvError::BadStatus(format!(
                             "{}, could not parse error message",
                             code
                         ))),
                     }
                 }
             },
-            Err(_) => Err(CBAdvError::Unknown("POST request to API".to_string())),
+            Err(_) => Err(CbAdvError::Unknown("POST request to API".to_string())),
         }
     }
 }

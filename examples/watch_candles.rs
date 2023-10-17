@@ -1,6 +1,6 @@
 use cbadv::config::{self, BaseConfig};
 use cbadv::product::{Candle, ListProductsQuery};
-use cbadv::rest::{self, Client as RestClient};
+use cbadv::rest::{self, RestClient};
 use cbadv::websocket::{self, CandleCallback};
 
 use std::process::exit;

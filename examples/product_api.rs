@@ -9,7 +9,7 @@
 
 use cbadv::config::{self, BaseConfig};
 use cbadv::product::{ListProductsQuery, TickerQuery};
-use cbadv::rest;
+use cbadv::rest::RestClient;
 use cbadv::time;
 use std::process::exit;
 
@@ -35,7 +35,7 @@ async fn main() {
     };
 
     // Create a client to interact with the API.
-    let mut client = rest::Client::from_config(&config);
+    let mut client = RestClient::from_config(&config);
 
     // Pull a singular product from the Product API.
     println!("Getting product: {}.", product_pair);

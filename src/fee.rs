@@ -4,7 +4,7 @@
 //! Currently the only endpoint available is the Transaction Summary endpoint.
 
 use crate::signer::Signer;
-use crate::utils::{from_str, CBAdvError, Result};
+use crate::utils::{from_str, CbAdvError, Result};
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
@@ -114,12 +114,12 @@ impl fmt::Display for TransactionSummaryQuery {
 }
 
 /// Provides access to the Fee API for the service.
-pub struct FeeAPI {
+pub struct FeeApi {
     /// Object used to sign requests made to the API.
     signer: Signer,
 }
 
-impl FeeAPI {
+impl FeeApi {
     /// Resource for the API.
     const RESOURCE: &str = "/api/v3/brokerage/transaction_summary";
 
@@ -150,7 +150,7 @@ impl FeeAPI {
         match self.signer.get(Self::RESOURCE, &query.to_string()).await {
             Ok(value) => match value.json::<TransactionSummary>().await {
                 Ok(resp) => Ok(resp),
-                Err(_) => Err(CBAdvError::BadParse("fee summary object".to_string())),
+                Err(_) => Err(CbAdvError::BadParse("fee summary object".to_string())),
             },
             Err(error) => Err(error),
         }

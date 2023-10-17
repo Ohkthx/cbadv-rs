@@ -9,7 +9,7 @@ use crate::product::{Candle, CandleUpdate, MarketTradesUpdate, ProductUpdate, Ti
 use crate::signer::Signer;
 use crate::task_tracker::TaskTracker;
 use crate::time;
-use crate::utils::{from_str, CBAdvError, Result};
+use crate::utils::{from_str, CbAdvError, Result};
 use futures_util::stream::{SplitSink, SplitStream};
 use futures_util::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
@@ -289,14 +289,14 @@ struct Subscription {
 
 /// Represents a Client for the Websocket API. Provides easy-access to subscribing and listening to
 /// the WebSocket.
-pub struct Client {
+pub struct WebSocketClient {
     /// Signs the messages sent.
     signer: Signer,
     /// Writes data to the stream, gets sent to the API.
     socket_tx: Option<SplitSink<Socket, tungstenite::Message>>,
 }
 
-impl Client {
+impl WebSocketClient {
     /// Resource for the API.
     const RESOURCE: &str = "wss://advanced-trade-ws.coinbase.com";
 
@@ -337,7 +337,7 @@ impl Client {
                 self.socket_tx = Some(sink);
                 Ok(stream)
             }
-            Err(_) => Err(CBAdvError::BadConnection(
+            Err(_) => Err(CbAdvError::BadConnection(
                 "unable to get handshake".to_string(),
             )),
         }
@@ -364,7 +364,7 @@ impl Client {
             // Parse the message.
             match serde_json::from_str(&data) {
                 Ok(message) => callback(Ok(message)),
-                _ => callback(Err(CBAdvError::BadParse(format!(
+                _ => callback(Err(CbAdvError::BadParse(format!(
                     "unable to parse message: {}",
                     data
                 )))),
@@ -402,7 +402,7 @@ impl Client {
             // Parse the message.
             match serde_json::from_str(&data) {
                 Ok(message) => obj.message_callback(Ok(message)),
-                _ => obj.message_callback(Err(CBAdvError::BadParse(format!(
+                _ => obj.message_callback(Err(CbAdvError::BadParse(format!(
                     "unable to parse message: {}",
                     data
                 )))),
@@ -453,7 +453,7 @@ impl Client {
         };
 
         match self.socket_tx {
-            None => Err(CBAdvError::BadConnection(
+            None => Err(CbAdvError::BadConnection(
                 "need to connect first.".to_string(),
             )),
 
@@ -561,11 +561,11 @@ impl Client {
 ///
 /// * `config` - Configuration that implements ConfigFile trait.
 #[cfg(feature = "config")]
-pub fn from_config<T>(config: &T) -> Client
+pub fn from_config<T>(config: &T) -> WebSocketClient
 where
     T: ConfigFile,
 {
-    Client::new(&config.coinbase().api_key, &config.coinbase().api_secret)
+    WebSocketClient::new(&config.coinbase().api_key, &config.coinbase().api_secret)
 }
 
 /// Starts the listener which returns Messages via a callback function provided by the user.
@@ -579,7 +579,7 @@ where
 /// * `callback` - A callback function that is trigger and passed the Message received via
 /// WebSocket, if an error occurred.
 pub async fn listener(reader: WebSocketReader, callback: Callback) {
-    Client::listener(reader, callback).await
+    WebSocketClient::listener(reader, callback).await
 }
 
 /// Starts the listener with a callback object that implements the `MessageCallback` trait.
@@ -595,7 +595,7 @@ pub async fn listener_with<T>(reader: WebSocketReader, callback_obj: T)
 where
     T: MessageCallback,
 {
-    Client::listener_with(reader, callback_obj).await
+    WebSocketClient::listener_with(reader, callback_obj).await
 }
 
 /// Watches candles for a set of products, producing candles once they are considered complete.
@@ -606,7 +606,7 @@ where
 /// * `products` - Products to watch for candles for.
 /// * `watcher` - User-defined struct that implements `CandleCallback` to send completed candles to.
 pub async fn watch_candles<T>(
-    client: &mut Client,
+    client: &mut WebSocketClient,
     products: &Vec<String>,
     watcher: T,
 ) -> Result<JoinHandle<()>>

@@ -4,7 +4,7 @@
 //! This allows you to obtain account information either by account UUID or in bulk (all accounts).
 
 use crate::signer::Signer;
-use crate::utils::{from_str, CBAdvError, Result};
+use crate::utils::{from_str, CbAdvError, Result};
 use async_recursion::async_recursion;
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -101,12 +101,12 @@ impl fmt::Display for ListAccountsQuery {
 }
 
 /// Provides access to the Account API for the service.
-pub struct AccountAPI {
+pub struct AccountApi {
     /// Object used to sign requests made to the API.
     signer: Signer,
 }
 
-impl AccountAPI {
+impl AccountApi {
     /// Resource for the API.
     const RESOURCE: &str = "/api/v3/brokerage/accounts";
 
@@ -138,7 +138,7 @@ impl AccountAPI {
         match self.signer.get(&resource, "").await {
             Ok(value) => match value.json::<AccountResponse>().await {
                 Ok(resp) => Ok(resp.account),
-                Err(_) => Err(CBAdvError::BadParse("account object".to_string())),
+                Err(_) => Err(CbAdvError::BadParse("account object".to_string())),
             },
             Err(error) => Err(error),
         }
@@ -175,7 +175,7 @@ impl AccountAPI {
                     None => {
                         // Prevent further requests if no more can be made.
                         if !listed.has_next {
-                            return Err(CBAdvError::NotFound("no matching ids".to_string()));
+                            return Err(CbAdvError::NotFound("no matching ids".to_string()));
                         }
 
                         // Make another request to the API for the account.
@@ -232,7 +232,7 @@ impl AccountAPI {
         match self.signer.get(Self::RESOURCE, &query.to_string()).await {
             Ok(value) => match value.json::<ListedAccounts>().await {
                 Ok(resp) => Ok(resp),
-                Err(_) => Err(CBAdvError::BadParse("accounts vector".to_string())),
+                Err(_) => Err(CbAdvError::BadParse("accounts vector".to_string())),
             },
             Err(error) => Err(error),
         }

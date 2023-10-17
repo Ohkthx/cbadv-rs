@@ -10,7 +10,7 @@
 
 use cbadv::config::{self, BaseConfig};
 use cbadv::order::{ListOrdersQuery, OrderSide};
-use cbadv::rest;
+use cbadv::rest::RestClient;
 use std::process::exit;
 
 #[tokio::main]
@@ -40,7 +40,7 @@ async fn main() {
     };
 
     // Create a client to interact with the API.
-    let mut client = rest::Client::from_config(&config);
+    let mut client = RestClient::from_config(&config);
 
     if create_trade {
         println!("Creating Order for {}.", product_pair);
