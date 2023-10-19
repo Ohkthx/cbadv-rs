@@ -128,22 +128,7 @@ cbadv = { version = "*", features = ["config"] }
 
 ## Examples
 
-Check above in the **Covered API requests** section for possibly covered examples.
-
-- **Account API**: [account_api.rs](https://github.com/Ohkthx/cbadv-rs/tree/main/examples/account_api.rs)
-  - `cargo run --example account_api --features="config"`
-- **Product API**: [product_api.rs](https://github.com/Ohkthx/cbadv-rs/tree/main/examples/product_api.rs)
-  - `cargo run --example product_api --features="config"`
-- **Fee API**: [fee_api.rs](https://github.com/Ohkthx/cbadv-rs/tree/main/examples/fee_api.rs)
-  - `cargo run --example fee_api --features="config"`
-- **Order API**: [order_api.rs](https://github.com/Ohkthx/cbadv-rs/tree/main/examples/order_api.rs)
-  - `cargo run --example order_api --features="config"`
-- **WebSocket API**: [websocket.rs](https://github.com/Ohkthx/cbadv-rs/tree/main/examples/websocket.rs)
-  - `cargo run --example websocket --features="config"`
-- **Watch Candles**: [watch_candles.rs](https://github.com/Ohkthx/cbadv-rs/tree/main/examples/watch_candles.rs)
-  - `cargo run --example watch_candles --features="config"`
-- **Custom Config**: [custom_config.rs](https://github.com/Ohkthx/cbadv-rs/tree/main/examples/custom_config.rs)
-  - `cargo run --example custom_config --features="config"`
+Check above in the **Covered API requests** section for possibly covered examples. All examples are located at [cbadv-rs/examples](https://github.com/Ohkthx/cbadv-rs/tree/main/examples/) directory.
 
 ## Tips Appreciated!
 
