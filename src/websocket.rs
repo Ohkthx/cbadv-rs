@@ -5,15 +5,17 @@
 //! for large amount of constantly changing data.
 
 use crate::order::OrderUpdate;
-use crate::product::{CandleUpdate, MarketTradesUpdate, ProductUpdate, TickerUpdate};
+use crate::product::{Candle, CandleUpdate, MarketTradesUpdate, ProductUpdate, TickerUpdate};
 use crate::signer::Signer;
+use crate::task_tracker::TaskTracker;
 use crate::time;
-use crate::utils::{from_str, CBAdvError, Result};
+use crate::utils::{from_str, CbAdvError, Result};
 use futures_util::stream::{SplitSink, SplitStream};
 use futures_util::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use tokio::net::TcpStream;
+use tokio::task::JoinHandle;
 use tokio_tungstenite::{connect_async, tungstenite, MaybeTlsStream, WebSocketStream};
 
 #[cfg(feature = "config")]
@@ -22,6 +24,18 @@ use crate::config::ConfigFile;
 type Socket = WebSocketStream<MaybeTlsStream<TcpStream>>;
 pub type Callback = fn(Result<Message>);
 pub type WebSocketReader = SplitStream<Socket>;
+
+/// Used to pass to a callback to the candle watcher on a successful ejection.
+pub trait CandleCallback {
+    /// Called when a candle is succesfully ejected.
+    ///
+    /// # Arguments
+    ///
+    /// * `current_start` - Current UTC timestamp for a start.
+    /// * `product_id` - Product the candle belongs to.
+    /// * `candle` - Candle that was recently completed.
+    fn candle_callback(&mut self, current_start: u64, product_id: String, candle: Candle);
+}
 
 /// Used to pass objects to the listener for greater control over message processing.
 pub trait MessageCallback {
@@ -275,14 +289,14 @@ struct Subscription {
 
 /// Represents a Client for the Websocket API. Provides easy-access to subscribing and listening to
 /// the WebSocket.
-pub struct Client {
+pub struct WebSocketClient {
     /// Signs the messages sent.
     signer: Signer,
     /// Writes data to the stream, gets sent to the API.
     socket_tx: Option<SplitSink<Socket, tungstenite::Message>>,
 }
 
-impl Client {
+impl WebSocketClient {
     /// Resource for the API.
     const RESOURCE: &str = "wss://advanced-trade-ws.coinbase.com";
 
@@ -295,7 +309,7 @@ impl Client {
     /// * `secret` - A string that holds the secret for the API service.
     pub fn new(key: &str, secret: &str) -> Self {
         Self {
-            signer: Signer::new(key.to_string(), secret.to_string()),
+            signer: Signer::new(key.to_string(), secret.to_string(), false),
             socket_tx: None,
         }
     }
@@ -323,7 +337,7 @@ impl Client {
                 self.socket_tx = Some(sink);
                 Ok(stream)
             }
-            Err(_) => Err(CBAdvError::BadConnection(
+            Err(_) => Err(CbAdvError::BadConnection(
                 "unable to get handshake".to_string(),
             )),
         }
@@ -350,7 +364,7 @@ impl Client {
             // Parse the message.
             match serde_json::from_str(&data) {
                 Ok(message) => callback(Ok(message)),
-                _ => callback(Err(CBAdvError::BadParse(format!(
+                _ => callback(Err(CbAdvError::BadParse(format!(
                     "unable to parse message: {}",
                     data
                 )))),
@@ -388,7 +402,7 @@ impl Client {
             // Parse the message.
             match serde_json::from_str(&data) {
                 Ok(message) => obj.message_callback(Ok(message)),
-                _ => obj.message_callback(Err(CBAdvError::BadParse(format!(
+                _ => obj.message_callback(Err(CbAdvError::BadParse(format!(
                     "unable to parse message: {}",
                     data
                 )))),
@@ -439,13 +453,17 @@ impl Client {
         };
 
         match self.socket_tx {
-            None => Err(CBAdvError::BadConnection(
+            None => Err(CbAdvError::BadConnection(
                 "need to connect first.".to_string(),
             )),
 
             Some(ref mut socket) => {
                 // Serialize and send the update to the API.
                 let body_str = serde_json::to_string(&sub).unwrap();
+
+                // Wait until a token is available to make the request. Immediately consume it.
+                self.signer.bucket.wait_on();
+
                 match socket.send(tungstenite::Message::text(body_str)).await {
                     Ok(_) => Ok(()),
                     _ => Ok(()),
@@ -496,6 +514,44 @@ impl Client {
     pub async fn unsub(&mut self, channel: Channel, product_ids: &Vec<String>) -> Result<()> {
         self.unsubscribe(channel, product_ids).await
     }
+
+    /// Watches candles for a set of products, producing candles once they are considered complete.
+    ///
+    /// # Argument
+    ///
+    /// * `products` - Products to watch for candles for.
+    /// * `watcher` - User-defined struct that implements `CandleCallback` to send completed candles to.
+    pub async fn watch_candles<T>(
+        &mut self,
+        products: &Vec<String>,
+        watcher: T,
+    ) -> Result<JoinHandle<()>>
+    where
+        T: CandleCallback + Send + 'static,
+    {
+        // Connect and spawn a task.
+        let reader = match self.connect().await {
+            Ok(reader) => reader,
+            Err(err) => return Err(err),
+        };
+
+        // Starts task to watch candles using users watcher.
+        let listener = tokio::spawn(TaskTracker::start(reader, watcher));
+
+        // Keep the connection open.
+        match self.sub(Channel::HEARTBEATS, &vec![]).await {
+            Ok(_) => (),
+            Err(err) => return Err(err),
+        };
+
+        // Subscribe to the candle updates for the products.
+        match self.sub(Channel::CANDLES, products).await {
+            Ok(_) => (),
+            Err(err) => return Err(err),
+        };
+
+        Ok(listener)
+    }
 }
 
 /// Creates a new instance of a Client using a configuration file. This is a wrapper for
@@ -505,11 +561,11 @@ impl Client {
 ///
 /// * `config` - Configuration that implements ConfigFile trait.
 #[cfg(feature = "config")]
-pub fn from_config<T>(config: &T) -> Client
+pub fn from_config<T>(config: &T) -> WebSocketClient
 where
     T: ConfigFile,
 {
-    Client::new(&config.coinbase().api_key, &config.coinbase().api_secret)
+    WebSocketClient::new(&config.coinbase().api_key, &config.coinbase().api_secret)
 }
 
 /// Starts the listener which returns Messages via a callback function provided by the user.
@@ -523,7 +579,7 @@ where
 /// * `callback` - A callback function that is trigger and passed the Message received via
 /// WebSocket, if an error occurred.
 pub async fn listener(reader: WebSocketReader, callback: Callback) {
-    Client::listener(reader, callback).await
+    WebSocketClient::listener(reader, callback).await
 }
 
 /// Starts the listener with a callback object that implements the `MessageCallback` trait.
@@ -539,5 +595,23 @@ pub async fn listener_with<T>(reader: WebSocketReader, callback_obj: T)
 where
     T: MessageCallback,
 {
-    Client::listener_with(reader, callback_obj).await
+    WebSocketClient::listener_with(reader, callback_obj).await
+}
+
+/// Watches candles for a set of products, producing candles once they are considered complete.
+///
+/// # Argument
+///
+/// * `client` - WebSocket client used to obtain a `reader` to listen to the socket.
+/// * `products` - Products to watch for candles for.
+/// * `watcher` - User-defined struct that implements `CandleCallback` to send completed candles to.
+pub async fn watch_candles<T>(
+    client: &mut WebSocketClient,
+    products: &Vec<String>,
+    watcher: T,
+) -> Result<JoinHandle<()>>
+where
+    T: CandleCallback + Send + 'static,
+{
+    client.watch_candles(products, watcher).await
 }

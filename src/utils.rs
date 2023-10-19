@@ -6,11 +6,11 @@ use serde::{Deserialize, Deserializer};
 use std::{fmt, result, str};
 
 /// Used to return objects from the API to the end-user.
-pub type Result<T> = result::Result<T, CBAdvError>;
+pub type Result<T> = result::Result<T, CbAdvError>;
 
 /// Types of errors that can occur.
 #[derive(Debug)]
-pub enum CBAdvError {
+pub enum CbAdvError {
     /// Unable to parse JSON successfully.
     BadParse(String),
     /// Non-200 status code received.
@@ -25,29 +25,41 @@ pub enum CBAdvError {
     Unknown(String),
 }
 
-impl fmt::Display for CBAdvError {
+impl fmt::Display for CbAdvError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            CBAdvError::Unknown(value) => write!(f, "unknown error occured: {}", value),
-            CBAdvError::BadParse(value) => write!(f, "could not parse: {}", value),
-            CBAdvError::NothingToDo(value) => write!(f, "nothing to do: {}", value),
-            CBAdvError::NotFound(value) => write!(f, "could not find: {}", value),
-            CBAdvError::BadStatus(value) => write!(f, "non-zero status occurred: {}", value),
-            CBAdvError::BadConnection(value) => write!(f, "could not connect: {}", value),
+            CbAdvError::Unknown(value) => write!(f, "unknown error occured: {}", value),
+            CbAdvError::BadParse(value) => write!(f, "could not parse: {}", value),
+            CbAdvError::NothingToDo(value) => write!(f, "nothing to do: {}", value),
+            CbAdvError::NotFound(value) => write!(f, "could not find: {}", value),
+            CbAdvError::BadStatus(value) => write!(f, "non-zero status occurred: {}", value),
+            CbAdvError::BadConnection(value) => write!(f, "could not connect: {}", value),
         }
     }
 }
 
-/// Deserializes from a string, using the default value if there is an error or is null.
+/// Used to check if the value is a number or string.
+#[derive(Deserialize)]
+#[serde(untagged)]
+enum StringOrNumeric {
+    String(String),
+    Numeric(f64),
+}
+
+/// Deserializes from a string or numeric type, using the default value if there is an error or is null.
 pub(crate) fn from_str<'de, S, D>(deserializer: D) -> result::Result<S, D::Error>
 where
     S: str::FromStr + Default,
     S::Err: fmt::Display,
     D: Deserializer<'de>,
 {
-    // Used to catch null values and default them.
+    // Catches strings, null values, floats / doubles, and integers.
+    // Null values default to 0.
     let s: String = match Deserialize::deserialize(deserializer) {
-        Ok(value) => value,
+        Ok(value) => match value {
+            StringOrNumeric::String(value) => value,
+            StringOrNumeric::Numeric(value) => value.to_string(),
+        },
         Err(_) => String::default(),
     };
 

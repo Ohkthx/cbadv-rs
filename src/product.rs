@@ -6,7 +6,7 @@
 
 use crate::signer::Signer;
 use crate::time;
-use crate::utils::{from_str, CBAdvError, Result};
+use crate::utils::{from_str, CbAdvError, Result};
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
@@ -404,12 +404,12 @@ impl fmt::Display for TickerQuery {
 }
 
 /// Provides access to the Product API for the service.
-pub struct ProductAPI {
+pub struct ProductApi {
     /// Object used to sign requests made to the API.
     signer: Signer,
 }
 
-impl ProductAPI {
+impl ProductApi {
     /// Resource for the API.
     const RESOURCE: &str = "/api/v3/brokerage/products";
 
@@ -436,14 +436,14 @@ impl ProductAPI {
     /// https://api.coinbase.com/api/v3/brokerage/best_bid_ask
     ///
     /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getbestbidask>
-    pub async fn best_bid_ask(&self, product_ids: Vec<String>) -> Result<Vec<ProductBook>> {
+    pub async fn best_bid_ask(&mut self, product_ids: Vec<String>) -> Result<Vec<ProductBook>> {
         let resource = "/api/v3/brokerage/best_bid_ask";
         let query = format!("product_ids={}", product_ids.join("&product_ids="));
 
         match self.signer.get(resource, &query).await {
             Ok(value) => match value.json::<BidAskResponse>().await {
                 Ok(bidasks) => Ok(bidasks.pricebooks),
-                Err(_) => Err(CBAdvError::BadParse("bid asks object".to_string())),
+                Err(_) => Err(CbAdvError::BadParse("bid asks object".to_string())),
             },
             Err(error) => Err(error),
         }
@@ -462,14 +462,18 @@ impl ProductAPI {
     /// https://api.coinbase.com/api/v3/brokerage/product_book
     ///
     /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getproductbook>
-    pub async fn product_book(&self, product_id: &str, limit: Option<u16>) -> Result<ProductBook> {
+    pub async fn product_book(
+        &mut self,
+        product_id: &str,
+        limit: Option<u16>,
+    ) -> Result<ProductBook> {
         let resource = "/api/v3/brokerage/product_book";
         let query = format!("product_id={}&limit={}", product_id, limit.unwrap_or(250));
 
         match self.signer.get(resource, &query).await {
             Ok(value) => match value.json::<ProductBookResponse>().await {
                 Ok(book) => Ok(book.pricebook),
-                Err(_) => Err(CBAdvError::BadParse("product book object".to_string())),
+                Err(_) => Err(CbAdvError::BadParse("product book object".to_string())),
             },
             Err(error) => Err(error),
         }
@@ -487,12 +491,12 @@ impl ProductAPI {
     /// https://api.coinbase.com/api/v3/brokerage/products/{product_id}
     ///
     /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getproduct>
-    pub async fn get(&self, product_id: &str) -> Result<Product> {
+    pub async fn get(&mut self, product_id: &str) -> Result<Product> {
         let resource = format!("{}/{}", Self::RESOURCE, product_id);
         match self.signer.get(&resource, "").await {
             Ok(value) => match value.json::<Product>().await {
                 Ok(product) => Ok(product),
-                Err(_) => Err(CBAdvError::BadParse("product object".to_string())),
+                Err(_) => Err(CbAdvError::BadParse("product object".to_string())),
             },
             Err(error) => Err(error),
         }
@@ -510,11 +514,11 @@ impl ProductAPI {
     /// https://api.coinbase.com/api/v3/brokerage/products
     ///
     /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getproducts>
-    pub async fn get_bulk(&self, query: &ListProductsQuery) -> Result<Vec<Product>> {
+    pub async fn get_bulk(&mut self, query: &ListProductsQuery) -> Result<Vec<Product>> {
         match self.signer.get(Self::RESOURCE, &query.to_string()).await {
             Ok(value) => match value.json::<ListProductsResponse>().await {
                 Ok(resp) => Ok(resp.products),
-                Err(_) => Err(CBAdvError::BadParse("products vector".to_string())),
+                Err(_) => Err(CbAdvError::BadParse("products vector".to_string())),
             },
             Err(error) => Err(error),
         }
@@ -533,12 +537,12 @@ impl ProductAPI {
     /// https://api.coinbase.com/api/v3/brokerage/products/{product_id}/candles
     ///
     /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getcandles>
-    pub async fn candles(&self, product_id: &str, query: &time::Span) -> Result<Vec<Candle>> {
+    pub async fn candles(&mut self, product_id: &str, query: &time::Span) -> Result<Vec<Candle>> {
         let resource = format!("{}/{}/candles", Self::RESOURCE, product_id);
         match self.signer.get(&resource, &query.to_string()).await {
             Ok(value) => match value.json::<CandleResponse>().await {
                 Ok(resp) => Ok(resp.candles),
-                Err(_) => Err(CBAdvError::BadParse("candle object".to_string())),
+                Err(_) => Err(CbAdvError::BadParse("candle object".to_string())),
             },
             Err(error) => Err(error),
         }
@@ -554,7 +558,11 @@ impl ProductAPI {
     ///
     /// * `product_id` - A string the represents the product's ID.
     /// * `query` - Span of time to obtain.
-    pub async fn candles_ext(&self, product_id: &str, query: &time::Span) -> Result<Vec<Candle>> {
+    pub async fn candles_ext(
+        &mut self,
+        product_id: &str,
+        query: &time::Span,
+    ) -> Result<Vec<Candle>> {
         let resource = format!("{}/{}/candles", Self::RESOURCE, product_id);
 
         // Make a copy of the query.
@@ -575,7 +583,7 @@ impl ProductAPI {
             match self.signer.get(&resource, &span.to_string()).await {
                 Ok(value) => match value.json::<CandleResponse>().await {
                     Ok(resp) => candles.extend(resp.candles),
-                    Err(_) => return Err(CBAdvError::BadParse("candle object".to_string())),
+                    Err(_) => return Err(CbAdvError::BadParse("candle object".to_string())),
                 },
                 Err(error) => return Err(error),
             }
@@ -609,12 +617,12 @@ impl ProductAPI {
     /// https://api.coinbase.com/api/v3/brokerage/products/{product_id}/ticker
     ///
     /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getmarkettrades>
-    pub async fn ticker(&self, product_id: &str, query: &TickerQuery) -> Result<Ticker> {
+    pub async fn ticker(&mut self, product_id: &str, query: &TickerQuery) -> Result<Ticker> {
         let resource = format!("{}/{}/ticker", Self::RESOURCE, product_id);
         match self.signer.get(&resource, &query.to_string()).await {
             Ok(value) => match value.json::<Ticker>().await {
                 Ok(resp) => Ok(resp),
-                Err(_) => Err(CBAdvError::BadParse("ticker object".to_string())),
+                Err(_) => Err(CbAdvError::BadParse("ticker object".to_string())),
             },
             Err(error) => Err(error),
         }

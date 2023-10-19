@@ -3,8 +3,8 @@
 //! Shows how to:
 //! - Define a custom configuration file and use it with the API.
 
-use cbadv::config::{self, APIConfig, ConfigFile};
-use cbadv::rest;
+use cbadv::config::{self, ApiConfig, ConfigFile};
+use cbadv::rest::RestClient;
 use serde::{Deserialize, Serialize};
 use std::process::exit;
 
@@ -21,7 +21,7 @@ struct MyConfig {
     /// `[general]` section.
     pub general: GeneralConfig,
     /// `[coinbase]` section of the configuration.
-    pub coinbase: APIConfig,
+    pub coinbase: ApiConfig,
 }
 
 impl MyConfig {
@@ -39,7 +39,7 @@ impl MyConfig {
 }
 
 impl ConfigFile for MyConfig {
-    fn coinbase(&self) -> &APIConfig {
+    fn coinbase(&self) -> &ApiConfig {
         &self.coinbase
     }
 }
@@ -64,7 +64,7 @@ async fn main() {
     };
 
     // Create a client to interact with the API.
-    let client = rest::Client::from_config(&config);
+    let mut client = RestClient::from_config(&config);
 
     // Pull a singular product from the Product API.
     println!("Getting product: {}.", config.general.product_id);

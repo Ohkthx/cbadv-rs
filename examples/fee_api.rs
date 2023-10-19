@@ -5,7 +5,7 @@
 
 use cbadv::config::{self, BaseConfig};
 use cbadv::fee::TransactionSummaryQuery;
-use cbadv::rest;
+use cbadv::rest::RestClient;
 use std::process::exit;
 
 #[tokio::main]
@@ -28,7 +28,7 @@ async fn main() {
     };
 
     // Create a client to interact with the API.
-    let client = rest::Client::from_config(&config);
+    let mut client = RestClient::from_config(&config);
 
     // Parameters to send to the API.
     let params = TransactionSummaryQuery::default();

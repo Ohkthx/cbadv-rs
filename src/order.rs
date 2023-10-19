@@ -4,7 +4,7 @@
 //! These allow you to obtain past created orders, create new orders, and cancel orders.
 
 use crate::signer::Signer;
-use crate::utils::{from_str, CBAdvError, Result};
+use crate::utils::{from_str, CbAdvError, Result};
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use uuid::Uuid;
@@ -103,7 +103,7 @@ pub struct OrderUpdate {
 
 /// Market Immediate or Cancel.
 #[derive(Serialize, Debug)]
-struct MarketIOC {
+struct MarketIoc {
     /// Amount of quote currency to spend on order. Required for BUY orders.
     pub quote_size: Option<String>,
     /// Amount of base currency to spend on order. Required for SELL orders.
@@ -112,7 +112,7 @@ struct MarketIOC {
 
 /// Limit Good til Cancelled.
 #[derive(Serialize, Debug)]
-struct LimitGTC {
+struct LimitGtc {
     /// Amount of base currency to spend on order.
     pub base_size: String,
     /// Ceiling price for which the order should get filled.
@@ -123,7 +123,7 @@ struct LimitGTC {
 
 /// Limit Good til Time (Date).
 #[derive(Serialize, Debug)]
-struct LimitGTD {
+struct LimitGtd {
     /// Amount of base currency to spend on order.
     pub base_size: String,
     /// Ceiling price for which the order should get filled.
@@ -136,7 +136,7 @@ struct LimitGTD {
 
 /// Stop Limit Good til Cancelled.
 #[derive(Serialize, Debug)]
-struct StopLimitGTC {
+struct StopLimitGtc {
     /// Amount of base currency to spend on order.
     pub base_size: String,
     /// Ceiling price for which the order should get filled.
@@ -149,7 +149,7 @@ struct StopLimitGTC {
 
 /// Stop Limit Good til Time (Date).
 #[derive(Serialize, Debug)]
-struct StopLimitGTD {
+struct StopLimitGtd {
     /// Amount of base currency to spend on order.
     pub base_size: String,
     /// Ceiling price for which the order should get filled.
@@ -167,19 +167,19 @@ struct StopLimitGTD {
 struct OrderConfiguration {
     /// Market Order
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub market_market_ioc: Option<MarketIOC>,
+    pub market_market_ioc: Option<MarketIoc>,
     /// Limit Order, Good til Cancelled
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub limit_limit_gtc: Option<LimitGTC>,
+    pub limit_limit_gtc: Option<LimitGtc>,
     /// Limit Order, Good til Date (time)
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub limit_limit_gtd: Option<LimitGTD>,
+    pub limit_limit_gtd: Option<LimitGtd>,
     /// Stop Limit Order, Good til Cancelled
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub stop_limit_stop_limit_gtc: Option<StopLimitGTC>,
+    pub stop_limit_stop_limit_gtc: Option<StopLimitGtc>,
     /// Stop Limit Order, Good til Date (time)
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub stop_limit_stop_limit_gtd: Option<StopLimitGTD>,
+    pub stop_limit_stop_limit_gtd: Option<StopLimitGtd>,
 }
 
 /// Represents an order created to BUY or SELL.
@@ -270,57 +270,82 @@ pub struct Order {
 /// Represents a fill received from the API.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Fill {
+    /// Unique identifier for the fill.
     pub entry_id: String,
+    /// Id of the fill -- unique for all `FILL` trade_types but not unique for adjusted fills.
     pub trade_id: String,
+    /// Id of the order the fill belongs to.
     pub order_id: String,
+    /// Time at which this fill was completed.
     pub trade_time: String,
+    /// String denoting what type of fill this is. Regular fills have the value `FILL`.
+    /// Adjusted fills have possible values `REVERSAL`, `CORRECTION`, `SYNTHETIC`.
     pub trade_type: String,
+    /// Price the fill was posted at.
     #[serde(deserialize_with = "from_str")]
     pub price: f64,
+    /// Amount of order that was transacted at this fill.
     #[serde(deserialize_with = "from_str")]
     pub size: f64,
+    /// Fee amount for fill.
     #[serde(deserialize_with = "from_str")]
     pub commission: f64,
+    /// The product this order was created for.
     pub product_id: String,
+    /// Time at which this fill was posted.
     pub sequence_timestamp: String,
+    /// Possible values: [UNKNOWN_LIQUIDITY_INDICATOR, MAKER, TAKER]
     pub liquidity_indicator: String,
+    /// Whether the order was placed with quote currency.
     pub size_in_quote: bool,
+    /// User that placed the order the fill belongs to.
     pub user_id: String,
+    /// Possible values: [UNKNOWN_ORDER_SIDE, BUY, SELL]
     pub side: String,
 }
 
 /// Represents a list of orders received from the API.
 #[derive(Deserialize, Debug)]
 pub struct ListedOrders {
+    /// Vector of orders obtained.
     pub orders: Vec<Order>,
+    /// If there are additional orders.
     pub has_next: bool,
+    /// Cursor used to pull more orders.
     pub cursor: String,
 }
 
 /// Represents a list of fills received from the API.
 #[derive(Deserialize, Debug)]
 pub struct ListedFills {
+    /// Vector of filled orders.
     pub orders: Vec<Fill>,
+    /// Cursor used to pull more fills.
     pub cursor: String,
 }
 
 /// Represents a create order response from the API.
 #[derive(Deserialize, Debug)]
 pub struct OrderResponse {
+    /// Whether or not the order completed correctly.
     pub success: bool,
+    /// Reason the order failed, if it did.
     pub failure_reason: String,
+    /// Order Id of the order created.
     pub order_id: String,
 }
 
 /// Represents a cancel order response from the API.
 #[derive(Deserialize, Debug)]
 pub struct CancelOrdersResponse {
+    /// Vector of orders cancelled.
     results: Vec<OrderResponse>,
 }
 
 /// Represents an order when obtaining a single order from the API.
 #[derive(Deserialize, Debug)]
 struct OrderStatusResponse {
+    /// Order received.
     pub order: Order,
 }
 
@@ -467,12 +492,12 @@ impl fmt::Display for ListFillsQuery {
 }
 
 /// Provides access to the Order API for the service.
-pub struct OrderAPI {
+pub struct OrderApi {
     /// Object used to sign requests made to the API.
     signer: Signer,
 }
 
-impl OrderAPI {
+impl OrderApi {
     /// Resource for the API.
     const RESOURCE: &str = "/api/v3/brokerage/orders";
 
@@ -498,7 +523,7 @@ impl OrderAPI {
     /// https://api.coinbase.com/api/v3/brokerage/orders/batch_cancel
     ///
     /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_cancelorders>
-    pub async fn cancel(&self, order_ids: &Vec<String>) -> Result<Vec<OrderResponse>> {
+    pub async fn cancel(&mut self, order_ids: &Vec<String>) -> Result<Vec<OrderResponse>> {
         let body = CancelOrders {
             order_ids: order_ids.clone(),
         };
@@ -507,7 +532,7 @@ impl OrderAPI {
         match self.signer.post(&resource, "", body).await {
             Ok(value) => match value.json::<CancelOrdersResponse>().await {
                 Ok(resp) => Ok(resp.results),
-                Err(_) => Err(CBAdvError::BadParse("cancel order object".to_string())),
+                Err(_) => Err(CbAdvError::BadParse("cancel order object".to_string())),
             },
             Err(error) => Err(error),
         }
@@ -521,7 +546,7 @@ impl OrderAPI {
     /// # Arguments
     ///
     /// * `product_id` - Product to cancel all OPEN orders for.
-    pub async fn cancel_all(&self, product_id: &str) -> Result<Vec<OrderResponse>> {
+    pub async fn cancel_all(&mut self, product_id: &str) -> Result<Vec<OrderResponse>> {
         let query = ListOrdersQuery {
             product_id: Some(product_id.to_string()),
             order_status: Some(vec![OrderStatus::OPEN]),
@@ -536,7 +561,7 @@ impl OrderAPI {
 
                 // Do nothing since no orders found.
                 if order_ids.len() == 0 {
-                    return Err(CBAdvError::NothingToDo(
+                    return Err(CbAdvError::NothingToDo(
                         "no orders found to cancel".to_string(),
                     ));
                 }
@@ -563,7 +588,7 @@ impl OrderAPI {
     ///
     /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_postorder>
     async fn create(
-        &self,
+        &mut self,
         product_id: &str,
         side: &str,
         configuration: OrderConfiguration,
@@ -578,7 +603,7 @@ impl OrderAPI {
         match self.signer.post(Self::RESOURCE, "", body).await {
             Ok(value) => match value.json::<OrderResponse>().await {
                 Ok(resp) => Ok(resp),
-                Err(_) => Err(CBAdvError::BadParse("created order object".to_string())),
+                Err(_) => Err(CbAdvError::BadParse("created order object".to_string())),
             },
             Err(error) => Err(error),
         }
@@ -599,18 +624,18 @@ impl OrderAPI {
     ///
     /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_postorder>
     pub async fn create_market(
-        &self,
+        &mut self,
         product_id: &str,
         side: &str,
         size: &f64,
     ) -> Result<OrderResponse> {
         let market = if side == "BUY" {
-            MarketIOC {
+            MarketIoc {
                 quote_size: Some(size.to_string()),
                 base_size: None,
             }
         } else {
-            MarketIOC {
+            MarketIoc {
                 quote_size: None,
                 base_size: Some(size.to_string()),
             }
@@ -641,14 +666,14 @@ impl OrderAPI {
     ///
     /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_postorder>
     pub async fn create_limit_gtc(
-        &self,
+        &mut self,
         product_id: &str,
         side: &str,
         size: &f64,
         price: &f64,
         post_only: bool,
     ) -> Result<OrderResponse> {
-        let limit = LimitGTC {
+        let limit = LimitGtc {
             base_size: size.to_string(),
             limit_price: price.to_string(),
             post_only: post_only.clone(),
@@ -680,7 +705,7 @@ impl OrderAPI {
     ///
     /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_postorder>
     pub async fn create_limit_gtd(
-        &self,
+        &mut self,
         product_id: &str,
         side: &str,
         size: &f64,
@@ -688,7 +713,7 @@ impl OrderAPI {
         end_time: &str,
         post_only: bool,
     ) -> Result<OrderResponse> {
-        let limit = LimitGTD {
+        let limit = LimitGtd {
             base_size: size.to_string(),
             limit_price: price.to_string(),
             end_time: end_time.to_string(),
@@ -721,7 +746,7 @@ impl OrderAPI {
     ///
     /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_postorder>
     pub async fn create_stop_limit_gtc(
-        &self,
+        &mut self,
         product_id: &str,
         side: &str,
         size: &f64,
@@ -729,7 +754,7 @@ impl OrderAPI {
         stop_price: &f64,
         stop_direction: &str,
     ) -> Result<OrderResponse> {
-        let stoplimit = StopLimitGTC {
+        let stoplimit = StopLimitGtc {
             base_size: size.to_string(),
             limit_price: limit_price.to_string(),
             stop_price: stop_price.to_string(),
@@ -763,7 +788,7 @@ impl OrderAPI {
     ///
     /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_postorder>
     pub async fn create_stop_limit_gtd(
-        &self,
+        &mut self,
         product_id: &str,
         side: &str,
         size: &f64,
@@ -772,7 +797,7 @@ impl OrderAPI {
         stop_direction: &str,
         end_time: &str,
     ) -> Result<OrderResponse> {
-        let stoplimit = StopLimitGTD {
+        let stoplimit = StopLimitGtd {
             base_size: size.to_string(),
             limit_price: limit_price.to_string(),
             stop_price: stop_price.to_string(),
@@ -800,12 +825,12 @@ impl OrderAPI {
     /// https://api.coinbase.com/api/v3/brokerage/orders/historical/{order_id}
     ///
     /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_gethistoricalorder>
-    pub async fn get(&self, order_id: &str) -> Result<Order> {
+    pub async fn get(&mut self, order_id: &str) -> Result<Order> {
         let resource = format!("{}/historical/{}", Self::RESOURCE, order_id);
         match self.signer.get(&resource, "").await {
             Ok(value) => match value.json::<OrderStatusResponse>().await {
                 Ok(resp) => Ok(resp.order),
-                Err(_) => Err(CBAdvError::BadParse(
+                Err(_) => Err(CbAdvError::BadParse(
                     "could not parse order object".to_string(),
                 )),
             },
@@ -823,12 +848,12 @@ impl OrderAPI {
     /// https://api.coinbase.com/api/v3/brokerage/orders/historical
     ///
     /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_gethistoricalorders>
-    pub async fn get_bulk(&self, query: &ListOrdersQuery) -> Result<ListedOrders> {
+    pub async fn get_bulk(&mut self, query: &ListOrdersQuery) -> Result<ListedOrders> {
         let resource = format!("{}/historical/batch", Self::RESOURCE);
         match self.signer.get(&resource, &query.to_string()).await {
             Ok(value) => match value.json::<ListedOrders>().await {
                 Ok(resp) => Ok(resp),
-                Err(_) => Err(CBAdvError::BadParse(
+                Err(_) => Err(CbAdvError::BadParse(
                     "could not parse orders vector".to_string(),
                 )),
             },
@@ -848,7 +873,7 @@ impl OrderAPI {
     /// * `product_id` - Identifier for the account, such as BTC-USD or ETH-USD.
     /// * `query` - Optional parameters, should default to None unless you want additional control.
     pub async fn get_all(
-        &self,
+        &mut self,
         product_id: &str,
         query: Option<ListOrdersQuery>,
     ) -> Result<Vec<Order>> {
@@ -887,12 +912,12 @@ impl OrderAPI {
     /// https://api.coinbase.com/api/v3/brokerage/orders/historical/fills
     ///
     /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getfills>
-    pub async fn fills(&self, query: &ListFillsQuery) -> Result<ListedFills> {
+    pub async fn fills(&mut self, query: &ListFillsQuery) -> Result<ListedFills> {
         let resource = format!("{}/historical/fills", Self::RESOURCE);
         match self.signer.get(&resource, &query.to_string()).await {
             Ok(value) => match value.json::<ListedFills>().await {
                 Ok(resp) => Ok(resp),
-                Err(_) => Err(CBAdvError::BadParse(
+                Err(_) => Err(CbAdvError::BadParse(
                     "could not parse fills vector".to_string(),
                 )),
             },

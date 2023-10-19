@@ -29,15 +29,16 @@ Contributions are encouraged! The API reference can be seen at [CoinBase Advance
 
 ```toml
 [dependencies]
-cbadv = { git = "https://github.com/ohkthx/cbadv-rs" }
+cbadv = { git = "https://github.com/ohkthx/cbadv-rs", branch = "main" }
 ```
 
 ## Features
 - Asynchronous.
 - Easy-to-use REST and WebSocket clients.
 - Configuration file to hold API Key and API Secret. `features = ["config"]`
-- Covers all REST endpoints currently accessible (20230705).
-- Covers all WebSocket endpoints currently accessible (20230705).
+- Covers all REST endpoints currently accessible (as of 20231016).
+- Covers all WebSocket endpoints currently accessible (as of 20231016).
+- Lots of examples! Check them out to get started.
 
 ## Documentation
 
@@ -47,7 +48,7 @@ Most of the documentation can be accessed by clicking the following link: [docs.
 
 #### WebSocket API
 
-Client: `use cbadv::websocket::Client`
+Client: `use cbadv::websocket::WebSocketClient`
 
 - **Authentication** [client.connect]
 - **Subscribe** [client.subscribe / client.sub]
@@ -64,7 +65,7 @@ Client: `use cbadv::websocket::Client`
 
 #### REST API
 
-Client: `use cbadv::rest::Client`
+Client: `use cbadv::rest::RestClient`
 
 - **Accounts [client.account]**
   - List Accounts [client.account.get_bulk]
@@ -90,18 +91,21 @@ Client: `use cbadv::rest::Client`
 - **Fees [client.fee]**
   - Get Transaction Summary [client.fee.get]
 
-### Added Requests
+### Added Requests and Features
 
 These functions were created to cover common functionality but not initially part of the CoinBase Advanced API. They may require several API requests to accomplish their results.
 
-- **Accounts** [client.account]
+- **REST: Accounts** [client.account]
   - Get Account by ID [client.account.get_by_id] - Gets an account by the ID (ex BTC or ETH)
   - Get All [client.account.get_all] - Gets all accounts.
-- **Products** [client.product]
+- **REST: Products** [client.product]
   - Get Candles (Extended) [client.product.candles_ext] - Obtains more than the limit (300) candles.
-- **Orders** [client.order]
+- **REST: Orders** [client.order]
   - Get All Orders [client.order.get_all] - Obtains all orders for a product.
   - Cancel All Orders [client.order.cancel_all] - Cancels all OPEN orders for a product.
+- **WebSocket: Watch Candles** [client.watch_candles]
+  - Watches candles for for updates, produces completed candles for a series.
+  - Candles have 5 minute granularities, this cannot be changed in the current API.
 
 ### TODO
 
@@ -124,20 +128,7 @@ cbadv = { version = "*", features = ["config"] }
 
 ## Examples
 
-Check above in the **Covered API requests** section for possibly covered examples.
-
-- **Account API**: [account_api.rs](https://github.com/Ohkthx/cbadv-rs/tree/main/examples/account_api.rs)
-  - `cargo run --example account_api --features="config"`
-- **Product API**: [product_api.rs](https://github.com/Ohkthx/cbadv-rs/tree/main/examples/product_api.rs)
-  - `cargo run --example product_api --features="config"`
-- **Fee API**: [fee_api.rs](https://github.com/Ohkthx/cbadv-rs/tree/main/examples/fee_api.rs)
-  - `cargo run --example fee_api --features="config"`
-- **Order API**: [order_api.rs](https://github.com/Ohkthx/cbadv-rs/tree/main/examples/order_api.rs)
-  - `cargo run --example order_api --features="config"`
-- **WebSocket API**: [websocket.rs](https://github.com/Ohkthx/cbadv-rs/tree/main/examples/websocket.rs)
-  - `cargo run --example websocket --features="config"`
-- **Custom Config**: [custom_config.rs](https://github.com/Ohkthx/cbadv-rs/tree/main/examples/custom_config.rs)
-  - `cargo run --example custom_config --features="config"`
+Check above in the **Covered API requests** section for possibly covered examples. All examples are located at [cbadv-rs/examples](https://github.com/Ohkthx/cbadv-rs/tree/main/examples/) directory.
 
 ## Tips Appreciated!
 

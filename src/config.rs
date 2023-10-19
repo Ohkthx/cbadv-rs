@@ -14,13 +14,13 @@ const CURRENT_CONFIG_VERSION: u8 = 1;
 /// creating REST and WebSocket clients.
 pub trait ConfigFile {
     /// `[coinbase]` section of the configuration for the API settings.
-    fn coinbase(&self) -> &APIConfig;
+    fn coinbase(&self) -> &ApiConfig;
 }
 
 /// Configuration settings for API, this should be in either a custom user configuration or
 /// in the BaseConfig. See `BaseConfig` or `config.toml.sample` for
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct APIConfig {
+pub struct ApiConfig {
     /// Version of the Configuration file.
     pub version: u8,
     /// API Key provided by the service.
@@ -31,14 +31,14 @@ pub struct APIConfig {
     pub debug: bool,
 }
 
-impl APIConfig {
+impl ApiConfig {
     /// Creates the default configuration.
     pub fn new() -> Self {
         Self::default()
     }
 }
 
-impl Default for APIConfig {
+impl Default for ApiConfig {
     fn default() -> Self {
         Self {
             version: CURRENT_CONFIG_VERSION,
@@ -53,27 +53,27 @@ impl Default for APIConfig {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct BaseConfig {
     /// `[coinbase]` section of the configuration for the API settings.
-    coinbase: APIConfig,
+    coinbase: ApiConfig,
 }
 
 impl Default for BaseConfig {
     fn default() -> Self {
         Self {
-            coinbase: APIConfig::new(),
+            coinbase: ApiConfig::new(),
         }
     }
 }
 
 impl ConfigFile for BaseConfig {
     /// `[coinbase]` section of the configuration for the API settings.
-    fn coinbase(&self) -> &APIConfig {
+    fn coinbase(&self) -> &ApiConfig {
         &self.coinbase
     }
 }
 
-/// Creates the default configuration. Wraps `APIConfig::new()`
-pub fn new() -> APIConfig {
-    APIConfig::new()
+/// Creates the default configuration. Wraps `ApiConfig::new()`
+pub fn new() -> ApiConfig {
+    ApiConfig::new()
 }
 
 /// Creates a local base configuration file.

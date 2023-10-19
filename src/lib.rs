@@ -14,16 +14,19 @@
 #[cfg(feature = "config")]
 pub mod config;
 
+mod signer;
+mod task_tracker;
+mod token_bucket;
+
 pub mod account;
 pub mod fee;
 pub mod order;
 pub mod product;
-mod signer;
 pub mod time;
 pub mod utils;
 
 pub mod rest;
-pub use rest::Client as RESTClient;
+pub use rest::RestClient;
 
 pub mod websocket;
-pub use websocket::Client as WebSocketClient;
+pub use websocket::WebSocketClient;

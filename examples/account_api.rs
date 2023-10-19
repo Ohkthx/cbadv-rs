@@ -7,7 +7,7 @@
 
 use cbadv::account::ListAccountsQuery;
 use cbadv::config::{self, BaseConfig};
-use cbadv::rest;
+use cbadv::rest::RestClient;
 use std::process::exit;
 
 #[tokio::main]
@@ -32,7 +32,7 @@ async fn main() {
     };
 
     // Create a client to interact with the API.
-    let client = rest::Client::from_config(&config);
+    let mut client = RestClient::from_config(&config);
 
     // Pull accounts by ID.
     println!("Obtaining account by ID (non-standard).");
