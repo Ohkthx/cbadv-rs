@@ -1,3 +1,11 @@
+//! # Watch Candle Example
+//!
+//! Shows how to:
+//! - Create a user-defined struct that receives updates.
+//! - Implement required trait `CandleCallback` for the user-defined struct.
+//! - Initialize and watch candles via WebSocket.
+//! - Process candles coming from API.
+
 use cbadv::config::{self, BaseConfig};
 use cbadv::product::{Candle, ListProductsQuery};
 use cbadv::rest::{self, RestClient};
