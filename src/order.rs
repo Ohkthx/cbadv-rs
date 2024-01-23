@@ -226,11 +226,33 @@ struct CreateOrder {
     pub order_configuration: OrderConfiguration,
 }
 
+/// Represents an order to be edited.
+#[derive(Serialize, Debug)]
+struct EditOrder {
+    /// ID of the order to edit.
+    order_id: String,
+    /// New price for order.
+    price: String,
+    /// New size for order.
+    size: String,
+}
+
 /// Represents a vector of orders IDs to cancel.
 #[derive(Serialize, Debug)]
 struct CancelOrders {
     /// Vector of Order IDs to cancel.
     pub order_ids: Vec<String>,
+}
+
+/// Represents a single edit entry in the edit history of an order.
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct EditHistory {
+    ///  The price associated with the edit.
+    pub price: String,
+    /// The size associated with the edit.
+    pub size: String,
+    ///  The timestamp when the edit was accepted.
+    pub replace_accept_timestamp: String,
 }
 
 /// Represents an Order received from the API.
@@ -296,6 +318,8 @@ pub struct Order {
     pub reject_message: String,
     /// Message stating why the order was canceled.
     pub cancel_message: String,
+    /// An array of the latest 5 edits per order.
+    pub edit_history: Vec<EditHistory>,
 }
 
 /// Represents a fill received from the API.
@@ -378,6 +402,55 @@ pub struct CancelOrdersResponse {
 struct OrderStatusResponse {
     /// Order received.
     pub order: Order,
+}
+
+/// Represents an order when obtaining a single order from the API.
+#[derive(Deserialize, Debug)]
+pub struct EditOrderResponse {
+    /// Whether or not the order edit succeeded.
+    pub success: bool,
+    /// Errors associated with the changes.
+    pub errors: Vec<EditOrderErrors>,
+}
+
+/// Errors associated with the changes.
+#[derive(Deserialize, Debug)]
+pub struct EditOrderErrors {
+    /// Reason the edit failed.
+    pub edit_failure_reason: Option<String>,
+    /// Reason the preview failed.
+    pub preview_failure_reason: Option<String>,
+}
+
+/// Response from a preview edit order.
+#[derive(Deserialize, Debug)]
+pub struct PreviewEditOrderResponse {
+    /// Contains reasons for failure in the edit or preview edit operation.
+    pub errors: Vec<EditOrderErrors>,
+    /// The amount of slippage in the order.
+    #[serde(deserialize_with = "deserialize_numeric")]
+    pub slippage: f64,
+    /// The total value of the order.
+    #[serde(deserialize_with = "deserialize_numeric")]
+    pub order_total: f64,
+    /// The total commission for the order.
+    #[serde(deserialize_with = "deserialize_numeric")]
+    pub commission_total: f64,
+    /// The size of the quote currency in the order.
+    #[serde(deserialize_with = "deserialize_numeric")]
+    pub quote_size: f64,
+    /// The size of the base currency in the order.
+    #[serde(deserialize_with = "deserialize_numeric")]
+    pub base_size: f64,
+    /// The best bid price at the time of the order.
+    #[serde(deserialize_with = "deserialize_numeric")]
+    pub best_bid: f64,
+    /// The best ask price at the time of the order.
+    #[serde(deserialize_with = "deserialize_numeric")]
+    pub best_ask: f64,
+    /// The average price at which the order was filled.
+    #[serde(deserialize_with = "deserialize_numeric")]
+    pub average_filled_price: f64,
 }
 
 /// Represents parameters that are optional for List Orders API request.
@@ -533,6 +606,86 @@ impl OrderApi {
                 // Cancel the order list.
                 self.cancel(&order_ids).await
             }
+            Err(error) => Err(error),
+        }
+    }
+
+    /// Edit an order with a specified new size, or new price. Only limit order types, with time
+    /// in force type of good-till-cancelled can be edited.
+    ///
+    /// CAUTION: You lose your place in line if you increase size or increase/decrease price.
+    ///
+    /// # Arguments
+    ///
+    /// * `order_id` - ID of the order to edit.
+    /// * `price` - New price of the order.
+    /// * `size` - New size of the order.
+    ///
+    /// # Endpoint / Reference
+    ///
+    #[allow(rustdoc::bare_urls)]
+    /// https://api.coinbase.com/api/v3/brokerage/orders/edit
+    ///
+    /// https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_editorder
+    pub async fn edit(
+        &mut self,
+        order_id: &str,
+        price: f64,
+        size: f64,
+    ) -> CbResult<EditOrderResponse> {
+        let resource = format!("{}/edit", Self::RESOURCE);
+        let body = EditOrder {
+            order_id: order_id.to_string(),
+            price: price.to_string(),
+            size: size.to_string(),
+        };
+
+        match self.signer.post(&resource, "", body).await {
+            Ok(value) => match value.json::<EditOrderResponse>().await {
+                Ok(edits) => Ok(edits),
+                Err(_) => Err(CbAdvError::BadParse(
+                    "could not parse edit order object".to_string(),
+                )),
+            },
+            Err(error) => Err(error),
+        }
+    }
+
+    /// Simulate an edit order request with a specified new size, or new price, to preview the result of an edit. Only
+    /// limit order types, with time in force type of good-till-cancelled can be edited.
+    ///
+    /// # Arguments
+    ///
+    /// * `order_id` - ID of the order to edit.
+    /// * `price` - New price of the order.
+    /// * `size` - New size of the order.
+    ///
+    /// # Endpoint / Reference
+    ///
+    #[allow(rustdoc::bare_urls)]
+    /// https://api.coinbase.com/api/v3/brokerage/orders/edit_preivew
+    ///
+    /// https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_previeweditorder
+    pub async fn preview_edit(
+        &mut self,
+        order_id: &str,
+        price: f64,
+        size: f64,
+    ) -> CbResult<PreviewEditOrderResponse> {
+        let resource = format!("{}/edit_preview", Self::RESOURCE);
+        let body = EditOrder {
+            order_id: order_id.to_string(),
+            price: price.to_string(),
+            size: size.to_string(),
+        };
+
+        match self.signer.post(&resource, "", body).await {
+            Ok(value) => match value.json::<PreviewEditOrderResponse>().await {
+                Ok(response) => Ok(response),
+                Err(_) => Err(CbAdvError::BadParse(
+                    "could not parse preview edit order response".to_string(),
+                )),
+            },
             Err(error) => Err(error),
         }
     }
