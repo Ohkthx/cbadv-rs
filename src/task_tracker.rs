@@ -2,7 +2,7 @@
 
 use crate::product::{Candle, CandleUpdate};
 use crate::time::Granularity;
-use crate::utils::Result as APIResult;
+use crate::utils::CbResult;
 use crate::websocket::{
     self, CandleCallback, CandlesEvent, Message, MessageCallback, WebSocketReader,
 };
@@ -75,7 +75,7 @@ where
                 self.candles.insert(product_id.to_string(), new_candle);
             }
         }
-        return None;
+        None
     }
 }
 
@@ -84,12 +84,12 @@ where
     T: CandleCallback,
 {
     /// Required to pass TaskTracker to the websocket listener.
-    fn message_callback(&mut self, msg: APIResult<Message>) {
+    fn message_callback(&mut self, msg: CbResult<Message>) {
         // Filter all non-candle and empty updates.
         let ev: Vec<CandlesEvent> = match msg {
             Ok(value) => match value {
                 Message::Candles(value) => {
-                    if value.events.len() == 0 {
+                    if value.events.is_empty() {
                         // No events / updates to process.
                         return;
                     }

@@ -4,7 +4,7 @@
 //! This allows you to obtain account information either by account UUID or in bulk (all accounts).
 
 use crate::signer::Signer;
-use crate::utils::{from_str, CbAdvError, Result};
+use crate::utils::{deserialize_numeric, CbAdvError, CbResult, QueryBuilder};
 use async_recursion::async_recursion;
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -13,7 +13,7 @@ use std::fmt;
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Balance {
     /// Value for the currency available or held.
-    #[serde(deserialize_with = "from_str")]
+    #[serde(deserialize_with = "deserialize_numeric")]
     pub value: f64,
     /// Denomination of the currency.
     pub currency: String,
@@ -39,8 +39,7 @@ pub struct Account {
     /// Time at which this account was updated.
     pub updated_at: String,
     /// Time at which this account was deleted.
-    #[serde(deserialize_with = "from_str")]
-    pub deleted_at: String,
+    pub deleted_at: Option<String>,
     /// Possible values: [ACCOUNT_TYPE_UNSPECIFIED, ACCOUNT_TYPE_CRYPTO, ACCOUNT_TYPE_FIAT, ACCOUNT_TYPE_VAULT]
     pub r#type: String,
     /// Whether or not this account is ready to trade.
@@ -81,22 +80,12 @@ pub struct ListAccountsQuery {
 impl fmt::Display for ListAccountsQuery {
     /// Converts the object into HTTP request parameters.
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let mut query: String = "".to_string();
+        let mut query = QueryBuilder::new();
+        query
+            .push_u32_optional("limit", self.limit)
+            .push_optional("cursor", &self.cursor);
 
-        query = match &self.limit {
-            Some(v) => format!("{}&limit={}", query, v),
-            _ => query,
-        };
-
-        query = match &self.cursor {
-            Some(v) => format!("{}&cursor={}", query, v),
-            _ => query,
-        };
-
-        match query.is_empty() {
-            true => write!(f, ""),
-            false => write!(f, "{}", query[1..].to_string()),
-        }
+        write!(f, "{}", query.build())
     }
 }
 
@@ -108,7 +97,7 @@ pub struct AccountApi {
 
 impl AccountApi {
     /// Resource for the API.
-    const RESOURCE: &str = "/api/v3/brokerage/accounts";
+    const RESOURCE: &'static str = "/api/v3/brokerage/accounts";
 
     /// Creates a new instance of the Account API. This grants access to account information.
     ///
@@ -133,7 +122,7 @@ impl AccountApi {
     /// https://api.coinbase.com/api/v3/brokerage/accounts/{account_uuid}
     ///
     /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getaccount>
-    pub async fn get(&mut self, account_uuid: &str) -> Result<Account> {
+    pub async fn get(&mut self, account_uuid: &str) -> CbResult<Account> {
         let resource = format!("{}/{}", Self::RESOURCE, account_uuid);
         match self.signer.get(&resource, "").await {
             Ok(value) => match value.json::<AccountResponse>().await {
@@ -161,7 +150,7 @@ impl AccountApi {
         &mut self,
         id: &str,
         query: Option<ListAccountsQuery>,
-    ) -> Result<Account> {
+    ) -> CbResult<Account> {
         let mut query = match query {
             Some(p) => p,
             None => ListAccountsQuery::default(),
@@ -198,7 +187,7 @@ impl AccountApi {
     ///
     /// * `query` - Optional parameters, should default to None unless you want additional control.
     #[async_recursion]
-    pub async fn get_all(&mut self, query: Option<ListAccountsQuery>) -> Result<Vec<Account>> {
+    pub async fn get_all(&mut self, query: Option<ListAccountsQuery>) -> CbResult<Vec<Account>> {
         let mut query = match query {
             Some(p) => p,
             None => ListAccountsQuery::default(),
@@ -228,7 +217,7 @@ impl AccountApi {
     /// https://api.coinbase.com/api/v3/brokerage/accounts
     ///
     /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getaccounts>
-    pub async fn get_bulk(&mut self, query: &ListAccountsQuery) -> Result<ListedAccounts> {
+    pub async fn get_bulk(&mut self, query: &ListAccountsQuery) -> CbResult<ListedAccounts> {
         match self.signer.get(Self::RESOURCE, &query.to_string()).await {
             Ok(value) => match value.json::<ListedAccounts>().await {
                 Ok(resp) => Ok(resp),

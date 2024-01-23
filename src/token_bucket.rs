@@ -1,7 +1,7 @@
 //! Bucket for managing and consuming tokens to prevent API rate limiting.
 
-use std::thread::sleep;
 use std::time::{Duration, Instant};
+use tokio::time::sleep as async_sleep;
 
 /// Contains and tracks token usage for rate limits.
 #[derive(Debug, Clone)]
@@ -32,30 +32,13 @@ impl TokenBucket {
         }
     }
 
-    /// Rounds the value either up (ceil) or down (floor)
-    ///
-    /// # Arguments
-    ///
-    /// * `value` - Value to be rounded.
-    /// * `precision` - Amount of decimals places to round to.
-    /// * `to_ceil` - True rounds up, False rounds down.
-    fn round(value: f64, precision: u32, to_ceil: bool) -> f64 {
-        let factor: f64 = 10u64.pow(precision) as f64;
-        match to_ceil {
-            true => (value * factor).ceil() / factor,
-            false => (value * factor).floor() / factor,
-        }
-    }
-
     /// Calculates amount of seconds (Duration) until next token is available.
     fn next_token(&self) -> Duration {
-        if self.tokens > 1.0 {
-            return Duration::ZERO;
+        if self.tokens >= 1.0 {
+            Duration::ZERO
+        } else {
+            Duration::from_secs_f64((1.0 - self.tokens) / self.refill_rate)
         }
-
-        // Gets amount of seconds to the 4th decimal place rounding up.
-        let wait_till = TokenBucket::round((1.0 - self.tokens) / self.refill_rate, 4, true);
-        Duration::from_secs_f64(wait_till)
     }
 
     /// Attempts to consume a token if one is available. This also checks to see if any tokens need to be refilled
@@ -70,20 +53,19 @@ impl TokenBucket {
 
         // Return early if we cannot consume a token.
         if self.tokens < 1.0 {
-            return false;
+            false
+        } else {
+            // Consume token.
+            self.tokens -= 1.0;
+            self.last_consumption = now;
+            true
         }
-
-        // Consume token.
-        self.tokens -= 1.0;
-        self.last_consumption = now;
-        true
     }
 
     /// Blocks until a token is ready and immediately consumes it.
-    pub fn wait_on(&mut self) {
-        // Check if we can consume, if not, sleep till next available.
+    pub async fn wait_on(&mut self) {
         while !self.consume() {
-            sleep(self.next_token());
+            async_sleep(self.next_token()).await;
         }
     }
 }

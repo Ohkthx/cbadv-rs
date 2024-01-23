@@ -7,7 +7,7 @@
 //! - Unsubscribe to channels.
 
 use cbadv::config::{self, BaseConfig};
-use cbadv::utils::Result;
+use cbadv::utils::CbResult;
 use cbadv::websocket::{self, Channel, Message, MessageCallback};
 use std::process::exit;
 use tokio;
@@ -21,7 +21,7 @@ struct CallbackObject {
 impl MessageCallback for CallbackObject {
     /// This is used to parse messages. It is passed to the `listen` function to pull Messages out of
     /// the stream.
-    fn message_callback(&mut self, msg: Result<Message>) {
+    fn message_callback(&mut self, msg: CbResult<Message>) {
         let rcvd = match msg {
             Ok(value) => match value {
                 Message::Status(v) => format!("{:?}", v),

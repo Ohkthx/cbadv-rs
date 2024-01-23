@@ -4,12 +4,15 @@
 //! all requests to the API for ensure proper authentication. Signer is also responsible for handling
 //! the GET and POST requests.
 
+use std::io::Write;
+
 use crate::time;
 use crate::token_bucket::TokenBucket;
-use crate::utils::{CbAdvError, Result};
-use hex;
+use crate::utils::{CbAdvError, CbResult};
+
 use hmac::{Hmac, Mac};
-use reqwest::{header, Method, Response, StatusCode};
+use reqwest::header::{HeaderMap, HeaderValue, CONTENT_TYPE};
+use reqwest::{Method, Response, StatusCode};
 use serde::Serialize;
 use sha2::Sha256;
 
@@ -38,9 +41,10 @@ impl RateLimits {
     ///
     /// * `is_rest` - Requester is REST Client, true, otherwise false.
     fn refresh_rate(is_rest: bool) -> f64 {
-        match is_rest {
-            true => RateLimits::REST_REFRESH_RATE,
-            false => RateLimits::WEBSOCKET_REFRESH_RATE,
+        if is_rest {
+            RateLimits::REST_REFRESH_RATE
+        } else {
+            RateLimits::WEBSOCKET_REFRESH_RATE
         }
     }
 
@@ -50,9 +54,10 @@ impl RateLimits {
     ///
     /// * `is_rest` - Requester is REST Client, true, otherwise false.
     fn max_tokens(is_rest: bool) -> f64 {
-        match is_rest {
-            true => RateLimits::REST_MAX_TOKENS,
-            false => RateLimits::WEBSOCKET_MAX_TOKENS,
+        if is_rest {
+            RateLimits::REST_MAX_TOKENS
+        } else {
+            RateLimits::WEBSOCKET_MAX_TOKENS
         }
     }
 }
@@ -98,26 +103,32 @@ impl Signer {
     /// * `method` - HTTP Method as to which action to perform (GET, POST, etc.).
     /// * `resource` - A string slice representing the resource that is being accessed.
     /// * `body` - A string representing a body data.
-    fn get_http_signature(&self, method: Method, resource: &str, body: &str) -> header::HeaderMap {
+    fn get_http_signature(
+        &self,
+        method: Method,
+        resource: &str,
+        body: &str,
+    ) -> Result<HeaderMap, Box<dyn std::error::Error>> {
         // Timestamp of the request, must be +/- 30 seconds of remote system.
         let timestamp = time::now().to_string();
 
         // Pre-hash, combines all of the request data.
-        let prehash = format!("{}{}{}{}", timestamp, method, resource, body);
+        let mut prehash: Vec<u8> = Vec::new();
+        write!(prehash, "{}{}{}{}", timestamp, method, resource, body)?;
 
         // Create the signature.
-        let mut mac = Hmac::<Sha256>::new_from_slice(self.api_secret.as_bytes())
-            .expect("Failed to generate a signature.");
-        mac.update(prehash.as_bytes());
-        let signature = mac.finalize();
-        let sign = hex::encode(signature.into_bytes());
+        let mut mac = Hmac::<Sha256>::new_from_slice(self.api_secret.as_bytes())?;
+        mac.update(&prehash);
+        let signature = mac.finalize().into_bytes();
+        let sign = hex::encode(signature);
 
         // Load the signature into the header map.
-        let mut headers = header::HeaderMap::new();
-        headers.insert("CB-ACCESS-KEY", self.api_key.parse().unwrap());
-        headers.insert("CB-ACCESS-SIGN", sign.parse().unwrap());
-        headers.insert("CB-ACCESS-TIMESTAMP", timestamp.parse().unwrap());
-        headers
+        let mut headers = HeaderMap::new();
+        headers.insert("CB-ACCESS-KEY", HeaderValue::from_str(&self.api_key)?);
+        headers.insert("CB-ACCESS-SIGN", HeaderValue::from_str(&sign)?);
+        headers.insert("CB-ACCESS-TIMESTAMP", HeaderValue::from_str(&timestamp)?);
+
+        Ok(headers)
     }
 
     /// Creates the signature for a websocket request.
@@ -131,17 +142,21 @@ impl Signer {
         &self,
         timestamp: &str,
         channel: &str,
-        product_ids: &Vec<String>,
-    ) -> String {
+        product_ids: &[String],
+    ) -> Result<String, Box<dyn std::error::Error>> {
         // Pre-hash, combines all of the request data.
-        let prehash = format!("{}{}{}", timestamp, channel, product_ids.join(","));
+        let mut prehash: Vec<u8> = Vec::new();
+        write!(prehash, "{}{}", timestamp, channel)?;
+        for id in product_ids {
+            write!(prehash, ",{}", id)?;
+        }
 
         // Create the signature.
-        let mut mac = Hmac::<Sha256>::new_from_slice(self.api_secret.as_bytes())
-            .expect("Failed to generate a signature.");
-        mac.update(prehash.as_bytes());
-        let signature = mac.finalize();
-        hex::encode(signature.into_bytes())
+        let mut mac = Hmac::<Sha256>::new_from_slice(self.api_secret.as_bytes())?;
+        mac.update(&prehash);
+        let signature = mac.finalize().into_bytes();
+
+        Ok(hex::encode(signature))
     }
 
     /// Performs a HTTP GET Request.
@@ -150,39 +165,40 @@ impl Signer {
     ///
     /// * `resource` - A string representing the resource that is being accessed.
     /// * `query` - A string containing options / parameters for the URL.
-    pub async fn get(&mut self, resource: &str, query: &str) -> Result<Response> {
-        // Add the '?' to the beginning of the parameters if not empty.
-        let prefix = match query.is_empty() {
-            true => "",
-            false => "?",
+    pub async fn get(&mut self, resource: &str, query: &str) -> CbResult<Response> {
+        // Efficiently construct the URL.
+        let url = if query.is_empty() {
+            format!("{}{}", ROOT_URI, resource)
+        } else {
+            format!("{}{}{}", ROOT_URI, resource, query)
         };
 
-        // Create the full URL being accessed.
-        let target = format!("{}{}", prefix, query);
-        let url = format!("{}{}{}", ROOT_URI, resource, target);
-
         // Create the signature and submit the request.
-        let headers = self.get_http_signature(Method::GET, resource, &"".to_string());
+        let headers = self
+            .get_http_signature(Method::GET, resource, "")
+            .map_err(|_| CbAdvError::BadSignature)?;
 
         // Wait until a token is available to make the request. Immediately consume it.
-        self.bucket.wait_on();
+        self.bucket.wait_on().await;
 
-        let result = self.client.get(url).headers(headers).send().await;
-        match result {
-            Ok(value) => match value.status() {
-                StatusCode::OK => Ok(value),
-                _ => {
-                    let code = format!("Status Code: {}", value.status().as_u16());
-                    match value.text().await {
-                        Ok(text) => Err(CbAdvError::BadStatus(format!("{}, {}", code, text))),
-                        Err(_) => Err(CbAdvError::BadStatus(format!(
-                            "{}, could not parse error message",
-                            code
-                        ))),
-                    }
-                }
-            },
-            Err(_) => Err(CbAdvError::Unknown("GET request to API".to_string())),
+        // Send the request and handle the response.
+        let response = self
+            .client
+            .get(&url)
+            .headers(headers)
+            .send()
+            .await
+            .map_err(|_| CbAdvError::Unknown("GET request to API".to_string()))?;
+
+        if response.status() == StatusCode::OK {
+            Ok(response)
+        } else {
+            let code = format!("Status Code: {}", response.status().as_u16());
+            let text = response
+                .text()
+                .await
+                .unwrap_or_else(|_| "could not parse error message".to_string());
+            Err(CbAdvError::BadStatus(format!("{}, {}", code, text)))
         }
     }
 
@@ -198,48 +214,47 @@ impl Signer {
         resource: &str,
         query: &str,
         body: T,
-    ) -> Result<Response> {
-        // Add the '?' to the beginning of the parameters if not empty.
-        let prefix = match query.is_empty() {
-            true => "",
-            false => "?",
+    ) -> CbResult<Response> {
+        // Efficiently construct the URL.
+        let url = if query.is_empty() {
+            format!("{}{}", ROOT_URI, resource)
+        } else {
+            format!("{}{}{}", ROOT_URI, resource, query)
         };
 
-        // Create the full URL being accessed.
-        let target = format!("{}{}", prefix, query);
-        let url = format!("{}{}{}", ROOT_URI, resource, target);
+        // Serialize the body and handle potential serialization errors.
+        let body_str = serde_json::to_string(&body).map_err(|_| CbAdvError::BadSerialization)?;
 
-        // Create the signature and submit the request.
-        let body_str = serde_json::to_string(&body).unwrap();
-        let mut headers = self.get_http_signature(Method::POST, resource, &body_str);
-        headers.insert("Content-Type", "application/json".parse().unwrap());
+        // Create the signature and handle potential errors.
+        let mut headers = self
+            .get_http_signature(Method::POST, resource, &body_str)
+            .map_err(|_| CbAdvError::BadSignature)?;
+
+        // Set the Content-Type header.
+        headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
 
         // Wait until a token is available to make the request. Immediately consume it.
-        self.bucket.wait_on();
+        self.bucket.wait_on().await;
 
-        let result = self
+        // Send the request and handle the response.
+        let response = self
             .client
-            .post(url)
+            .post(&url)
             .headers(headers)
             .body(body_str)
             .send()
-            .await;
+            .await
+            .map_err(|_| CbAdvError::Unknown("POST request to API".to_string()))?;
 
-        match result {
-            Ok(value) => match value.status() {
-                StatusCode::OK => Ok(value),
-                _ => {
-                    let code = format!("Status Code: {}", value.status().as_u16());
-                    match value.text().await {
-                        Ok(text) => Err(CbAdvError::BadStatus(format!("{}, {}", code, text))),
-                        Err(_) => Err(CbAdvError::BadStatus(format!(
-                            "{}, could not parse error message",
-                            code
-                        ))),
-                    }
-                }
-            },
-            Err(_) => Err(CbAdvError::Unknown("POST request to API".to_string())),
+        if response.status() == StatusCode::OK {
+            Ok(response)
+        } else {
+            let code = format!("Status Code: {}", response.status().as_u16());
+            let text = response
+                .text()
+                .await
+                .unwrap_or_else(|_| "could not parse error message".to_string());
+            Err(CbAdvError::BadStatus(format!("{}, {}", code, text)))
         }
     }
 }

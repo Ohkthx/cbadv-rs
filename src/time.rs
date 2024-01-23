@@ -94,7 +94,7 @@ impl Span {
     /// * `end` - An unsigned int that holds the end point of the span.
     /// * `granularity` - A Granularity that represents blocks of time in seconds.
     pub fn new(start: u64, end: u64, granularity: &Granularity) -> Self {
-        let granularity_sec = Granularity::to_secs(&granularity);
+        let granularity_sec = Granularity::to_secs(granularity);
 
         // Clean the time, they have to be the correct offset.
         // end = end - (end % granularity_sec as u64);

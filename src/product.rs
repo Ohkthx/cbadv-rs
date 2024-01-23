@@ -6,7 +6,7 @@
 
 use crate::signer::Signer;
 use crate::time;
-use crate::utils::{from_str, CbAdvError, Result};
+use crate::utils::{deserialize_numeric, CbAdvError, CbResult, QueryBuilder};
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
@@ -25,10 +25,10 @@ pub struct ProductUpdate {
     /// Symbol of the quote currency.
     pub quote_currency: String,
     /// Minimum amount base value can be increased or decreased at once.
-    #[serde(deserialize_with = "from_str")]
+    #[serde(deserialize_with = "deserialize_numeric")]
     pub base_increment: f64,
     /// Minimum amount quote value can be increased or decreased at once.
-    #[serde(deserialize_with = "from_str")]
+    #[serde(deserialize_with = "deserialize_numeric")]
     pub quote_increment: f64,
     /// Name of the product.
     pub display_name: String,
@@ -37,7 +37,7 @@ pub struct ProductUpdate {
     /// Additional status message.
     pub status_message: String,
     /// Minimum amount of funds.
-    #[serde(deserialize_with = "from_str")]
+    #[serde(deserialize_with = "deserialize_numeric")]
     pub min_market_funds: f64,
 }
 
@@ -49,10 +49,10 @@ pub struct MarketTradesUpdate {
     /// ID of the product.
     pub product_id: String,
     /// Price of the product.
-    #[serde(deserialize_with = "from_str")]
+    #[serde(deserialize_with = "deserialize_numeric")]
     pub price: f64,
     /// Size for the trade.
-    #[serde(deserialize_with = "from_str")]
+    #[serde(deserialize_with = "deserialize_numeric")]
     pub size: f64,
     /// Side: BUY or SELL.
     pub side: String,
@@ -107,34 +107,34 @@ pub struct Product {
     /// The trading pair.
     pub product_id: String,
     /// The current price for the product, in quote currency.
-    #[serde(deserialize_with = "from_str")]
+    #[serde(deserialize_with = "deserialize_numeric")]
     pub price: f64,
     /// The amount the price of the product has changed, in percent, in the last 24 hours.
-    #[serde(deserialize_with = "from_str")]
+    #[serde(deserialize_with = "deserialize_numeric")]
     pub price_percentage_change_24h: f64,
     /// The trading volume for the product in the last 24 hours.
-    #[serde(deserialize_with = "from_str")]
+    #[serde(deserialize_with = "deserialize_numeric")]
     pub volume_24h: f64,
     /// The percentage amount the volume of the product has changed in the last 24 hours.
-    #[serde(deserialize_with = "from_str")]
+    #[serde(deserialize_with = "deserialize_numeric")]
     pub volume_percentage_change_24h: f64,
     /// Minimum amount base value can be increased or decreased at once.
-    #[serde(deserialize_with = "from_str")]
+    #[serde(deserialize_with = "deserialize_numeric")]
     pub base_increment: f64,
     /// Minimum amount quote value can be increased or decreased at once.
-    #[serde(deserialize_with = "from_str")]
+    #[serde(deserialize_with = "deserialize_numeric")]
     pub quote_increment: f64,
     /// Minimum size that can be represented of quote currency.
-    #[serde(deserialize_with = "from_str")]
+    #[serde(deserialize_with = "deserialize_numeric")]
     pub quote_min_size: f64,
     /// Maximum size that can be represented of quote currency.
-    #[serde(deserialize_with = "from_str")]
+    #[serde(deserialize_with = "deserialize_numeric")]
     pub quote_max_size: f64,
     /// Minimum size that can be represented of base currency.
-    #[serde(deserialize_with = "from_str")]
+    #[serde(deserialize_with = "deserialize_numeric")]
     pub base_min_size: f64,
     /// Maximum size that can be represented of base currency.
-    #[serde(deserialize_with = "from_str")]
+    #[serde(deserialize_with = "deserialize_numeric")]
     pub base_max_size: f64,
     /// Name of the base currency.
     pub base_name: String,
@@ -179,7 +179,7 @@ pub struct Product {
     /// Whether or not the product is in view only mode.
     pub view_only: bool,
     /// Minimum amount price can be increased or decreased at once.
-    #[serde(deserialize_with = "from_str")]
+    #[serde(deserialize_with = "deserialize_numeric")]
     pub price_increment: f64,
     /// Future product details.
     pub future_product_details: Option<FutureDetails>,
@@ -189,10 +189,10 @@ pub struct Product {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct BidAsk {
     /// Current bid or ask price.
-    #[serde(deserialize_with = "from_str")]
+    #[serde(deserialize_with = "deserialize_numeric")]
     pub price: f64,
     /// Current bid or ask size.
-    #[serde(deserialize_with = "from_str")]
+    #[serde(deserialize_with = "deserialize_numeric")]
     pub size: f64,
 }
 
@@ -213,22 +213,22 @@ pub struct ProductBook {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Candle {
     /// Timestamp for bucket start time, in UNIX time.
-    #[serde(deserialize_with = "from_str")]
+    #[serde(deserialize_with = "deserialize_numeric")]
     pub start: u64,
     /// Lowest price during the bucket interval.
-    #[serde(deserialize_with = "from_str")]
+    #[serde(deserialize_with = "deserialize_numeric")]
     pub low: f64,
     /// Highest price during the bucket interval.
-    #[serde(deserialize_with = "from_str")]
+    #[serde(deserialize_with = "deserialize_numeric")]
     pub high: f64,
     /// Opening price (first trade) in the bucket interval.
-    #[serde(deserialize_with = "from_str")]
+    #[serde(deserialize_with = "deserialize_numeric")]
     pub open: f64,
     /// Closing price (last trade) in the bucket interval.
-    #[serde(deserialize_with = "from_str")]
+    #[serde(deserialize_with = "deserialize_numeric")]
     pub close: f64,
     /// Volume of trading activity during the bucket interval.
-    #[serde(deserialize_with = "from_str")]
+    #[serde(deserialize_with = "deserialize_numeric")]
     pub volume: f64,
 }
 
@@ -240,10 +240,10 @@ pub struct Trade {
     /// The trading pair.
     pub product_id: String,
     /// The price of the trade, in quote currency.
-    #[serde(deserialize_with = "from_str")]
+    #[serde(deserialize_with = "deserialize_numeric")]
     pub price: f64,
     /// The size of the trade, in base currency.
-    #[serde(deserialize_with = "from_str")]
+    #[serde(deserialize_with = "deserialize_numeric")]
     pub size: f64,
     /// The time of the trade.
     pub time: String,
@@ -275,25 +275,25 @@ pub struct TickerUpdate {
     /// Product ID (Pair, ex 'BTC-USD')
     pub product_id: String,
     /// Current price for the product.
-    #[serde(deserialize_with = "from_str")]
+    #[serde(deserialize_with = "deserialize_numeric")]
     pub price: f64,
     /// 24hr Volume for the product.
-    #[serde(deserialize_with = "from_str")]
+    #[serde(deserialize_with = "deserialize_numeric")]
     pub volume_24_h: f64,
     /// 24hr Lowest price.
-    #[serde(deserialize_with = "from_str")]
+    #[serde(deserialize_with = "deserialize_numeric")]
     pub low_24_h: f64,
     /// 24hr Highest price.
-    #[serde(deserialize_with = "from_str")]
+    #[serde(deserialize_with = "deserialize_numeric")]
     pub high_24_h: f64,
     /// 52w (52 weeks) Lowest price.
-    #[serde(deserialize_with = "from_str")]
+    #[serde(deserialize_with = "deserialize_numeric")]
     pub low_52_w: f64,
     /// 52w (52 weeks) Highest price.
-    #[serde(deserialize_with = "from_str")]
+    #[serde(deserialize_with = "deserialize_numeric")]
     pub high_52_w: f64,
     /// 24hr Price percentage change.
-    #[serde(deserialize_with = "from_str")]
+    #[serde(deserialize_with = "deserialize_numeric")]
     pub price_percent_chg_24_h: f64,
 }
 
@@ -303,10 +303,10 @@ pub struct Ticker {
     /// List of trades for the product.
     pub trades: Vec<Trade>,
     /// The best bid for the `product_id`, in quote currency.
-    #[serde(deserialize_with = "from_str")]
+    #[serde(deserialize_with = "deserialize_numeric")]
     pub best_bid: f64,
     /// The best ask for the `product_id`, in quote currency.
-    #[serde(deserialize_with = "from_str")]
+    #[serde(deserialize_with = "deserialize_numeric")]
     pub best_ask: f64,
 }
 
@@ -357,35 +357,14 @@ pub struct ListProductsQuery {
 impl fmt::Display for ListProductsQuery {
     /// Converts the object into HTTP request parameters.
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let mut query: String = "".to_string();
+        let mut query = QueryBuilder::new();
+        query
+            .push_u32_optional("limit", self.limit)
+            .push_u32_optional("offset", self.offset)
+            .push_optional("product_type", &self.product_type)
+            .with_optional_vec("product_ids", &self.product_ids);
 
-        query = match &self.limit {
-            Some(v) => format!("{}&limit={}", query, v),
-            _ => query,
-        };
-
-        query = match &self.offset {
-            Some(v) => format!("{}&offset={}", query, v),
-            _ => query,
-        };
-
-        query = match &self.product_type {
-            Some(v) => format!("{}&product_type={}", query, v),
-            _ => query,
-        };
-
-        query = match &self.product_ids {
-            Some(v) => {
-                let ids: String = v.iter().map(|p| format!("&product_ids={p}")).collect();
-                format!("{}{}", query, ids)
-            }
-            _ => query,
-        };
-
-        match query.is_empty() {
-            true => write!(f, ""),
-            false => write!(f, "{}", query[1..].to_string()),
-        }
+        write!(f, "{}", query.build())
     }
 }
 
@@ -399,7 +378,10 @@ pub struct TickerQuery {
 impl fmt::Display for TickerQuery {
     /// Converts the object into HTTP request parameters.
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "limit={}", self.limit)
+        let mut query = QueryBuilder::new();
+        query.push("limit", &self.limit.to_string());
+
+        write!(f, "{}", query.build())
     }
 }
 
@@ -411,7 +393,7 @@ pub struct ProductApi {
 
 impl ProductApi {
     /// Resource for the API.
-    const RESOURCE: &str = "/api/v3/brokerage/products";
+    const RESOURCE: &'static str = "/api/v3/brokerage/products";
 
     /// Creates a new instance of the Product API. This grants access to product information.
     ///
@@ -436,7 +418,7 @@ impl ProductApi {
     /// https://api.coinbase.com/api/v3/brokerage/best_bid_ask
     ///
     /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getbestbidask>
-    pub async fn best_bid_ask(&mut self, product_ids: Vec<String>) -> Result<Vec<ProductBook>> {
+    pub async fn best_bid_ask(&mut self, product_ids: Vec<String>) -> CbResult<Vec<ProductBook>> {
         let resource = "/api/v3/brokerage/best_bid_ask";
         let query = format!("product_ids={}", product_ids.join("&product_ids="));
 
@@ -466,7 +448,7 @@ impl ProductApi {
         &mut self,
         product_id: &str,
         limit: Option<u16>,
-    ) -> Result<ProductBook> {
+    ) -> CbResult<ProductBook> {
         let resource = "/api/v3/brokerage/product_book";
         let query = format!("product_id={}&limit={}", product_id, limit.unwrap_or(250));
 
@@ -491,7 +473,7 @@ impl ProductApi {
     /// https://api.coinbase.com/api/v3/brokerage/products/{product_id}
     ///
     /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getproduct>
-    pub async fn get(&mut self, product_id: &str) -> Result<Product> {
+    pub async fn get(&mut self, product_id: &str) -> CbResult<Product> {
         let resource = format!("{}/{}", Self::RESOURCE, product_id);
         match self.signer.get(&resource, "").await {
             Ok(value) => match value.json::<Product>().await {
@@ -514,7 +496,7 @@ impl ProductApi {
     /// https://api.coinbase.com/api/v3/brokerage/products
     ///
     /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getproducts>
-    pub async fn get_bulk(&mut self, query: &ListProductsQuery) -> Result<Vec<Product>> {
+    pub async fn get_bulk(&mut self, query: &ListProductsQuery) -> CbResult<Vec<Product>> {
         match self.signer.get(Self::RESOURCE, &query.to_string()).await {
             Ok(value) => match value.json::<ListProductsResponse>().await {
                 Ok(resp) => Ok(resp.products),
@@ -537,7 +519,7 @@ impl ProductApi {
     /// https://api.coinbase.com/api/v3/brokerage/products/{product_id}/candles
     ///
     /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getcandles>
-    pub async fn candles(&mut self, product_id: &str, query: &time::Span) -> Result<Vec<Candle>> {
+    pub async fn candles(&mut self, product_id: &str, query: &time::Span) -> CbResult<Vec<Candle>> {
         let resource = format!("{}/{}/candles", Self::RESOURCE, product_id);
         match self.signer.get(&resource, &query.to_string()).await {
             Ok(value) => match value.json::<CandleResponse>().await {
@@ -562,7 +544,7 @@ impl ProductApi {
         &mut self,
         product_id: &str,
         query: &time::Span,
-    ) -> Result<Vec<Candle>> {
+    ) -> CbResult<Vec<Candle>> {
         let resource = format!("{}/{}/candles", Self::RESOURCE, product_id);
 
         // Make a copy of the query.
@@ -590,7 +572,7 @@ impl ProductApi {
 
             // Update to get additional candles.
             span.start = span.end;
-            span.end = time::after(span.start, interval as u64 * (CANDLE_MAXIMUM as u64));
+            span.end = time::after(span.start, interval * (CANDLE_MAXIMUM as u64));
             if span.end > end {
                 span.end = end;
             }
@@ -617,7 +599,7 @@ impl ProductApi {
     /// https://api.coinbase.com/api/v3/brokerage/products/{product_id}/ticker
     ///
     /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getmarkettrades>
-    pub async fn ticker(&mut self, product_id: &str, query: &TickerQuery) -> Result<Ticker> {
+    pub async fn ticker(&mut self, product_id: &str, query: &TickerQuery) -> CbResult<Ticker> {
         let resource = format!("{}/{}/ticker", Self::RESOURCE, product_id);
         match self.signer.get(&resource, &query.to_string()).await {
             Ok(value) => match value.json::<Ticker>().await {

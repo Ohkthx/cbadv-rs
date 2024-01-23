@@ -9,7 +9,7 @@ use crate::product::{Candle, CandleUpdate, MarketTradesUpdate, ProductUpdate, Ti
 use crate::signer::Signer;
 use crate::task_tracker::TaskTracker;
 use crate::time;
-use crate::utils::{from_str, CbAdvError, Result};
+use crate::utils::{deserialize_numeric, CbAdvError, CbResult};
 use futures_util::stream::{SplitSink, SplitStream};
 use futures_util::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
@@ -22,7 +22,7 @@ use tokio_tungstenite::{connect_async, tungstenite, MaybeTlsStream, WebSocketStr
 use crate::config::ConfigFile;
 
 type Socket = WebSocketStream<MaybeTlsStream<TcpStream>>;
-pub type Callback = fn(Result<Message>);
+pub type Callback = fn(CbResult<Message>);
 pub type WebSocketReader = SplitStream<Socket>;
 
 /// Used to pass to a callback to the candle watcher on a successful ejection.
@@ -44,7 +44,7 @@ pub trait MessageCallback {
     /// # Arguments
     ///
     /// * `msg` - Message or Error received from the WebSocket.
-    fn message_callback(&mut self, msg: Result<Message>);
+    fn message_callback(&mut self, msg: CbResult<Message>);
 }
 
 /// WebSocket Channels that can be subscribed to.
@@ -113,9 +113,9 @@ pub enum Message {
 pub struct Level2Update {
     pub side: String,
     pub event_time: String,
-    #[serde(deserialize_with = "from_str")]
+    #[serde(deserialize_with = "deserialize_numeric")]
     pub price_level: f64,
-    #[serde(deserialize_with = "from_str")]
+    #[serde(deserialize_with = "deserialize_numeric")]
     pub new_quantity: f64,
 }
 
@@ -298,7 +298,7 @@ pub struct WebSocketClient {
 
 impl WebSocketClient {
     /// Resource for the API.
-    const RESOURCE: &str = "wss://advanced-trade-ws.coinbase.com";
+    const RESOURCE: &'static str = "wss://advanced-trade-ws.coinbase.com";
 
     /// Creates a new instance of a Client. This is a wrapper for Signer and contains a socket to
     /// the WebSocket.
@@ -330,7 +330,7 @@ impl WebSocketClient {
 
     /// Connects to the WebSocket. This is required before subscribing, unsubscribing, and
     /// listening for updates. A reader is returned to allow for `listener` to parse events.
-    pub async fn connect(&mut self) -> Result<WebSocketReader> {
+    pub async fn connect(&mut self) -> CbResult<WebSocketReader> {
         match connect_async(Self::RESOURCE).await {
             Ok((socket, _)) => {
                 let (sink, stream) = socket.split();
@@ -425,9 +425,9 @@ impl WebSocketClient {
     async fn update(
         &mut self,
         channel: Channel,
-        product_ids: &Vec<String>,
+        product_ids: &[String],
         subscribe: bool,
-    ) -> Result<()> {
+    ) -> CbResult<()> {
         // Set the correct direction for the update.
         let update = match subscribe {
             true => "subscribe".to_string(),
@@ -440,12 +440,13 @@ impl WebSocketClient {
         // Get the signature for authentication.
         let signature = self
             .signer
-            .get_ws_signature(&timestamp, &channel, product_ids);
+            .get_ws_signature(&timestamp, &channel, product_ids)
+            .map_err(|_| CbAdvError::BadSignature)?;
 
         // Create the subscription/unsubscription.
         let sub = Subscription {
             r#type: update,
-            product_ids: product_ids.clone(),
+            product_ids: product_ids.to_vec(),
             channel,
             api_key: self.signer.api_key.clone(),
             timestamp,
@@ -462,7 +463,7 @@ impl WebSocketClient {
                 let body_str = serde_json::to_string(&sub).unwrap();
 
                 // Wait until a token is available to make the request. Immediately consume it.
-                self.signer.bucket.wait_on();
+                self.signer.bucket.wait_on().await;
 
                 match socket.send(tungstenite::Message::text(body_str)).await {
                     Ok(_) => Ok(()),
@@ -480,7 +481,7 @@ impl WebSocketClient {
     ///
     /// * `channel` - The Channel that is being subscribed to.
     /// * `product_ids` - A vector of product IDs to listen for.
-    pub async fn subscribe(&mut self, channel: Channel, product_ids: &Vec<String>) -> Result<()> {
+    pub async fn subscribe(&mut self, channel: Channel, product_ids: &[String]) -> CbResult<()> {
         self.update(channel, product_ids, true).await
     }
 
@@ -490,7 +491,7 @@ impl WebSocketClient {
     ///
     /// * `channel` - The Channel that is being subscribed to.
     /// * `product_ids` - A vector of product IDs to listen for.
-    pub async fn sub(&mut self, channel: Channel, product_ids: &Vec<String>) -> Result<()> {
+    pub async fn sub(&mut self, channel: Channel, product_ids: &[String]) -> CbResult<()> {
         self.subscribe(channel, product_ids).await
     }
 
@@ -501,7 +502,7 @@ impl WebSocketClient {
     ///
     /// * `channel` - The Channel that is being changed to.
     /// * `product_ids` - A vector of product IDs to no longer listen for.
-    pub async fn unsubscribe(&mut self, channel: Channel, product_ids: &Vec<String>) -> Result<()> {
+    pub async fn unsubscribe(&mut self, channel: Channel, product_ids: &[String]) -> CbResult<()> {
         self.update(channel, product_ids, false).await
     }
 
@@ -511,7 +512,7 @@ impl WebSocketClient {
     ///
     /// * `channel` - The Channel that is being changed to.
     /// * `product_ids` - A vector of product IDs to no longer listen for.
-    pub async fn unsub(&mut self, channel: Channel, product_ids: &Vec<String>) -> Result<()> {
+    pub async fn unsub(&mut self, channel: Channel, product_ids: &[String]) -> CbResult<()> {
         self.unsubscribe(channel, product_ids).await
     }
 
@@ -523,9 +524,9 @@ impl WebSocketClient {
     /// * `watcher` - User-defined struct that implements `CandleCallback` to send completed candles to.
     pub async fn watch_candles<T>(
         &mut self,
-        products: &Vec<String>,
+        products: &[String],
         watcher: T,
-    ) -> Result<JoinHandle<()>>
+    ) -> CbResult<JoinHandle<()>>
     where
         T: CandleCallback + Send + 'static,
     {
@@ -539,7 +540,7 @@ impl WebSocketClient {
         let listener = tokio::spawn(TaskTracker::start(reader, watcher));
 
         // Keep the connection open.
-        match self.sub(Channel::HEARTBEATS, &vec![]).await {
+        match self.sub(Channel::HEARTBEATS, &[]).await {
             Ok(_) => (),
             Err(err) => return Err(err),
         };
@@ -607,9 +608,9 @@ where
 /// * `watcher` - User-defined struct that implements `CandleCallback` to send completed candles to.
 pub async fn watch_candles<T>(
     client: &mut WebSocketClient,
-    products: &Vec<String>,
+    products: &[String],
     watcher: T,
-) -> Result<JoinHandle<()>>
+) -> CbResult<JoinHandle<()>>
 where
     T: CandleCallback + Send + 'static,
 {

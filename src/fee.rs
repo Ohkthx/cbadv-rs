@@ -4,7 +4,7 @@
 //! Currently the only endpoint available is the Transaction Summary endpoint.
 
 use crate::signer::Signer;
-use crate::utils::{from_str, CbAdvError, Result};
+use crate::utils::{deserialize_numeric, CbAdvError, CbResult, QueryBuilder};
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
@@ -14,16 +14,16 @@ pub struct FeeTier {
     /// Current fee teir for the user.
     pub pricing_tier: String,
     /// Lower bound (inclusive) of pricing tier in notional volume.
-    #[serde(deserialize_with = "from_str")]
+    #[serde(deserialize_with = "deserialize_numeric")]
     pub usd_from: u32,
     /// Upper bound (exclusive) of pricing tier in notional volume.
-    #[serde(deserialize_with = "from_str")]
+    #[serde(deserialize_with = "deserialize_numeric")]
     pub usd_to: u32,
     /// Taker fee rate, applied if the order takes liquidity.
-    #[serde(deserialize_with = "from_str")]
+    #[serde(deserialize_with = "deserialize_numeric")]
     pub taker_fee_rate: f64,
     /// Maker fee rate, applied if the order creates liquidity.
-    #[serde(deserialize_with = "from_str")]
+    #[serde(deserialize_with = "deserialize_numeric")]
     pub maker_fee_rate: f64,
 }
 
@@ -31,7 +31,7 @@ pub struct FeeTier {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct MarginRate {
     /// Value of the margin rate.
-    #[serde(deserialize_with = "from_str")]
+    #[serde(deserialize_with = "deserialize_numeric")]
     pub value: f64,
 }
 
@@ -39,7 +39,7 @@ pub struct MarginRate {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Tax {
     /// Amount of tax.
-    #[serde(deserialize_with = "from_str")]
+    #[serde(deserialize_with = "deserialize_numeric")]
     pub value: f64,
     /// Type of tax. Possible values: [INCLUSIVE, EXCLUSIVE]
     pub r#type: String,
@@ -84,32 +84,14 @@ pub struct TransactionSummaryQuery {
 impl fmt::Display for TransactionSummaryQuery {
     /// Converts the object into HTTP request parameters.
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let mut query: String = "".to_string();
+        let mut query = QueryBuilder::new();
+        query
+            .push_optional("start_date", &self.start_date)
+            .push_optional("end_date", &self.end_date)
+            .push_optional("user_native_currency", &self.user_native_currency)
+            .push_optional("product_type", &self.product_type);
 
-        query = match &self.start_date {
-            Some(v) => format!("{}&start_date={}", query, v),
-            _ => query,
-        };
-
-        query = match &self.end_date {
-            Some(v) => format!("{}&end_date={}", query, v),
-            _ => query,
-        };
-
-        query = match &self.user_native_currency {
-            Some(v) => format!("{}&user_native_currency={}", query, v),
-            _ => query,
-        };
-
-        query = match &self.product_type {
-            Some(v) => format!("{}&product_type={}", query, v),
-            _ => query,
-        };
-
-        match query.is_empty() {
-            true => write!(f, ""),
-            false => write!(f, "{}", query[1..].to_string()),
-        }
+        write!(f, "{}", query.build())
     }
 }
 
@@ -121,7 +103,7 @@ pub struct FeeApi {
 
 impl FeeApi {
     /// Resource for the API.
-    const RESOURCE: &str = "/api/v3/brokerage/transaction_summary";
+    const RESOURCE: &'static str = "/api/v3/brokerage/transaction_summary";
 
     /// Creates a new instance of the Fee API. This grants access to product information.
     ///
@@ -146,7 +128,7 @@ impl FeeApi {
     /// https://api.coinbase.com/api/v3/brokerage/transaction_summary
     ///
     /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_gettransactionsummary>
-    pub async fn get(&mut self, query: &TransactionSummaryQuery) -> Result<TransactionSummary> {
+    pub async fn get(&mut self, query: &TransactionSummaryQuery) -> CbResult<TransactionSummary> {
         match self.signer.get(Self::RESOURCE, &query.to_string()).await {
             Ok(value) => match value.json::<TransactionSummary>().await {
                 Ok(resp) => Ok(resp),
