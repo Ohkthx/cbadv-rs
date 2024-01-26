@@ -3,10 +3,11 @@
 //! Shows how to:
 //! - Obtain Transaction Summary / Fees
 
+use std::process::exit;
+
 use cbadv::config::{self, BaseConfig};
 use cbadv::fee::TransactionSummaryQuery;
-use cbadv::rest::RestClient;
-use std::process::exit;
+use cbadv::RestClient;
 
 #[tokio::main]
 async fn main() {

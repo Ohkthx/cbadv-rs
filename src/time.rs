@@ -4,8 +4,10 @@
 //! spans of time such as in the Product API for obtaining Candles.
 
 use serde::Serialize;
-use std::fmt;
 use std::time::{SystemTime, UNIX_EPOCH};
+
+use crate::traits::Query;
+use crate::utils::QueryBuilder;
 
 /// One minute of time in seconds.
 const ONE_MINUTE: u32 = 60;
@@ -116,9 +118,8 @@ impl Span {
     }
 }
 
-impl fmt::Display for Span {
-    /// Converts the object into HTTP request parameters.
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+impl Query for Span {
+    fn to_query(&self) -> String {
         let granularity = Granularity::from_secs(self.granularity);
         let granularity_str: &str = match granularity {
             Granularity::OneMinute => "ONE_MINUTE",
@@ -135,11 +136,11 @@ impl fmt::Display for Span {
             Granularity::UnknownGranularity => "UNKNOWN_GRANULARITY",
         };
 
-        write!(
-            f,
-            "start={}&end={}&granularity={}",
-            self.start, self.end, granularity_str
-        )
+        QueryBuilder::new()
+            .push("start", self.start)
+            .push("end", self.end)
+            .push("granularity", granularity_str)
+            .build()
     }
 }
 

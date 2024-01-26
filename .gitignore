@@ -3,3 +3,5 @@ commit_msg
 
 target/
 configs/
+
+.vscode

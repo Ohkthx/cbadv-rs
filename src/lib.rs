@@ -14,19 +14,22 @@
 #[cfg(feature = "config")]
 pub mod config;
 
-mod signer;
+pub(crate) mod signer;
 mod task_tracker;
 mod token_bucket;
 
-pub mod account;
-pub mod fee;
-pub mod order;
-pub mod product;
+pub(crate) mod constants;
+pub mod errors;
 pub mod time;
-pub mod utils;
+pub mod traits;
+pub mod types;
+pub(crate) mod utils;
 
-pub mod rest;
+pub(crate) mod apis;
+pub(crate) mod models;
+pub use models::{account, convert, fee, order, product, websocket as ws};
+
+mod rest;
+mod websocket;
 pub use rest::RestClient;
-
-pub mod websocket;
 pub use websocket::WebSocketClient;

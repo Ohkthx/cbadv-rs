@@ -6,18 +6,19 @@
 
 use std::io::Write;
 
-use crate::time;
-use crate::token_bucket::TokenBucket;
-use crate::utils::{CbAdvError, CbResult};
-
 use hmac::{Hmac, Mac};
 use reqwest::header::{HeaderMap, HeaderValue, CONTENT_TYPE};
 use reqwest::{Method, Response, StatusCode};
 use serde::Serialize;
 use sha2::Sha256;
 
-/// Root URI for the API service.
-const ROOT_URI: &str = "https://api.coinbase.com";
+use crate::constants::ratelimits;
+use crate::constants::API_ROOT_URI;
+use crate::errors::CbAdvError;
+use crate::time;
+use crate::token_bucket::TokenBucket;
+use crate::traits::Query;
+use crate::types::CbResult;
 
 /// Rate Limits for REST and WebSocket requests.
 ///
@@ -27,13 +28,9 @@ const ROOT_URI: &str = "https://api.coinbase.com";
 /// * WebSocket: <https://docs.cloud.coinbase.com/advanced-trade-api/docs/ws-rate-limits>
 struct RateLimits {}
 impl RateLimits {
-    /// Amount of tokens per second refilled.
-    const REST_REFRESH_RATE: f64 = 30.0;
-    const WEBSOCKET_REFRESH_RATE: f64 = 750.0;
-
     /// Maximum amount of tokens per bucket.
-    const REST_MAX_TOKENS: f64 = RateLimits::REST_REFRESH_RATE;
-    const WEBSOCKET_MAX_TOKENS: f64 = RateLimits::WEBSOCKET_REFRESH_RATE;
+    const REST_MAX_TOKENS: f64 = ratelimits::REST_REFRESH_RATE;
+    const WEBSOCKET_MAX_TOKENS: f64 = ratelimits::WEBSOCKET_REFRESH_RATE;
 
     /// Amount of tokens refreshed per second.
     ///
@@ -42,9 +39,9 @@ impl RateLimits {
     /// * `is_rest` - Requester is REST Client, true, otherwise false.
     fn refresh_rate(is_rest: bool) -> f64 {
         if is_rest {
-            RateLimits::REST_REFRESH_RATE
+            ratelimits::REST_REFRESH_RATE
         } else {
-            RateLimits::WEBSOCKET_REFRESH_RATE
+            ratelimits::WEBSOCKET_REFRESH_RATE
         }
     }
 
@@ -66,13 +63,13 @@ impl RateLimits {
 #[derive(Debug, Clone)]
 pub(crate) struct Signer {
     /// API Key provided by the service.
-    pub api_key: String,
+    pub(crate) api_key: String,
     /// API Secret provided by the service.
     api_secret: String,
     /// Wrapped client that is responsible for making the requests.
     client: reqwest::Client,
     /// Token bucket, used for rate limiting.
-    pub bucket: TokenBucket,
+    pub(crate) bucket: TokenBucket,
 }
 
 /// Responsible for signing and sending HTTP requests.
@@ -84,7 +81,7 @@ impl Signer {
     /// * `api_key` - A string that holds the key for the API service.
     /// * `api_secret` - A string that holds the secret for the API service.
     /// * `is_rest` - Signer for REST Client, true, otherwise false.
-    pub fn new(api_key: String, api_secret: String, is_rest: bool) -> Self {
+    pub(crate) fn new(api_key: String, api_secret: String, is_rest: bool) -> Self {
         Self {
             api_key,
             api_secret,
@@ -138,7 +135,7 @@ impl Signer {
     /// * `timestamp` - Current timestamp as a string, must be +/- 30 seconds.
     /// * `channel` - Channel that is being modified (un/subscribe)
     /// * `product_ids` - Vector of product_ids that belong to the subscription.
-    pub fn get_ws_signature(
+    pub(crate) fn get_ws_signature(
         &self,
         timestamp: &str,
         channel: &str,
@@ -165,12 +162,11 @@ impl Signer {
     ///
     /// * `resource` - A string representing the resource that is being accessed.
     /// * `query` - A string containing options / parameters for the URL.
-    pub async fn get(&mut self, resource: &str, query: &str) -> CbResult<Response> {
+    pub(crate) async fn get(&mut self, resource: &str, query: &impl Query) -> CbResult<Response> {
         // Efficiently construct the URL.
-        let url = if query.is_empty() {
-            format!("{}{}", ROOT_URI, resource)
-        } else {
-            format!("{}{}{}", ROOT_URI, resource, query)
+        let url = match query.to_query() {
+            value if !value.is_empty() => format!("{}{}{}", API_ROOT_URI, resource, value),
+            _ => format!("{}{}", API_ROOT_URI, resource),
         };
 
         // Create the signature and submit the request.
@@ -209,17 +205,16 @@ impl Signer {
     /// * `resource` - A string representing the resource that is being accessed.
     /// * `query` - A string containing options / parameters for the URL.
     /// * `body` - An object to send to the URL via POST request.
-    pub async fn post<T: Serialize>(
+    pub(crate) async fn post<T: Serialize>(
         &mut self,
         resource: &str,
-        query: &str,
+        query: &impl Query,
         body: T,
     ) -> CbResult<Response> {
         // Efficiently construct the URL.
-        let url = if query.is_empty() {
-            format!("{}{}", ROOT_URI, resource)
-        } else {
-            format!("{}{}{}", ROOT_URI, resource, query)
+        let url = match query.to_query() {
+            value if !value.is_empty() => format!("{}{}{}", API_ROOT_URI, resource, value),
+            _ => format!("{}{}", API_ROOT_URI, resource),
         };
 
         // Serialize the body and handle potential serialization errors.

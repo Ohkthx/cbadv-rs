@@ -1,0 +1,53 @@
+//! All constants for various API Endpoints
+
+/// Root resource for the API
+pub(crate) const API_ROOT_URI: &str = "https://api.coinbase.com";
+
+/// Accounts API constants
+pub(crate) mod accounts {
+    pub(crate) const RESOURCE_ENDPOINT: &str = "/api/v3/brokerage/accounts";
+}
+
+/// Convert API constants
+pub(crate) mod convert {
+    pub(crate) const RESOURCE_ENDPOINT: &str = "/api/v3/brokerage/convert";
+    pub(crate) const QUOTE_ENDPOINT: &str = "/api/v3/brokerage/convert/quote";
+}
+
+/// Fees API constants
+pub(crate) mod fees {
+    pub(crate) const RESOURCE_ENDPOINT: &str = "/api/v3/brokerage/transaction_summary";
+}
+
+/// Orders API constants
+pub(crate) mod orders {
+    pub(crate) const RESOURCE_ENDPOINT: &str = "/api/v3/brokerage/orders";
+    pub(crate) const CANCEL_BATCH_ENDPOINT: &str = "/api/v3/brokerage/orders/batch_cancel";
+    pub(crate) const EDIT_ENDPOINT: &str = "/api/v3/brokerage/orders/edit";
+    pub(crate) const EDIT_PREVIEW_ENDPOINT: &str = "/api/v3/brokerage/orders/edit_preview";
+    pub(crate) const BATCH_ENDPOINT: &str = "/api/v3/brokerage/orders/historical/batch";
+    pub(crate) const FILLS_ENDPOINT: &str = "/api/v3/brokerage/orders/historical/fills";
+}
+
+/// Products API constants
+pub(crate) mod products {
+    pub(crate) const CANDLE_MAXIMUM: u64 = 300;
+    pub(crate) const RESOURCE_ENDPOINT: &str = "/api/v3/brokerage/products";
+    pub(crate) const BID_ASK_ENDPOINT: &str = "/api/v3/brokerage/best_bid_ask";
+    pub(crate) const PRODUCT_BOOK_ENDPOINT: &str = "/api/v3/brokerage/product_book";
+}
+
+/// Websocket API constants
+pub(crate) mod websocket {
+    pub(crate) const RESOURCE_ENDPOINT: &str = "wss://advanced-trade-ws.coinbase.com";
+
+    /// Granularity of Candles from the WebSocket Candle subscription.
+    /// NOTE: This is a restriction by CoinBase and cannot be currently changed (20240125)
+    pub(crate) const GRANULARITY: u64 = 300;
+}
+
+/// Amount of tokens per second refilled.
+pub(crate) mod ratelimits {
+    pub(crate) const REST_REFRESH_RATE: f64 = 30.0;
+    pub(crate) const WEBSOCKET_REFRESH_RATE: f64 = 750.0;
+}

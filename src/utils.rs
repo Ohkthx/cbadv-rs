@@ -2,51 +2,12 @@
 //!
 //! `utils` is a collection of helpful tools that may be required throughout the rest of the API.
 
+use std::fmt::{self, Write};
+use std::str::{self, FromStr};
+
 use num_traits::Zero;
 use serde::de::Visitor;
 use serde::{de, Deserialize, Deserializer};
-use std::fmt::{self, Write};
-use std::result;
-use std::str::{self, FromStr};
-
-/// Used to return objects from the API to the end-user.
-pub type CbResult<T> = result::Result<T, CbAdvError>;
-
-/// Types of errors that can occur.
-#[derive(Debug)]
-pub enum CbAdvError {
-    /// Unable to parse JSON successfully.
-    BadParse(String),
-    /// Non-200 status code received.
-    BadStatus(String),
-    /// Could not connect to the service.
-    BadConnection(String),
-    /// Nothing to do.
-    NothingToDo(String),
-    /// Unable to locate resource.
-    NotFound(String),
-    /// Could not build the signature.
-    BadSignature,
-    /// Could not serialize the body of a message.
-    BadSerialization,
-    /// General unknown error.
-    Unknown(String),
-}
-
-impl fmt::Display for CbAdvError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            CbAdvError::Unknown(value) => write!(f, "unknown error occured: {}", value),
-            CbAdvError::BadSignature => write!(f, "could not sign the message to be sent"),
-            CbAdvError::BadSerialization => write!(f, "could not serialize the message body"),
-            CbAdvError::BadParse(value) => write!(f, "could not parse: {}", value),
-            CbAdvError::NothingToDo(value) => write!(f, "nothing to do: {}", value),
-            CbAdvError::NotFound(value) => write!(f, "could not find: {}", value),
-            CbAdvError::BadStatus(value) => write!(f, "non-zero status occurred: {}", value),
-            CbAdvError::BadConnection(value) => write!(f, "could not connect: {}", value),
-        }
-    }
-}
 
 /// Enum representing different types of inputs.
 #[derive(Deserialize)]
@@ -129,7 +90,7 @@ macro_rules! debugln {
 }
 
 /// Builds the URL Query to be sent to the API.
-pub struct QueryBuilder {
+pub(crate) struct QueryBuilder {
     query: String,
 }
 
@@ -147,7 +108,7 @@ impl QueryBuilder {
     /// ```
     /// let query_builder = QueryBuilder::new();
     /// ```
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             query: String::new(),
         }
@@ -170,14 +131,14 @@ impl QueryBuilder {
     /// let mut query_builder = QueryBuilder::new();
     /// query_builder.push("key", "value");
     /// ```
-    pub fn push(&mut self, key: &str, value: &str) -> &mut Self {
+    pub(crate) fn push<T: ToString>(mut self, key: &str, value: T) -> Self {
         if !self.query.is_empty() {
             self.query.push('&');
         } else {
             self.query.push('?');
         }
 
-        write!(self.query, "{}={}", key, value).unwrap();
+        write!(self.query, "{}={}", key, value.to_string()).unwrap();
         self
     }
 
@@ -191,13 +152,9 @@ impl QueryBuilder {
     /// # Returns
     ///
     /// A mutable reference to the `QueryBuilder` for chaining.
-    pub fn push_optional<'a, T: AsRef<str>>(
-        &'a mut self,
-        key: &str,
-        value: &Option<T>,
-    ) -> &'a mut Self {
+    pub(crate) fn push_optional<T: AsRef<str>>(mut self, key: &str, value: &Option<T>) -> Self {
         if let Some(v) = value {
-            self.push(key, v.as_ref());
+            self = self.push(key, v.as_ref());
         }
         self
     }
@@ -211,9 +168,9 @@ impl QueryBuilder {
     /// # Returns
     ///
     /// A mutable reference to the `QueryBuilder` for chaining.
-    pub fn push_u32_optional<'a>(&'a mut self, key: &str, value: Option<u32>) -> &'a mut Self {
+    pub(crate) fn push_u32_optional(mut self, key: &str, value: Option<u32>) -> Self {
         if let Some(v) = value {
-            self.push(key, &v.to_string());
+            self = self.push(key, v.to_string());
         }
         self
     }
@@ -224,27 +181,15 @@ impl QueryBuilder {
     ///
     /// * `key` - The key of the query parameter.
     /// * `values` - An optional array of values to assign to the key.
-    pub fn with_optional_vec<'a, T: AsRef<str>>(
-        &'a mut self,
+    pub(crate) fn with_optional_vec<T: AsRef<str>>(
+        mut self,
         key: &str,
         values: &Option<Vec<T>>,
-    ) -> &'a mut Self {
+    ) -> Self {
         if let Some(values) = values {
             for value in values {
-                self.push(key.as_ref(), value.as_ref());
+                self = self.push(key.as_ref(), value.as_ref());
             }
-        }
-        self
-    }
-
-    /// Adds multiple query parameters from an array of tuples.
-    ///
-    /// # Arguments
-    ///
-    /// * `params` - Array of tuples where each tuple is a (key, value) pair.
-    pub fn with_params(&mut self, params: &[(impl AsRef<str>, impl AsRef<str>)]) -> &mut Self {
-        for (key, value) in params {
-            self.push(key.as_ref(), value.as_ref());
         }
         self
     }
@@ -262,7 +207,7 @@ impl QueryBuilder {
     /// query_builder.push("key1", "value1").push("key2", "value2");
     /// let query = query_builder.build();
     /// ```
-    pub fn build(self) -> String {
+    pub(crate) fn build(self) -> String {
         self.query
     }
 }

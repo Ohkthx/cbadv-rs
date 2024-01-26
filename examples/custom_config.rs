@@ -3,10 +3,12 @@
 //! Shows how to:
 //! - Define a custom configuration file and use it with the API.
 
-use cbadv::config::{self, ApiConfig, ConfigFile};
-use cbadv::rest::RestClient;
-use serde::{Deserialize, Serialize};
 use std::process::exit;
+
+use serde::{Deserialize, Serialize};
+
+use cbadv::config::{self, ApiConfig, ConfigFile};
+use cbadv::RestClient;
 
 /// `[general]` section in the configuration file.
 #[derive(Serialize, Deserialize, Debug, Clone)]

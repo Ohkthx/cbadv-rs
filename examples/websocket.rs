@@ -6,11 +6,13 @@
 //! - Subscribe to channels.
 //! - Unsubscribe to channels.
 
-use cbadv::config::{self, BaseConfig};
-use cbadv::utils::CbResult;
-use cbadv::websocket::{self, Channel, Message, MessageCallback};
 use std::process::exit;
-use tokio;
+
+use cbadv::config::{self, BaseConfig};
+use cbadv::traits::MessageCallback;
+use cbadv::types::CbResult;
+use cbadv::ws::{Channel, Message};
+use cbadv::WebSocketClient;
 
 /// Example of an object with an attached callback function for messages.
 struct CallbackObject {
@@ -63,7 +65,7 @@ async fn main() {
     };
 
     // Create a client to interact with the API.
-    let mut client = websocket::from_config(&config);
+    let mut client = WebSocketClient::from_config(&config);
 
     // Callback Object
     let cb_obj: CallbackObject = CallbackObject { total_processed: 0 };
@@ -71,22 +73,22 @@ async fn main() {
     // Connect to the websocket, a subscription needs to be sent within 5 seconds.
     // If a subscription is not sent, Coinbase will close the connection.
     let reader = client.connect().await.unwrap();
-    let listener = tokio::spawn(websocket::listener_with(reader, cb_obj));
+    let listener = tokio::spawn(WebSocketClient::listener_with(reader, cb_obj));
 
     // Products of interest.
     let products = vec!["BTC-USD".to_string(), "ETH-USD".to_string()];
 
+    // Heartbeats is a great way to keep a connection alive and not timeout.
+    client.sub(Channel::Heartbeats, &[]).await.unwrap();
+
     // Subscribe to user orders.
-    client.sub(Channel::USER, &products).await.unwrap();
+    client.sub(Channel::User, &products).await.unwrap();
 
     // Get updates (subscribe) on products and currencies.
-    client.sub(Channel::CANDLES, &products).await.unwrap();
-
-    // Heartbeats is a great way to keep a connection alive and not timeout.
-    client.sub(Channel::HEARTBEATS, &vec![]).await.unwrap();
+    client.sub(Channel::Candles, &products).await.unwrap();
 
     // Stop obtaining (unsubscribe) updates on products and currencies.
-    client.unsub(Channel::STATUS, &products).await.unwrap();
+    client.unsub(Channel::Status, &products).await.unwrap();
 
     // Passes the parser callback and listens for messages.
     listener.await.unwrap();

@@ -7,11 +7,11 @@
 //! - Obtain candles for specific product.
 //! - Obtain ticker (Market Trades) for specific product.
 
+use std::process::exit;
+
 use cbadv::config::{self, BaseConfig};
 use cbadv::product::{ListProductsQuery, TickerQuery};
-use cbadv::rest::RestClient;
-use cbadv::time;
-use std::process::exit;
+use cbadv::{time, RestClient};
 
 #[tokio::main]
 async fn main() {
@@ -39,7 +39,7 @@ async fn main() {
 
     // Pull a singular product from the Product API.
     println!("Getting product: {}.", product_pair);
-    let product = client.product.get(product_pair.clone()).await.unwrap();
+    let product = client.product.get(product_pair).await.unwrap();
     println!("{:#?}\n\n", product);
 
     println!("Getting best bids and asks.");
@@ -84,14 +84,10 @@ async fn main() {
     let start = time::before(end, interval * 730);
     let time_span = time::Span::new(start, end, &granularity);
     println!("Intervals collecting: {}", time_span.count());
-    match client
-        .product
-        .candles_ext(product_pair.clone(), &time_span)
-        .await
-    {
+    match client.product.candles_ext(product_pair, &time_span).await {
         Ok(candles) => {
             println!("Obtained {} candles.", candles.len());
-            match candles.get(0) {
+            match candles.first() {
                 Some(candle) => println!("{:#?}", candle),
                 None => println!("Out of bounds, no candles obtained."),
             }
@@ -102,7 +98,7 @@ async fn main() {
     // Pull ticker.
     println!("\n\nGetting ticker for: {}.", product_pair);
     let query = TickerQuery { limit: 200 };
-    match client.product.ticker(product_pair.clone(), &query).await {
+    match client.product.ticker(product_pair, &query).await {
         Ok(ticker) => {
             println!(
                 "best bid: {:#?}\nbest ask: {:#?}\ntrades: {:#?}",
@@ -110,7 +106,7 @@ async fn main() {
                 ticker.best_ask,
                 ticker.trades.len()
             );
-            match ticker.trades.get(0) {
+            match ticker.trades.first() {
                 Some(trade) => println!("{:#?}", trade),
                 None => println!("Out of bounds, no trades available."),
             }

@@ -6,12 +6,12 @@
 //! - Initialize and watch candles via WebSocket.
 //! - Process candles coming from API.
 
+use std::process::exit;
+
 use cbadv::config::{self, BaseConfig};
 use cbadv::product::{Candle, ListProductsQuery};
-use cbadv::rest::{self, RestClient};
-use cbadv::websocket::{self, CandleCallback};
-
-use std::process::exit;
+use cbadv::traits::CandleCallback;
+use cbadv::{RestClient, WebSocketClient};
 
 /// Example of user-defined struct to pass to the candle watcher.
 pub struct UserStruct {
@@ -84,8 +84,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + 'static>> {
     };
 
     // Create clients to interact with the API.
-    let mut rclient = rest::from_config(&config);
-    let mut wsclient = websocket::from_config(&config);
+    let mut rclient = RestClient::from_config(&config);
+    let mut wsclient = WebSocketClient::from_config(&config);
 
     // Products of interest.
     let products = get_products(&mut rclient).await;

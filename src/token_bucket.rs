@@ -23,7 +23,7 @@ impl TokenBucket {
     ///
     /// * `max_tokens` - Maximum amount of tokens allowed in the bucket.
     /// * `refill_rate` - How many tokens per second are refreshed.
-    pub fn new(max_tokens: f64, refill_rate: f64) -> Self {
+    pub(crate) fn new(max_tokens: f64, refill_rate: f64) -> Self {
         Self {
             max_tokens,
             refill_rate,
@@ -63,7 +63,7 @@ impl TokenBucket {
     }
 
     /// Blocks until a token is ready and immediately consumes it.
-    pub async fn wait_on(&mut self) {
+    pub(crate) async fn wait_on(&mut self) {
         while !self.consume() {
             async_sleep(self.next_token()).await;
         }

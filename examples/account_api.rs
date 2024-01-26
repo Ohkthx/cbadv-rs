@@ -5,10 +5,11 @@
 //! - Obtain specific account by ID (Product Name)
 //! - Obtain specific account by UUID.
 
+use std::process::exit;
+
 use cbadv::account::ListAccountsQuery;
 use cbadv::config::{self, BaseConfig};
-use cbadv::rest::RestClient;
-use std::process::exit;
+use cbadv::RestClient;
 
 #[tokio::main]
 async fn main() {
@@ -36,7 +37,7 @@ async fn main() {
 
     // Pull accounts by ID.
     println!("Obtaining account by ID (non-standard).");
-    match client.account.get_by_id(&product_name, None).await {
+    match client.account.get_by_id(product_name, None).await {
         Ok(account) => println!("{:#?}", account),
         Err(error) => println!("Unable to get account: {}", error),
     }
@@ -49,7 +50,7 @@ async fn main() {
             println!("Obtained {:#?} accounts.", accounts.len());
 
             // Find the UUID of an account to pull at the end.
-            match accounts.iter().position(|r| &r.currency == product_name) {
+            match accounts.iter().position(|r| r.currency == product_name) {
                 Some(index) => {
                     let account = accounts.get(index).unwrap();
                     account_uuid = account.uuid.clone();

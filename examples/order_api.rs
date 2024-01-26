@@ -8,10 +8,11 @@
 //! - Obtain multiple orders.
 //! - Obtain specific order by ID.
 
-use cbadv::config::{self, BaseConfig};
-use cbadv::order::{self, ListOrdersQuery, OrderSide};
-use cbadv::rest::RestClient;
 use std::process::exit;
+
+use cbadv::config::{self, BaseConfig};
+use cbadv::order::{ListOrdersQuery, OrderSide};
+use cbadv::RestClient;
 
 #[tokio::main]
 async fn main() {
@@ -58,7 +59,7 @@ async fn main() {
 
     if let Some(order_id) = edit_open_order_id {
         println!("\n\nEditing order for {}.", order_id);
-        match client.order.edit(&order_id, edit_price, total_size).await {
+        match client.order.edit(&order_id, total_size, edit_price).await {
             Ok(result) => println!("{:#?}", result),
             Err(error) => println!("Unable to edit order: {}", error),
         }
@@ -66,7 +67,7 @@ async fn main() {
 
     if cancel_open_orders {
         println!("\n\nCancelling all OPEN orders for {}.", product_pair);
-        match client.order.cancel_all(&product_pair).await {
+        match client.order.cancel_all(product_pair).await {
             Ok(result) => println!("{:#?}", result),
             Err(error) => println!("Unable to cancel orders: {}", error),
         }
@@ -82,7 +83,7 @@ async fn main() {
     let mut order_id = "".to_string();
     let query = ListOrdersQuery {
         product_id: Some(product_pair.to_string()),
-        order_side: Some(OrderSide::SELL),
+        order_side: Some(OrderSide::Sell),
         ..Default::default()
     };
 
@@ -90,7 +91,7 @@ async fn main() {
     match client.order.get_bulk(&query).await {
         Ok(orders) => {
             println!("Orders obtained: {:#?}", orders.orders.len());
-            match orders.orders.get(0) {
+            match orders.orders.first() {
                 Some(order) => {
                     order_id = order.order_id.clone();
                     println!("{:#?}", order);
@@ -107,7 +108,7 @@ async fn main() {
             }
 
             // Cancel the orders.
-            if cancel_open_orders && order_ids.len() > 0 {
+            if cancel_open_orders && !order_ids.is_empty() {
                 println!("\n\nCancelling open orders.");
                 match client.order.cancel(&order_ids).await {
                     Ok(summary) => println!("Order cancel result: {:#?}", summary),

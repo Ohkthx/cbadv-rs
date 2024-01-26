@@ -4,14 +4,10 @@
 //! This allows you to obtain product information such as: Ticker (Market Trades), Product and
 //! Currency information, Product Book, and Best Bids and Asks for multiple products.
 
-use crate::signer::Signer;
-use crate::time;
-use crate::utils::{deserialize_numeric, CbAdvError, CbResult, QueryBuilder};
 use serde::{Deserialize, Serialize};
-use std::fmt;
 
-/// Maximum amount returned.
-const CANDLE_MAXIMUM: usize = 300;
+use crate::traits::Query;
+use crate::utils::{deserialize_numeric, QueryBuilder};
 
 /// Represents a Product received from the Websocket API.
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -312,33 +308,33 @@ pub struct Ticker {
 
 /// Represents a list of Products received from the API.
 #[derive(Deserialize, Debug)]
-struct ListProductsResponse {
+pub(crate) struct ListProductsResponse {
     /// Array of objects, each representing one product.
-    pub products: Vec<Product>,
+    pub(crate) products: Vec<Product>,
     // Number of products that were returned.
     // NOTE: Disabled because `.len()` exists on the vector.
-    // pub num_products: i32,
+    // num_products: i32,
 }
 
 /// Represents a candle response from the API.
 #[derive(Deserialize, Debug)]
-struct CandleResponse {
+pub(crate) struct CandleResponse {
     /// Array of candles for the product.
-    pub candles: Vec<Candle>,
+    pub(crate) candles: Vec<Candle>,
 }
 
 /// Represents a best bid and ask response from the API.
 #[derive(Deserialize, Debug)]
-struct BidAskResponse {
+pub(crate) struct BidAskResponse {
     /// Array of product books.
-    pub pricebooks: Vec<ProductBook>,
+    pub(crate) pricebooks: Vec<ProductBook>,
 }
 
 /// Represents a product book response from the API.
 #[derive(Deserialize, Debug)]
-struct ProductBookResponse {
+pub(crate) struct ProductBookResponse {
     /// Price book for the product.
-    pub pricebook: ProductBook,
+    pub(crate) pricebook: ProductBook,
 }
 
 /// Represents parameters that are optional for List Products API request.
@@ -354,17 +350,15 @@ pub struct ListProductsQuery {
     pub product_ids: Option<Vec<String>>,
 }
 
-impl fmt::Display for ListProductsQuery {
+impl Query for ListProductsQuery {
     /// Converts the object into HTTP request parameters.
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let mut query = QueryBuilder::new();
-        query
+    fn to_query(&self) -> String {
+        QueryBuilder::new()
             .push_u32_optional("limit", self.limit)
             .push_u32_optional("offset", self.offset)
             .push_optional("product_type", &self.product_type)
-            .with_optional_vec("product_ids", &self.product_ids);
-
-        write!(f, "{}", query.build())
+            .with_optional_vec("product_ids", &self.product_ids)
+            .build()
     }
 }
 
@@ -375,238 +369,42 @@ pub struct TickerQuery {
     pub limit: u32,
 }
 
-impl fmt::Display for TickerQuery {
+impl Query for TickerQuery {
     /// Converts the object into HTTP request parameters.
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let mut query = QueryBuilder::new();
-        query.push("limit", &self.limit.to_string());
-
-        write!(f, "{}", query.build())
+    fn to_query(&self) -> String {
+        QueryBuilder::new().push("limit", self.limit).build()
     }
 }
 
-/// Provides access to the Product API for the service.
-pub struct ProductApi {
-    /// Object used to sign requests made to the API.
-    signer: Signer,
+/// Represents parameters for Ticker Product API request.
+#[derive(Serialize, Debug)]
+pub struct BidAskQuery {
+    pub product_ids: Vec<String>,
 }
 
-impl ProductApi {
-    /// Resource for the API.
-    const RESOURCE: &'static str = "/api/v3/brokerage/products";
-
-    /// Creates a new instance of the Product API. This grants access to product information.
-    ///
-    /// # Arguments
-    ///
-    /// * `signer` - A Signer that include the API Key & Secret along with a client to make
-    /// requests.
-    pub(crate) fn new(signer: Signer) -> Self {
-        Self { signer }
+impl Query for BidAskQuery {
+    /// Converts the object into HTTP request parameters.
+    fn to_query(&self) -> String {
+        QueryBuilder::new()
+            .with_optional_vec("product_ids", &Some(self.product_ids.clone()))
+            .build()
     }
+}
 
-    /// Obtains best bids and asks for a vector of product IDs..
-    ///
-    /// # Arguments
-    ///
-    /// * `product_ids` - A vector of strings the represents the product IDs of product books to
-    /// obtain.
-    ///
-    /// # Endpoint / Reference
-    ///
-    #[allow(rustdoc::bare_urls)]
-    /// https://api.coinbase.com/api/v3/brokerage/best_bid_ask
-    ///
-    /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getbestbidask>
-    pub async fn best_bid_ask(&mut self, product_ids: Vec<String>) -> CbResult<Vec<ProductBook>> {
-        let resource = "/api/v3/brokerage/best_bid_ask";
-        let query = format!("product_ids={}", product_ids.join("&product_ids="));
+/// Represents parameters for Ticker Product API request.
+#[derive(Serialize, Debug)]
+pub struct ProductBookQuery {
+    pub product_id: String,
+    /// Number of products to return.
+    pub limit: Option<u32>,
+}
 
-        match self.signer.get(resource, &query).await {
-            Ok(value) => match value.json::<BidAskResponse>().await {
-                Ok(bidasks) => Ok(bidasks.pricebooks),
-                Err(_) => Err(CbAdvError::BadParse("bid asks object".to_string())),
-            },
-            Err(error) => Err(error),
-        }
-    }
-
-    /// Obtains the product book (bids and asks) for the product ID provided.
-    ///
-    /// # Arguments
-    ///
-    /// * `product_id` - A string the represents the product's ID.
-    /// * `limit` - An integer the represents the amount to obtain, defaults to 250.
-    ///
-    /// # Endpoint / Reference
-    ///
-    #[allow(rustdoc::bare_urls)]
-    /// https://api.coinbase.com/api/v3/brokerage/product_book
-    ///
-    /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getproductbook>
-    pub async fn product_book(
-        &mut self,
-        product_id: &str,
-        limit: Option<u16>,
-    ) -> CbResult<ProductBook> {
-        let resource = "/api/v3/brokerage/product_book";
-        let query = format!("product_id={}&limit={}", product_id, limit.unwrap_or(250));
-
-        match self.signer.get(resource, &query).await {
-            Ok(value) => match value.json::<ProductBookResponse>().await {
-                Ok(book) => Ok(book.pricebook),
-                Err(_) => Err(CbAdvError::BadParse("product book object".to_string())),
-            },
-            Err(error) => Err(error),
-        }
-    }
-
-    /// Obtains a single product based on the Product ID (ex. "BTC-USD").
-    ///
-    /// # Arguments
-    ///
-    /// * `product_id` - A string the represents the product's ID.
-    ///
-    /// # Endpoint / Reference
-    ///
-    #[allow(rustdoc::bare_urls)]
-    /// https://api.coinbase.com/api/v3/brokerage/products/{product_id}
-    ///
-    /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getproduct>
-    pub async fn get(&mut self, product_id: &str) -> CbResult<Product> {
-        let resource = format!("{}/{}", Self::RESOURCE, product_id);
-        match self.signer.get(&resource, "").await {
-            Ok(value) => match value.json::<Product>().await {
-                Ok(product) => Ok(product),
-                Err(_) => Err(CbAdvError::BadParse("product object".to_string())),
-            },
-            Err(error) => Err(error),
-        }
-    }
-
-    /// Obtains bulk products from the API.
-    ///
-    /// # Arguments
-    ///
-    /// * `query` - Query used to obtain products.
-    ///
-    /// # Endpoint / Reference
-    ///
-    #[allow(rustdoc::bare_urls)]
-    /// https://api.coinbase.com/api/v3/brokerage/products
-    ///
-    /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getproducts>
-    pub async fn get_bulk(&mut self, query: &ListProductsQuery) -> CbResult<Vec<Product>> {
-        match self.signer.get(Self::RESOURCE, &query.to_string()).await {
-            Ok(value) => match value.json::<ListProductsResponse>().await {
-                Ok(resp) => Ok(resp.products),
-                Err(_) => Err(CbAdvError::BadParse("products vector".to_string())),
-            },
-            Err(error) => Err(error),
-        }
-    }
-
-    /// Obtains candles for a specific product.
-    ///
-    /// # Arguments
-    ///
-    /// * `product_id` - A string the represents the product's ID.
-    /// * `query` - Span of time to obtain.
-    ///
-    /// # Endpoint / Reference
-    ///
-    #[allow(rustdoc::bare_urls)]
-    /// https://api.coinbase.com/api/v3/brokerage/products/{product_id}/candles
-    ///
-    /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getcandles>
-    pub async fn candles(&mut self, product_id: &str, query: &time::Span) -> CbResult<Vec<Candle>> {
-        let resource = format!("{}/{}/candles", Self::RESOURCE, product_id);
-        match self.signer.get(&resource, &query.to_string()).await {
-            Ok(value) => match value.json::<CandleResponse>().await {
-                Ok(resp) => Ok(resp.candles),
-                Err(_) => Err(CbAdvError::BadParse("candle object".to_string())),
-            },
-            Err(error) => Err(error),
-        }
-    }
-
-    /// Obtains candles for a specific product extended. This will exceed the 300 limit threshold
-    /// and try to obtain the amount specified.
-    ///
-    /// NOTE: NOT A STANDARD API FUNCTION. QoL function that may require additional API requests than
-    /// normal.
-    ///
-    /// # Arguments
-    ///
-    /// * `product_id` - A string the represents the product's ID.
-    /// * `query` - Span of time to obtain.
-    pub async fn candles_ext(
-        &mut self,
-        product_id: &str,
-        query: &time::Span,
-    ) -> CbResult<Vec<Candle>> {
-        let resource = format!("{}/{}/candles", Self::RESOURCE, product_id);
-
-        // Make a copy of the query.
-        let end = query.end;
-        let interval = query.granularity as u64;
-        let maximum = CANDLE_MAXIMUM as u64;
-        let granularity = &time::Granularity::from_secs(query.granularity);
-
-        // Create new span.
-        let mut span = time::Span::new(query.start, end, granularity);
-        span.end = time::after(query.start, interval * maximum);
-        if span.end > end {
-            span.end = end;
-        }
-
-        let mut candles: Vec<Candle> = vec![];
-        while span.count() > 0 {
-            match self.signer.get(&resource, &span.to_string()).await {
-                Ok(value) => match value.json::<CandleResponse>().await {
-                    Ok(resp) => candles.extend(resp.candles),
-                    Err(_) => return Err(CbAdvError::BadParse("candle object".to_string())),
-                },
-                Err(error) => return Err(error),
-            }
-
-            // Update to get additional candles.
-            span.start = span.end;
-            span.end = time::after(span.start, interval * (CANDLE_MAXIMUM as u64));
-            if span.end > end {
-                span.end = end;
-            }
-
-            // Stop condition.
-            if span.start > span.end {
-                span.start = span.end;
-            }
-        }
-
-        Ok(candles)
-    }
-
-    /// Obtains product ticker from the API.
-    ///
-    /// # Arguments
-    ///
-    /// * `product_id` - A string the represents the product's ID.
-    /// * `query` - Amount of products to get.
-    ///
-    /// # Endpoint / Reference
-    ///
-    #[allow(rustdoc::bare_urls)]
-    /// https://api.coinbase.com/api/v3/brokerage/products/{product_id}/ticker
-    ///
-    /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getmarkettrades>
-    pub async fn ticker(&mut self, product_id: &str, query: &TickerQuery) -> CbResult<Ticker> {
-        let resource = format!("{}/{}/ticker", Self::RESOURCE, product_id);
-        match self.signer.get(&resource, &query.to_string()).await {
-            Ok(value) => match value.json::<Ticker>().await {
-                Ok(resp) => Ok(resp),
-                Err(_) => Err(CbAdvError::BadParse("ticker object".to_string())),
-            },
-            Err(error) => Err(error),
-        }
+impl Query for ProductBookQuery {
+    /// Converts the object into HTTP request parameters.
+    fn to_query(&self) -> String {
+        QueryBuilder::new()
+            .push("product_id", &self.product_id)
+            .push_u32_optional("limit", self.limit)
+            .build()
     }
 }
