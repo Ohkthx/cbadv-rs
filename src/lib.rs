@@ -14,6 +14,7 @@
 #[cfg(feature = "config")]
 pub mod config;
 
+pub(crate) mod jwt;
 pub(crate) mod signer;
 mod task_tracker;
 mod token_bucket;

@@ -9,6 +9,7 @@ use crate::signer::Signer;
 
 #[cfg(feature = "config")]
 use crate::config::ConfigFile;
+use crate::types::CbResult;
 
 /// Represents a Client for the API.
 pub struct RestClient {
@@ -31,14 +32,14 @@ impl RestClient {
     ///
     /// * `key` - A string that holds the key for the API service.
     /// * `secret` - A string that holds the secret for the API service.
-    pub fn new(key: &str, secret: &str) -> Self {
-        Self {
-            account: AccountApi::new(Signer::new(key.to_string(), secret.to_string(), true)),
-            product: ProductApi::new(Signer::new(key.to_string(), secret.to_string(), true)),
-            fee: FeeApi::new(Signer::new(key.to_string(), secret.to_string(), true)),
-            order: OrderApi::new(Signer::new(key.to_string(), secret.to_string(), true)),
-            convert: ConvertApi::new(Signer::new(key.to_string(), secret.to_string(), true)),
-        }
+    pub fn new(key: &str, secret: &str) -> CbResult<Self> {
+        Ok(Self {
+            account: AccountApi::new(Signer::new(key, secret, true)?),
+            product: ProductApi::new(Signer::new(key, secret, true)?),
+            fee: FeeApi::new(Signer::new(key, secret, true)?),
+            order: OrderApi::new(Signer::new(key, secret, true)?),
+            convert: ConvertApi::new(Signer::new(key, secret, true)?),
+        })
     }
 
     /// Creates a new instance of a Client using a configuration file. This is a wrapper for the various APIs and Signer.
@@ -47,7 +48,7 @@ impl RestClient {
     ///
     /// * `config` - Configuration that implements ConfigFile trait.
     #[cfg(feature = "config")]
-    pub fn from_config<T>(config: &T) -> Self
+    pub fn from_config<T>(config: &T) -> CbResult<Self>
     where
         T: ConfigFile,
     {

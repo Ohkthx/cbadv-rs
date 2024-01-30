@@ -65,7 +65,13 @@ async fn main() {
     };
 
     // Create a client to interact with the API.
-    let mut client = WebSocketClient::from_config(&config);
+    let mut client = match WebSocketClient::from_config(&config) {
+        Ok(c) => c,
+        Err(why) => {
+            eprintln!("!ERROR! {}", why);
+            exit(1)
+        }
+    };
 
     // Callback Object
     let cb_obj: CallbackObject = CallbackObject { total_processed: 0 };

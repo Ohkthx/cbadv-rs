@@ -1,7 +1,7 @@
 //! All constants for various API Endpoints
 
 /// Root resource for the API
-pub(crate) const API_ROOT_URI: &str = "https://api.coinbase.com";
+pub(crate) const API_ROOT_URI: &str = "api.coinbase.com";
 
 /// Accounts API constants
 pub(crate) mod accounts {
@@ -37,6 +37,11 @@ pub(crate) mod products {
     pub(crate) const PRODUCT_BOOK_ENDPOINT: &str = "/api/v3/brokerage/product_book";
 }
 
+/// REST API constants
+pub(crate) mod rest {
+    pub(crate) const SERVICE: &str = "retail_rest_api_proxy";
+}
+
 /// Websocket API constants
 pub(crate) mod websocket {
     pub(crate) const RESOURCE_ENDPOINT: &str = "wss://advanced-trade-ws.coinbase.com";
@@ -44,6 +49,7 @@ pub(crate) mod websocket {
     /// Granularity of Candles from the WebSocket Candle subscription.
     /// NOTE: This is a restriction by CoinBase and cannot be currently changed (20240125)
     pub(crate) const GRANULARITY: u64 = 300;
+    pub(crate) const SERVICE: &str = "public_websocket_api";
 }
 
 /// Amount of tokens per second refilled.

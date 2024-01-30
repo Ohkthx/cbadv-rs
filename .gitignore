@@ -5,3 +5,5 @@ target/
 configs/
 
 .vscode
+*.pem
+*.txt

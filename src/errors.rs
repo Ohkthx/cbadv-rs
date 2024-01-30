@@ -16,7 +16,9 @@ pub enum CbAdvError {
     /// Unable to locate resource.
     NotFound(String),
     /// Could not build the signature.
-    BadSignature,
+    BadSignature(String),
+    /// Could not identify the API Secret key type.
+    BadPrivateKey(String),
     /// Could not serialize the body of a message.
     BadSerialization,
     /// General unknown error.
@@ -27,8 +29,9 @@ impl fmt::Display for CbAdvError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             CbAdvError::Unknown(value) => write!(f, "unknown error occured: {}", value),
-            CbAdvError::BadSignature => write!(f, "could not sign the message to be sent"),
+            CbAdvError::BadSignature(value) => write!(f, "could not create signature: {}", value),
             CbAdvError::BadSerialization => write!(f, "could not serialize the message body"),
+            CbAdvError::BadPrivateKey(value) => write!(f, "invalid private key: {}", value),
             CbAdvError::BadParse(value) => write!(f, "could not parse: {}", value),
             CbAdvError::NothingToDo(value) => write!(f, "nothing to do: {}", value),
             CbAdvError::NotFound(value) => write!(f, "could not find: {}", value),

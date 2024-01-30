@@ -10,7 +10,7 @@ use tokio::net::TcpStream;
 use tokio::task::JoinHandle;
 use tokio_tungstenite::{connect_async, tungstenite, MaybeTlsStream, WebSocketStream};
 
-use crate::constants::websocket::RESOURCE_ENDPOINT;
+use crate::constants::websocket::{RESOURCE_ENDPOINT, SERVICE};
 use crate::errors::CbAdvError;
 use crate::models::websocket::{Channel, Subscription};
 use crate::signer::Signer;
@@ -41,11 +41,11 @@ impl WebSocketClient {
     ///
     /// * `key` - A string that holds the key for the API service.
     /// * `secret` - A string that holds the secret for the API service.
-    pub fn new(key: &str, secret: &str) -> Self {
-        Self {
-            signer: Signer::new(key.to_string(), secret.to_string(), false),
+    pub fn new(key: &str, secret: &str) -> CbResult<Self> {
+        Ok(Self {
+            signer: Signer::new(key, secret, false)?,
             socket_tx: None,
-        }
+        })
     }
 
     /// Creates a new instance of a Client using a configuration file. This is a wrapper for
@@ -55,7 +55,7 @@ impl WebSocketClient {
     ///
     /// * `config` - Configuration that implements ConfigFile trait.
     #[cfg(feature = "config")]
-    pub fn from_config<T>(config: &T) -> Self
+    pub fn from_config<T>(config: &T) -> CbResult<Self>
     where
         T: ConfigFile,
     {
@@ -171,20 +171,13 @@ impl WebSocketClient {
         let timestamp = time::now().to_string();
         let channel = channel.to_string();
 
-        // Get the signature for authentication.
-        let signature = self
-            .signer
-            .get_ws_signature(&timestamp, &channel, product_ids)
-            .map_err(|_| CbAdvError::BadSignature)?;
-
         // Create the subscription/unsubscription.
         let sub = Subscription {
             r#type: update,
             product_ids: product_ids.to_vec(),
             channel,
-            api_key: self.signer.api_key.clone(),
+            jwt: self.signer.get_jwt(SERVICE, None)?,
             timestamp,
-            signature,
         };
 
         match self.socket_tx {

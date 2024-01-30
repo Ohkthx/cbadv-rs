@@ -83,9 +83,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error + 'static>> {
         }
     };
 
-    // Create clients to interact with the API.
-    let mut rclient = RestClient::from_config(&config);
-    let mut wsclient = WebSocketClient::from_config(&config);
+    // Create a client to interact with the API.
+    let mut rclient = match RestClient::from_config(&config) {
+        Ok(c) => c,
+        Err(why) => {
+            eprintln!("!ERROR! {}", why);
+            exit(1)
+        }
+    };
+
+    // Create a client to interact with the API.
+    let mut wsclient = match WebSocketClient::from_config(&config) {
+        Ok(c) => c,
+        Err(why) => {
+            eprintln!("!ERROR! {}", why);
+            exit(1)
+        }
+    };
 
     // Products of interest.
     let products = get_products(&mut rclient).await;

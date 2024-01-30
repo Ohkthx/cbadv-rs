@@ -29,7 +29,13 @@ async fn main() {
     };
 
     // Create a client to interact with the API.
-    let mut client = RestClient::from_config(&config);
+    let mut client = match RestClient::from_config(&config) {
+        Ok(c) => c,
+        Err(why) => {
+            eprintln!("!ERROR! {}", why);
+            exit(1)
+        }
+    };
 
     // Parameters to send to the API.
     let params = TransactionSummaryQuery::default();

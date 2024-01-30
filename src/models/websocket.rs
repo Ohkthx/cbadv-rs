@@ -246,7 +246,6 @@ pub(crate) struct Subscription {
     pub(crate) r#type: String,
     pub(crate) product_ids: Vec<String>,
     pub(crate) channel: String,
-    pub(crate) api_key: String,
+    pub(crate) jwt: String,
     pub(crate) timestamp: String,
-    pub(crate) signature: String,
 }
