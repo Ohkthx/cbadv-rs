@@ -36,6 +36,11 @@ path = "examples/order_api.rs"
 required-features = ["config"]
 
 [[example]]
+name = "util_api"
+path = "examples/util_api.rs"
+required-features = ["config"]
+
+[[example]]
 name = "websocket"
 path = "examples/websocket.rs"
 required-features = ["config"]

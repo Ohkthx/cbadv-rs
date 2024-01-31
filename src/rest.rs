@@ -4,7 +4,7 @@
 //! This is the primary method of accessing the endpoints and handles all of the configurations and
 //! negotiations for the user.
 
-use crate::apis::{AccountApi, ConvertApi, FeeApi, OrderApi, ProductApi};
+use crate::apis::{AccountApi, ConvertApi, FeeApi, OrderApi, ProductApi, UtilApi};
 use crate::signer::Signer;
 
 #[cfg(feature = "config")]
@@ -23,6 +23,8 @@ pub struct RestClient {
     pub order: OrderApi,
     /// Gives access to the Convert API.
     pub convert: ConvertApi,
+    /// Gives access to the Util API.
+    pub util: UtilApi,
 }
 
 impl RestClient {
@@ -39,6 +41,7 @@ impl RestClient {
             fee: FeeApi::new(Signer::new(key, secret, true)?),
             order: OrderApi::new(Signer::new(key, secret, true)?),
             convert: ConvertApi::new(Signer::new(key, secret, true)?),
+            util: UtilApi::new(Signer::new(key, secret, true)?),
         })
     }
 

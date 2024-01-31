@@ -28,7 +28,7 @@ pub(crate) mod utils;
 
 pub(crate) mod apis;
 pub(crate) mod models;
-pub use models::{account, convert, fee, order, product, websocket as ws};
+pub use models::{account, convert, fee, order, product, util, websocket as ws};
 
 mod rest;
 mod websocket;

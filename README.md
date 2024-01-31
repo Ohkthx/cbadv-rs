@@ -21,9 +21,9 @@
 
 # Asynchronous CoinBase Advanced API
 
-The objective of this crate is to grant asynchronous access to the **CoinBase Advanced** REST and WebSocket API. Included with the crate are ways to organize your API Keys and Secrets inside of a configuration file.
+The objective of this crate is to grant highly performant asynchronous access to the **CoinBase Advanced** REST and WebSocket API. Included with the crate are ways to organize your API Keys and Secrets inside of a configuration file.
 
-This project is current a work-in-progress. Changes between versions can vary greatly as this API becomes more refined and adapts to CoinBase Advances changing state. I ask you to understand that I am not liable for any issues you may encounter while this project is in this state and encourage you to verify and test before committing to using this yourself in a serious manner.
+This project is current a work-in-progress. Changes between versions can vary greatly as this API becomes more refined and adapts to CoinBase Advances changing state. I ask you to understand that I am not liable for any issues you may encounter while this project is in this state and encourage you to verify and test before committing to using this yourself in a serious manner such as in production.
 
 Contributions are encouraged! The API reference can be seen at [CoinBase Advanced API](https://docs.cloud.coinbase.com/advanced-trade-api/reference). If you wish to add this to your project, either use `cargo add cbadv` or add the following line to your dependencies section in **Cargo.toml**:
 
@@ -37,8 +37,8 @@ cbadv = { git = "https://github.com/ohkthx/cbadv-rs", branch = "main" }
 - Asynchronous.
 - Easy-to-use REST and WebSocket clients.
 - Configuration file to hold API Key and API Secret. `features = ["config"]`
-- Covers all REST endpoints currently accessible (as of 20231127).
-- Covers all WebSocket endpoints currently accessible (as of 20231127).
+- Covers all REST endpoints currently accessible (as of 20231206).
+- Covers all WebSocket endpoints currently accessible (as of 20231206).
 - Lots of examples! Check them out to get started.
 
 ## Documentation
@@ -96,6 +96,8 @@ Client: `use cbadv::RestClient`
   - Create Quote (untested) [client.convert.create_quote]
   - Get Convert (untested) [client.convert.get]
   - Commit Convert (untested) [client.convert.commit]
+- **Utils [client.util]**
+  - Get API Unix Time [client.util.unixtime]
 
 ### Added Requests and Features
 
