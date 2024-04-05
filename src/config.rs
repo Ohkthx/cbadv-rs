@@ -113,11 +113,11 @@ where
     match fs::read_to_string(path) {
         Ok(contents) => match toml::from_str::<T>(&contents) {
             Ok(value) => Ok(value),
-            Err(_) => return Err(
+            Err(_) => Err(
                 "unable to parse configuration, check the syntax or sample version for reference.",
             ),
         },
-        Err(_) => return Err("unable to open the configuration file."),
+        Err(_) => Err("unable to open the configuration file."),
     }
 }
 

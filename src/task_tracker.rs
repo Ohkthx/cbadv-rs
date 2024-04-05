@@ -1,22 +1,19 @@
 //! Task Tracker is the underlying object used to track candle updates.
 
-use crate::product::{Candle, CandleUpdate};
-use crate::time::Granularity;
-use crate::utils::Result as APIResult;
-use crate::websocket::{
-    self, CandleCallback, CandlesEvent, Message, MessageCallback, WebSocketReader,
-};
-
-use chrono::Utc;
 use std::cmp::{Ord, Ordering};
 use std::collections::HashMap;
 
-/// Granularity of Candles from the WebSocket Candle subscription.
-/// NOTE: This is a restriction by CoinBase and cannot be currently changed (20231015)
-const WEBSOCKET_GRANULARITY: Granularity = Granularity::FiveMinute;
+use chrono::Utc;
+
+use crate::constants::websocket::GRANULARITY;
+use crate::models::product::{Candle, CandleUpdate};
+use crate::models::websocket::{CandlesEvent, Message};
+use crate::traits::{CandleCallback, MessageCallback};
+use crate::types::{CbResult, WebSocketReader};
+use crate::WebSocketClient;
 
 /// Tracks the candle watcher task.
-pub struct TaskTracker<T>
+pub(crate) struct TaskTracker<T>
 where
     T: CandleCallback,
 {
@@ -36,7 +33,7 @@ where
     ///
     /// * `reader` - WebSocket reader to receive updates.
     /// * `user_obj` - User object that implements `CandleCallback` to receive completed candles.
-    pub async fn start(reader: WebSocketReader, user_obj: T)
+    pub(crate) async fn start(reader: WebSocketReader, user_obj: T)
     where
         T: CandleCallback,
     {
@@ -46,7 +43,7 @@ where
         };
 
         // Start the listener.
-        websocket::listener_with(reader, tracker).await;
+        WebSocketClient::listener_with(reader, tracker).await;
     }
 
     /// Returns a completed candle. A completed candle means a candle with a newer timestamp was passed
@@ -75,7 +72,7 @@ where
                 self.candles.insert(product_id.to_string(), new_candle);
             }
         }
-        return None;
+        None
     }
 }
 
@@ -84,12 +81,12 @@ where
     T: CandleCallback,
 {
     /// Required to pass TaskTracker to the websocket listener.
-    fn message_callback(&mut self, msg: APIResult<Message>) {
+    fn message_callback(&mut self, msg: CbResult<Message>) {
         // Filter all non-candle and empty updates.
         let ev: Vec<CandlesEvent> = match msg {
             Ok(value) => match value {
                 Message::Candles(value) => {
-                    if value.events.len() == 0 {
+                    if value.events.is_empty() {
                         // No events / updates to process.
                         return;
                     }
@@ -127,7 +124,7 @@ where
 
         // Get the current "start" time for a candle.
         let now: u64 = Utc::now().timestamp() as u64;
-        let start: u64 = now - (now % (Granularity::to_secs(&WEBSOCKET_GRANULARITY) as u64 * 2));
+        let start: u64 = now - (now % (GRANULARITY * 2));
 
         // Call the users object.
         self.user_watcher.candle_callback(start, product_id, candle);

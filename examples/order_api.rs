@@ -2,24 +2,27 @@
 //!
 //! Shows how to:
 //! - Create an order.
-//! - Cancel an order.
+//! - Edit an order.
 //! - Cancel all OPEN orders.
 //! - Obtain ALL orders.
 //! - Obtain multiple orders.
 //! - Obtain specific order by ID.
 
+use std::process::exit;
+
 use cbadv::config::{self, BaseConfig};
 use cbadv::order::{ListOrdersQuery, OrderSide};
-use cbadv::rest::RestClient;
-use std::process::exit;
+use cbadv::RestClient;
 
 #[tokio::main]
 async fn main() {
     let create_trade: bool = false;
     let cancel_open_orders: bool = false;
-    let product_pair: &str = "DOT-USD";
-    let total_size: f64 = 3.00;
-    let price: f64 = 10.00;
+    let edit_open_order_id: Option<String> = None;
+    let product_pair: &str = "DOGE-USD";
+    let total_size: f64 = 300.0;
+    let price: f64 = 100.00;
+    let edit_price: f64 = 50.00;
     let side: &str = "SELL";
 
     // Load the configuration file.
@@ -40,7 +43,13 @@ async fn main() {
     };
 
     // Create a client to interact with the API.
-    let mut client = RestClient::from_config(&config);
+    let mut client = match RestClient::from_config(&config) {
+        Ok(c) => c,
+        Err(why) => {
+            eprintln!("!ERROR! {}", why);
+            exit(1)
+        }
+    };
 
     if create_trade {
         println!("Creating Order for {}.", product_pair);
@@ -54,10 +63,20 @@ async fn main() {
         }
     }
 
-    println!("\n\nCancelling all OPEN orders for {}.", product_pair);
-    match client.order.cancel_all(&product_pair).await {
-        Ok(result) => println!("{:#?}", result),
-        Err(error) => println!("Unable to cancel orders: {}", error),
+    if let Some(order_id) = edit_open_order_id {
+        println!("\n\nEditing order for {}.", order_id);
+        match client.order.edit(&order_id, total_size, edit_price).await {
+            Ok(result) => println!("{:#?}", result),
+            Err(error) => println!("Unable to edit order: {}", error),
+        }
+    }
+
+    if cancel_open_orders {
+        println!("\n\nCancelling all OPEN orders for {}.", product_pair);
+        match client.order.cancel_all(product_pair).await {
+            Ok(result) => println!("{:#?}", result),
+            Err(error) => println!("Unable to cancel orders: {}", error),
+        }
     }
 
     println!("\n\nGetting all orders for {}.", product_pair);
@@ -66,11 +85,11 @@ async fn main() {
         Err(error) => println!("Unable to obtain all orders: {}", error),
     }
 
-    // Get all BUYING orders.
+    // Get all SELLING orders.
     let mut order_id = "".to_string();
     let query = ListOrdersQuery {
         product_id: Some(product_pair.to_string()),
-        order_side: Some(OrderSide::SELL),
+        order_side: Some(OrderSide::Sell),
         ..Default::default()
     };
 
@@ -78,7 +97,7 @@ async fn main() {
     match client.order.get_bulk(&query).await {
         Ok(orders) => {
             println!("Orders obtained: {:#?}", orders.orders.len());
-            match orders.orders.get(0) {
+            match orders.orders.first() {
                 Some(order) => {
                     order_id = order.order_id.clone();
                     println!("{:#?}", order);
@@ -95,7 +114,7 @@ async fn main() {
             }
 
             // Cancel the orders.
-            if cancel_open_orders && order_ids.len() > 0 {
+            if cancel_open_orders && !order_ids.is_empty() {
                 println!("\n\nCancelling open orders.");
                 match client.order.cancel(&order_ids).await {
                     Ok(summary) => println!("Order cancel result: {:#?}", summary),

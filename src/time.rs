@@ -4,8 +4,10 @@
 //! spans of time such as in the Product API for obtaining Candles.
 
 use serde::Serialize;
-use std::fmt;
 use std::time::{SystemTime, UNIX_EPOCH};
+
+use crate::traits::Query;
+use crate::utils::QueryBuilder;
 
 /// One minute of time in seconds.
 const ONE_MINUTE: u32 = 60;
@@ -94,7 +96,7 @@ impl Span {
     /// * `end` - An unsigned int that holds the end point of the span.
     /// * `granularity` - A Granularity that represents blocks of time in seconds.
     pub fn new(start: u64, end: u64, granularity: &Granularity) -> Self {
-        let granularity_sec = Granularity::to_secs(&granularity);
+        let granularity_sec = Granularity::to_secs(granularity);
 
         // Clean the time, they have to be the correct offset.
         // end = end - (end % granularity_sec as u64);
@@ -116,9 +118,8 @@ impl Span {
     }
 }
 
-impl fmt::Display for Span {
-    /// Converts the object into HTTP request parameters.
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+impl Query for Span {
+    fn to_query(&self) -> String {
         let granularity = Granularity::from_secs(self.granularity);
         let granularity_str: &str = match granularity {
             Granularity::OneMinute => "ONE_MINUTE",
@@ -135,11 +136,11 @@ impl fmt::Display for Span {
             Granularity::UnknownGranularity => "UNKNOWN_GRANULARITY",
         };
 
-        write!(
-            f,
-            "start={}&end={}&granularity={}",
-            self.start, self.end, granularity_str
-        )
+        QueryBuilder::new()
+            .push("start", self.start)
+            .push("end", self.end)
+            .push("granularity", granularity_str)
+            .build()
     }
 }
 

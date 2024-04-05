@@ -3,3 +3,7 @@ commit_msg
 
 target/
 configs/
+
+.vscode
+*.pem
+*.txt

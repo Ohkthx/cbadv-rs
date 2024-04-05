@@ -21,9 +21,9 @@
 
 # Asynchronous CoinBase Advanced API
 
-The objective of this crate is to grant asynchronous access to the **CoinBase Advanced** REST and WebSocket API. Included with the crate are ways to organize your API Keys and Secrets inside of a configuration file.
+The objective of this crate is to grant highly performant asynchronous access to the **CoinBase Advanced** REST and WebSocket API. Included with the crate are ways to organize your API Keys and Secrets inside of a configuration file.
 
-This project is current a work-in-progress. Changes between versions can vary greatly as this API becomes more refined and adapts to CoinBase Advances changing state. I ask you to understand that I am not liable for any issues you may encounter while this project is in this state and encourage you to verify and test before committing to using this yourself in a serious manner.
+This project is current a work-in-progress. Changes between versions can vary greatly as this API becomes more refined and adapts to CoinBase Advances changing state. I ask you to understand that I am not liable for any issues you may encounter while this project is in this state and encourage you to verify and test before committing to using this yourself in a serious manner such as in production.
 
 Contributions are encouraged! The API reference can be seen at [CoinBase Advanced API](https://docs.cloud.coinbase.com/advanced-trade-api/reference). If you wish to add this to your project, either use `cargo add cbadv` or add the following line to your dependencies section in **Cargo.toml**:
 
@@ -33,11 +33,12 @@ cbadv = { git = "https://github.com/ohkthx/cbadv-rs", branch = "main" }
 ```
 
 ## Features
+
 - Asynchronous.
 - Easy-to-use REST and WebSocket clients.
 - Configuration file to hold API Key and API Secret. `features = ["config"]`
-- Covers all REST endpoints currently accessible (as of 20231016).
-- Covers all WebSocket endpoints currently accessible (as of 20231016).
+- Covers all REST endpoints currently accessible (as of 20231206).
+- Covers all WebSocket endpoints currently accessible (as of 20231206).
 - Lots of examples! Check them out to get started.
 
 ## Documentation
@@ -48,7 +49,7 @@ Most of the documentation can be accessed by clicking the following link: [docs.
 
 #### WebSocket API
 
-Client: `use cbadv::websocket::WebSocketClient`
+Client: `use cbadv::WebSocketClient`
 
 - **Authentication** [client.connect]
 - **Subscribe** [client.subscribe / client.sub]
@@ -62,10 +63,9 @@ Client: `use cbadv::websocket::WebSocketClient`
   - User [Channel::USER]
   - Market Trades [Channel::MARKET_TRADES]
 
-
 #### REST API
 
-Client: `use cbadv::rest::RestClient`
+Client: `use cbadv::RestClient`
 
 - **Accounts [client.account]**
   - List Accounts [client.account.get_bulk]
@@ -78,18 +78,26 @@ Client: `use cbadv::rest::RestClient`
   - Get Product Candles [client.product.candles]
   - Get Market Trades (Ticker) [client.product.ticker]
 - **Orders [client.order]**
-  - Create Order 
+  - Create Order
     - Market IOC (untested) [client.order.create_market]
     - Limit GTC [client.order.create_limit_gtc]
     - Limit GTD (untested) [client.order.create_limit_gtd]
     - Stop Limit GTC (untested) [client.order.create_stop_limit_gtc]
     - Stop Limit GTD (untested) [client.order.create_stop_limit_gtd]
+  - Edit Orders [client.order.edit]
+  - Edit Orders Preview [client.order.preview_edit]
   - Cancel Orders [client.order.cancel]
   - List Orders [client.order.get_bulk]
   - List Fills (untested) [client.order.fills]
   - Get Order [client.order.get]
 - **Fees [client.fee]**
   - Get Transaction Summary [client.fee.get]
+- **Converts [client.convert]**
+  - Create Quote (untested) [client.convert.create_quote]
+  - Get Convert (untested) [client.convert.get]
+  - Commit Convert (untested) [client.convert.commit]
+- **Utils [client.util]**
+  - Get API Unix Time [client.util.unixtime]
 
 ### Added Requests and Features
 
@@ -117,7 +125,7 @@ Configuration requires you to add the 'config' feature (`features = ["config"]`)
 
 Copy the `config.toml.sample` to `config.toml` and add in your API information. The `config.toml` file will automatically be read on launch to access your accounts API information. Unlike the depreciated CoinBase Pro API, there's no longer access to Public API endpoints. All access requires authentication. The key and secret is authentication requirements for HTTP requests to be properly [signed](https://docs.cloud.coinbase.com/advanced-trade-api/docs/rest-api-auth) and accepted by CoinBase.
 
-__**Custom configurations**__ can be created with additional sections beyond just `[coinbase]`. See [custom_config.toml.sample](https://github.com/Ohkthx/cbadv-rs/tree/main/custom_config.toml.sample) for an example of the configuration file. An example of how to implement and create a custom configuration file can be seen in [custom_config.rs](https://github.com/Ohkthx/cbadv-rs/tree/main/examples/custom_config.rs).
+\***\*Custom configurations\*\*** can be created with additional sections beyond just `[coinbase]`. See [custom_config.toml.sample](https://github.com/Ohkthx/cbadv-rs/tree/main/custom_config.toml.sample) for an example of the configuration file. An example of how to implement and create a custom configuration file can be seen in [custom_config.rs](https://github.com/Ohkthx/cbadv-rs/tree/main/examples/custom_config.rs).
 
 Example of enabled `config` feature in `Cargo.toml`.
 
@@ -133,6 +141,7 @@ Check above in the **Covered API requests** section for possibly covered example
 ## Tips Appreciated!
 
 Wallet addresses are provided below, or click the badges above!
+
 ```
 Ethereum (ETH): 0x7d75f6a9c021fcc70691fec73368198823fb0f60
 Bitcoin (BTC):  bc1q75w3cgutug8qdxw3jlmqnkjlv9alt3jr7ftha0

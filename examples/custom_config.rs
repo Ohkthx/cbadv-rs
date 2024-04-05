@@ -3,10 +3,12 @@
 //! Shows how to:
 //! - Define a custom configuration file and use it with the API.
 
-use cbadv::config::{self, ApiConfig, ConfigFile};
-use cbadv::rest::RestClient;
-use serde::{Deserialize, Serialize};
 use std::process::exit;
+
+use serde::{Deserialize, Serialize};
+
+use cbadv::config::{self, ApiConfig, ConfigFile};
+use cbadv::RestClient;
 
 /// `[general]` section in the configuration file.
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -64,7 +66,13 @@ async fn main() {
     };
 
     // Create a client to interact with the API.
-    let mut client = RestClient::from_config(&config);
+    let mut client = match RestClient::from_config(&config) {
+        Ok(c) => c,
+        Err(why) => {
+            eprintln!("!ERROR! {}", why);
+            exit(1)
+        }
+    };
 
     // Pull a singular product from the Product API.
     println!("Getting product: {}.", config.general.product_id);

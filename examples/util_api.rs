@@ -1,12 +1,11 @@
-//! # Fee API Example, check out the Fee API for all functionality.
+//! # Util API Example, check out the Util API for all functionality.
 //!
 //! Shows how to:
-//! - Obtain Transaction Summary / Fees
+//! - Obtain the API Unix time.
 
 use std::process::exit;
 
 use cbadv::config::{self, BaseConfig};
-use cbadv::fee::TransactionSummaryQuery;
 use cbadv::RestClient;
 
 #[tokio::main]
@@ -37,13 +36,10 @@ async fn main() {
         }
     };
 
-    // Parameters to send to the API.
-    let params = TransactionSummaryQuery::default();
-
-    // Get fee transaction summary.
-    println!("Obtaining Transaction Fee Summary");
-    match client.fee.get(&params).await {
-        Ok(summary) => println!("{:#?}", summary),
-        Err(error) => println!("Unable to get the Transaction Summary: {}", error),
+    // Get API Unix time.
+    println!("Obtaining API Unix time");
+    match client.util.unixtime().await {
+        Ok(time) => println!("{:#?}", time),
+        Err(error) => println!("Unable to get the Unix time: {}", error),
     }
 }
