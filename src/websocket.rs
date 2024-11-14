@@ -41,9 +41,10 @@ impl WebSocketClient {
     ///
     /// * `key` - A string that holds the key for the API service.
     /// * `secret` - A string that holds the secret for the API service.
-    pub fn new(key: &str, secret: &str) -> CbResult<Self> {
+    /// * `use_sandbox` - A boolean that determines if the sandbox should be used.
+    pub fn new(key: &str, secret: &str, use_sandbox: bool) -> CbResult<Self> {
         Ok(Self {
-            signer: Signer::new(key, secret, false)?,
+            signer: Signer::new(key, secret, false, use_sandbox)?,
             socket_tx: None,
         })
     }
@@ -59,7 +60,11 @@ impl WebSocketClient {
     where
         T: ConfigFile,
     {
-        Self::new(&config.coinbase().api_key, &config.coinbase().api_secret)
+        Self::new(
+            &config.coinbase().api_key,
+            &config.coinbase().api_secret,
+            config.coinbase().use_sandbox,
+        )
     }
 
     /// Connects to the WebSocket. This is required before subscribing, unsubscribing, and
@@ -85,8 +90,7 @@ impl WebSocketClient {
     /// # Arguments
     ///
     /// * `reader` - Allows the listener to receive messages. `Obtained from connect``.
-    /// * `callback` - A callback function that is trigger and passed the Message received via
-    /// WebSocket, if an error occurred.
+    /// * `callback` - A callback function that is trigger and passed the Message received via WebSocket, if an error occurred.
     pub async fn listener(reader: WebSocketReader, callback: MessageCallbackFn) {
         // Read messages and send to the callback as they come in.
         let read_future = reader.for_each(|message| {

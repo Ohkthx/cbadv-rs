@@ -10,6 +10,7 @@ use serde::de::Visitor;
 use serde::{de, Deserialize, Deserializer};
 
 /// Enum representing different types of inputs.
+#[allow(dead_code)]
 #[derive(Deserialize)]
 #[serde(untagged)]
 enum StringNumericOrNull {

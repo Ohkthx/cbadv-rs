@@ -4,12 +4,12 @@
 //! all requests to the API for ensure proper authentication. Signer is also responsible for handling
 //! the GET and POST requests.
 
-use reqwest::header::CONTENT_TYPE;
+use reqwest::header::{CONTENT_TYPE, USER_AGENT};
 use reqwest::{Response, StatusCode};
 use serde::Serialize;
 
-use crate::constants::API_ROOT_URI;
 use crate::constants::{ratelimits, rest};
+use crate::constants::{API_ROOT_URI, API_SANDBOX_ROOT_URI, CRATE_USER_AGENT};
 use crate::errors::CbAdvError;
 use crate::jwt::Jwt;
 use crate::token_bucket::TokenBucket;
@@ -64,6 +64,8 @@ pub(crate) struct Signer {
     client: reqwest::Client,
     /// Token bucket, used for rate limiting.
     pub(crate) bucket: TokenBucket,
+    /// Root URI for the API.
+    pub(crate) root_uri: &'static str,
 }
 
 /// Responsible for signing and sending HTTP requests.
@@ -75,7 +77,19 @@ impl Signer {
     /// * `api_key` - A string that holds the key for the API service.
     /// * `api_secret` - A string that holds the secret for the API service.
     /// * `is_rest` - Signer for REST Client, true, otherwise false.
-    pub(crate) fn new(api_key: &str, api_secret: &str, is_rest: bool) -> CbResult<Self> {
+    /// * `use_sandbox` - A boolean that determines if the sandbox should be used.
+    pub(crate) fn new(
+        api_key: &str,
+        api_secret: &str,
+        is_rest: bool,
+        use_sandbox: bool,
+    ) -> CbResult<Self> {
+        let root_uri = if use_sandbox {
+            API_SANDBOX_ROOT_URI
+        } else {
+            API_ROOT_URI
+        };
+
         Ok(Self {
             jwt: Jwt::new(api_key, api_secret)?,
             client: reqwest::Client::new(),
@@ -83,6 +97,7 @@ impl Signer {
                 RateLimits::max_tokens(is_rest),
                 RateLimits::refresh_rate(is_rest),
             ),
+            root_uri,
         })
     }
 
@@ -100,13 +115,13 @@ impl Signer {
     pub(crate) async fn get(&mut self, resource: &str, query: &impl Query) -> CbResult<Response> {
         // Efficiently construct the URL.
         let url = match query.to_query() {
-            value if !value.is_empty() => format!("https://{}{}{}", API_ROOT_URI, resource, value),
-            _ => format!("https://{}{}", API_ROOT_URI, resource),
+            value if !value.is_empty() => format!("https://{}{}{}", self.root_uri, resource, value),
+            _ => format!("https://{}{}", self.root_uri, resource),
         };
 
         // Create the signature and submit the request.
         // let uri = format!("{} {}", Method::GET, resource);
-        let uri = Jwt::build_uri("GET", API_ROOT_URI, resource);
+        let uri = Jwt::build_uri("GET", self.root_uri, resource);
         let token = self.get_jwt(rest::SERVICE, Some(&uri))?;
 
         // Wait until a token is available to make the request. Immediately consume it.
@@ -118,6 +133,7 @@ impl Signer {
             .get(&url)
             .bearer_auth(token)
             .header(CONTENT_TYPE, "application/json")
+            .header(USER_AGENT, CRATE_USER_AGENT)
             .send()
             .await
             .map_err(|_| CbAdvError::Unknown("GET request to API".to_string()))?;
@@ -149,15 +165,15 @@ impl Signer {
     ) -> CbResult<Response> {
         // Efficiently construct the URL.
         let url = match query.to_query() {
-            value if !value.is_empty() => format!("https://{}{}{}", API_ROOT_URI, resource, value),
-            _ => format!("https://{}{}", API_ROOT_URI, resource),
+            value if !value.is_empty() => format!("https://{}{}{}", self.root_uri, resource, value),
+            _ => format!("https://{}{}", self.root_uri, resource),
         };
 
         // Serialize the body and handle potential serialization errors.
         let body_str = serde_json::to_string(&body).map_err(|_| CbAdvError::BadSerialization)?;
 
         // Create the signature and handle potential errors.
-        let uri = Jwt::build_uri("POST", API_ROOT_URI, resource);
+        let uri = Jwt::build_uri("POST", self.root_uri, resource);
         let token = self.get_jwt(rest::SERVICE, Some(&uri))?;
 
         // Wait until a token is available to make the request. Immediately consume it.
@@ -169,6 +185,7 @@ impl Signer {
             .post(&url)
             .bearer_auth(token)
             .header(CONTENT_TYPE, "application/json")
+            .header(USER_AGENT, CRATE_USER_AGENT)
             .body(body_str)
             .send()
             .await

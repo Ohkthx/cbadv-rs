@@ -34,14 +34,15 @@ impl RestClient {
     ///
     /// * `key` - A string that holds the key for the API service.
     /// * `secret` - A string that holds the secret for the API service.
-    pub fn new(key: &str, secret: &str) -> CbResult<Self> {
+    /// * `use_sandbox` - A boolean that determines if the sandbox should be used.
+    pub fn new(key: &str, secret: &str, use_sandbox: bool) -> CbResult<Self> {
         Ok(Self {
-            account: AccountApi::new(Signer::new(key, secret, true)?),
-            product: ProductApi::new(Signer::new(key, secret, true)?),
-            fee: FeeApi::new(Signer::new(key, secret, true)?),
-            order: OrderApi::new(Signer::new(key, secret, true)?),
-            convert: ConvertApi::new(Signer::new(key, secret, true)?),
-            util: UtilApi::new(Signer::new(key, secret, true)?),
+            account: AccountApi::new(Signer::new(key, secret, true, use_sandbox)?),
+            product: ProductApi::new(Signer::new(key, secret, true, use_sandbox)?),
+            fee: FeeApi::new(Signer::new(key, secret, true, use_sandbox)?),
+            order: OrderApi::new(Signer::new(key, secret, true, use_sandbox)?),
+            convert: ConvertApi::new(Signer::new(key, secret, true, use_sandbox)?),
+            util: UtilApi::new(Signer::new(key, secret, true, use_sandbox)?),
         })
     }
 
@@ -55,6 +56,10 @@ impl RestClient {
     where
         T: ConfigFile,
     {
-        Self::new(&config.coinbase().api_key, &config.coinbase().api_secret)
+        Self::new(
+            &config.coinbase().api_key,
+            &config.coinbase().api_secret,
+            config.coinbase().use_sandbox,
+        )
     }
 }

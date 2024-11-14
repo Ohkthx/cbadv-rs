@@ -5,3 +5,4 @@ version = 1
 api_key = "YOUR_COINBASE_API_KEY_HERE"
 api_secret = "YOUR_COINBASE_API_SECRET_HERE"
 debug = false
+use_sandbox = true
