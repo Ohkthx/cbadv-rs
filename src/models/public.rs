@@ -1,6 +1,6 @@
-//! # Coinbase Advanced Util API
+//! # Coinbase Advanced Public API
 //!
-//! `util` gives access to the Util API and the various endpoints associated with it.
+//! `public` gives access to the Public API and the various endpoints associated with it.
 //! Some of the features include getting the API current time in ISO format.
 
 use serde::{Deserialize, Serialize};
@@ -9,7 +9,7 @@ use crate::utils::deserialize_numeric;
 
 /// Get the current time from the Coinbase Advanced API.
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct UnixTime {
+pub struct ServerTime {
     /// An ISO-8601 representation of the timestamp.
     pub iso: String,
     /// A second-precision representation of the timestamp.

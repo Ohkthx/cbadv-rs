@@ -23,7 +23,7 @@ async fn main() {
     let total_size: f64 = 300.0;
     let price: f64 = 100.00;
     let edit_price: f64 = 50.00;
-    let side: &str = "SELL";
+    let side: OrderSide = OrderSide::Buy;
 
     // Load the configuration file.
     let config: BaseConfig = match config::load("config.toml") {
@@ -55,7 +55,7 @@ async fn main() {
         println!("Creating Order for {}.", product_pair);
         match client
             .order
-            .create_limit_gtc(product_pair, side, &total_size, &price, true)
+            .create_limit_gtc(product_pair, &side, &total_size, &price, true)
             .await
         {
             Ok(summary) => println!("Order creation result: {:#?}", summary),

@@ -4,8 +4,8 @@
 //! This is the primary method of accessing the endpoints and handles all of the configurations and
 //! negotiations for the user.
 
-use crate::apis::{AccountApi, ConvertApi, FeeApi, OrderApi, ProductApi, UtilApi};
-use crate::signer::Signer;
+use crate::apis::{AccountApi, ConvertApi, FeeApi, OrderApi, ProductApi, PublicApi};
+use crate::http_agent::{PublicHttpAgent, SecureHttpAgent};
 
 #[cfg(feature = "config")]
 use crate::config::ConfigFile;
@@ -23,8 +23,8 @@ pub struct RestClient {
     pub order: OrderApi,
     /// Gives access to the Convert API.
     pub convert: ConvertApi,
-    /// Gives access to the Util API.
-    pub util: UtilApi,
+    /// Gives access to the Public API.
+    pub public: PublicApi,
 }
 
 impl RestClient {
@@ -36,13 +36,15 @@ impl RestClient {
     /// * `secret` - A string that holds the secret for the API service.
     /// * `use_sandbox` - A boolean that determines if the sandbox should be used.
     pub fn new(key: &str, secret: &str, use_sandbox: bool) -> CbResult<Self> {
+        let agent = SecureHttpAgent::new(key, secret, true, use_sandbox)?;
+
         Ok(Self {
-            account: AccountApi::new(Signer::new(key, secret, true, use_sandbox)?),
-            product: ProductApi::new(Signer::new(key, secret, true, use_sandbox)?),
-            fee: FeeApi::new(Signer::new(key, secret, true, use_sandbox)?),
-            order: OrderApi::new(Signer::new(key, secret, true, use_sandbox)?),
-            convert: ConvertApi::new(Signer::new(key, secret, true, use_sandbox)?),
-            util: UtilApi::new(Signer::new(key, secret, true, use_sandbox)?),
+            account: AccountApi::new(agent.clone()),
+            product: ProductApi::new(agent.clone()),
+            fee: FeeApi::new(agent.clone()),
+            order: OrderApi::new(agent.clone()),
+            convert: ConvertApi::new(agent),
+            public: PublicApi::new(PublicHttpAgent::new(true, use_sandbox)?),
         })
     }
 
@@ -61,5 +63,37 @@ impl RestClient {
             &config.coinbase().api_secret,
             config.coinbase().use_sandbox,
         )
+    }
+}
+
+/// Represents a Public Client for the API.
+pub struct PublicRestClient {
+    /// Gives access to the Public API.
+    pub public: PublicApi,
+}
+
+impl PublicRestClient {
+    /// Creates a new instance of a Client. This is a wrapper for the various APIs.
+    ///
+    /// # Arguments
+    ///
+    /// * `use_sandbox` - A boolean that determines if the sandbox should be used.
+    fn new(use_sandbox: bool) -> CbResult<Self> {
+        Ok(Self {
+            public: PublicApi::new(PublicHttpAgent::new(true, use_sandbox)?),
+        })
+    }
+
+    /// Creates a new instance of a Client using a configuration file. This is a wrapper for the various APIs and Signer.
+    ///
+    /// # Arguments
+    ///
+    /// * `config` - Configuration that implements ConfigFile trait.
+    #[cfg(feature = "config")]
+    pub fn from_config<T>(config: &T) -> CbResult<Self>
+    where
+        T: ConfigFile,
+    {
+        Self::new(config.coinbase().use_sandbox)
     }
 }

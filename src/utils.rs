@@ -135,8 +135,6 @@ impl QueryBuilder {
     pub(crate) fn push<T: ToString>(mut self, key: &str, value: T) -> Self {
         if !self.query.is_empty() {
             self.query.push('&');
-        } else {
-            self.query.push('?');
         }
 
         write!(self.query, "{}={}", key, value.to_string()).unwrap();
@@ -170,6 +168,23 @@ impl QueryBuilder {
     ///
     /// A mutable reference to the `QueryBuilder` for chaining.
     pub(crate) fn push_u32_optional(mut self, key: &str, value: Option<u32>) -> Self {
+        if let Some(v) = value {
+            self = self.push(key, v.to_string());
+        }
+        self
+    }
+
+    /// Adds a key-value pair to the query string, if the value is present (Some).
+    ///
+    /// # Arguments
+    ///
+    /// * `key` - The key of the query parameter.
+    /// * `value` - An optional value of the query parameter.
+    ///
+    /// # Returns
+    ///
+    /// A mutable reference to the `QueryBuilder` for chaining.
+    pub(crate) fn push_bool_optional(mut self, key: &str, value: Option<bool>) -> Self {
         if let Some(v) = value {
             self = self.push(key, v.to_string());
         }

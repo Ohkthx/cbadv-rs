@@ -203,6 +203,14 @@ pub struct ProductBook {
     pub bids: Vec<BidAsk>,
     /// Array of current asks.
     pub asks: Vec<BidAsk>,
+    #[serde(default)]
+    pub last: String,
+    #[serde(default)]
+    pub mid_market: String,
+    #[serde(default)]
+    pub spread_bps: String,
+    #[serde(default)]
+    pub spread_absolute: String,
 }
 
 /// Represents a candle for a product.
@@ -348,6 +356,8 @@ pub struct ListProductsQuery {
     pub product_type: Option<String>,
     /// List of product IDs to return.
     pub product_ids: Option<Vec<String>>,
+    /// If true, return all products of all product types (including expired futures contracts).
+    pub get_all_products: Option<bool>,
 }
 
 impl Query for ListProductsQuery {
@@ -358,6 +368,7 @@ impl Query for ListProductsQuery {
             .push_u32_optional("offset", self.offset)
             .push_optional("product_type", &self.product_type)
             .with_optional_vec("product_ids", &self.product_ids)
+            .push_bool_optional("get_all_products", self.get_all_products)
             .build()
     }
 }

@@ -10,20 +10,20 @@ use crate::constants::orders::{
     RESOURCE_ENDPOINT,
 };
 use crate::errors::CbAdvError;
+use crate::http_agent::{HttpAgent, SecureHttpAgent};
 use crate::order::{
     CancelOrders, CancelOrdersResponse, CreateOrder, EditOrder, EditOrderResponse, LimitGtc,
     LimitGtd, ListFillsQuery, ListOrdersQuery, ListedFills, ListedOrders, MarketIoc, Order,
-    OrderConfiguration, OrderResponse, OrderStatus, OrderStatusResponse, PreviewEditOrderResponse,
-    StopLimitGtc, StopLimitGtd,
+    OrderConfiguration, OrderResponse, OrderSide, OrderStatus, OrderStatusResponse,
+    PreviewEditOrderResponse, StopLimitGtc, StopLimitGtd,
 };
-use crate::signer::Signer;
 use crate::traits::NoQuery;
 use crate::types::CbResult;
 
 /// Provides access to the Order API for the service.
 pub struct OrderApi {
     /// Object used to sign requests made to the API.
-    signer: Signer,
+    agent: SecureHttpAgent,
 }
 
 impl OrderApi {
@@ -31,10 +31,9 @@ impl OrderApi {
     ///
     /// # Arguments
     ///
-    /// * `signer` - A Signer that include the API Key & Secret along with a client to make
-    /// requests.
-    pub(crate) fn new(signer: Signer) -> Self {
-        Self { signer }
+    /// * `agent` - A agent that include the API Key & Secret along with a client to make requests.
+    pub(crate) fn new(agent: SecureHttpAgent) -> Self {
+        Self { agent }
     }
 
     /// Cancel orders.
@@ -54,11 +53,7 @@ impl OrderApi {
             order_ids: order_ids.to_vec(),
         };
 
-        match self
-            .signer
-            .post(CANCEL_BATCH_ENDPOINT, &NoQuery, body)
-            .await
-        {
+        match self.agent.post(CANCEL_BATCH_ENDPOINT, &NoQuery, body).await {
             Ok(value) => match value.json::<CancelOrdersResponse>().await {
                 Ok(resp) => Ok(resp.results),
                 Err(_) => Err(CbAdvError::BadParse("cancel order object".to_string())),
@@ -131,7 +126,7 @@ impl OrderApi {
             price: price.to_string(),
         };
 
-        match self.signer.post(EDIT_ENDPOINT, &NoQuery, body).await {
+        match self.agent.post(EDIT_ENDPOINT, &NoQuery, body).await {
             Ok(value) => match value.json::<EditOrderResponse>().await {
                 Ok(edits) => Ok(edits),
                 Err(_) => Err(CbAdvError::BadParse(
@@ -169,11 +164,7 @@ impl OrderApi {
             price: price.to_string(),
         };
 
-        match self
-            .signer
-            .post(EDIT_PREVIEW_ENDPOINT, &NoQuery, body)
-            .await
-        {
+        match self.agent.post(EDIT_PREVIEW_ENDPOINT, &NoQuery, body).await {
             Ok(value) => match value.json::<PreviewEditOrderResponse>().await {
                 Ok(response) => Ok(response),
                 Err(_) => Err(CbAdvError::BadParse(
@@ -201,7 +192,7 @@ impl OrderApi {
     async fn create(
         &mut self,
         product_id: &str,
-        side: &str,
+        side: &OrderSide,
         configuration: OrderConfiguration,
     ) -> CbResult<OrderResponse> {
         let body = CreateOrder {
@@ -211,7 +202,7 @@ impl OrderApi {
             order_configuration: configuration,
         };
 
-        match self.signer.post(RESOURCE_ENDPOINT, &NoQuery, body).await {
+        match self.agent.post(RESOURCE_ENDPOINT, &NoQuery, body).await {
             Ok(value) => match value.json::<OrderResponse>().await {
                 Ok(resp) => Ok(resp),
                 Err(_) => Err(CbAdvError::BadParse("created order object".to_string())),
@@ -237,19 +228,18 @@ impl OrderApi {
     pub async fn create_market(
         &mut self,
         product_id: &str,
-        side: &str,
+        side: &OrderSide,
         size: &f64,
     ) -> CbResult<OrderResponse> {
-        let market = if side == "BUY" {
-            MarketIoc {
+        let market = match side {
+            OrderSide::Buy => MarketIoc {
                 quote_size: Some(size.to_string()),
                 base_size: None,
-            }
-        } else {
-            MarketIoc {
+            },
+            OrderSide::Sell => MarketIoc {
                 quote_size: None,
                 base_size: Some(size.to_string()),
-            }
+            },
         };
 
         let config = OrderConfiguration {
@@ -279,7 +269,7 @@ impl OrderApi {
     pub async fn create_limit_gtc(
         &mut self,
         product_id: &str,
-        side: &str,
+        side: &OrderSide,
         size: &f64,
         price: &f64,
         post_only: bool,
@@ -318,7 +308,7 @@ impl OrderApi {
     pub async fn create_limit_gtd(
         &mut self,
         product_id: &str,
-        side: &str,
+        side: &OrderSide,
         size: &f64,
         price: &f64,
         end_time: &str,
@@ -359,7 +349,7 @@ impl OrderApi {
     pub async fn create_stop_limit_gtc(
         &mut self,
         product_id: &str,
-        side: &str,
+        side: &OrderSide,
         size: &f64,
         limit_price: &f64,
         stop_price: &f64,
@@ -402,7 +392,7 @@ impl OrderApi {
     pub async fn create_stop_limit_gtd(
         &mut self,
         product_id: &str,
-        side: &str,
+        side: &OrderSide,
         size: &f64,
         limit_price: &f64,
         stop_price: &f64,
@@ -439,7 +429,7 @@ impl OrderApi {
     /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_gethistoricalorder>
     pub async fn get(&mut self, order_id: &str) -> CbResult<Order> {
         let resource = format!("{}/historical/{}", RESOURCE_ENDPOINT, order_id);
-        match self.signer.get(&resource, &NoQuery).await {
+        match self.agent.get(&resource, &NoQuery).await {
             Ok(value) => match value.json::<OrderStatusResponse>().await {
                 Ok(resp) => Ok(resp.order),
                 Err(_) => Err(CbAdvError::BadParse(
@@ -461,7 +451,7 @@ impl OrderApi {
     ///
     /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_gethistoricalorders>
     pub async fn get_bulk(&mut self, query: &ListOrdersQuery) -> CbResult<ListedOrders> {
-        match self.signer.get(BATCH_ENDPOINT, query).await {
+        match self.agent.get(BATCH_ENDPOINT, query).await {
             Ok(value) => match value.json::<ListedOrders>().await {
                 Ok(resp) => Ok(resp),
                 Err(_) => Err(CbAdvError::BadParse(
@@ -476,8 +466,7 @@ impl OrderApi {
     /// This wraps `get_bulk` and makes several additional requests until there are no
     /// additional orders.
     ///
-    /// NOTE: NOT A STANDARD API FUNCTION. QoL function that may require additional API requests than
-    /// normal.
+    /// NOTE: NOT A STANDARD API FUNCTION. QoL function that may require additional API requests than normal.
     ///
     /// # Arguments
     ///
@@ -488,10 +477,7 @@ impl OrderApi {
         product_id: &str,
         query: Option<ListOrdersQuery>,
     ) -> CbResult<Vec<Order>> {
-        let mut query = match query {
-            Some(p) => p,
-            None => ListOrdersQuery::default(),
-        };
+        let mut query = query.unwrap_or_default();
 
         // Override product ID.
         query.product_id = Some(product_id.to_string());
@@ -524,7 +510,7 @@ impl OrderApi {
     ///
     /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getfills>
     pub async fn fills(&mut self, query: &ListFillsQuery) -> CbResult<ListedFills> {
-        match self.signer.get(FILLS_ENDPOINT, query).await {
+        match self.agent.get(FILLS_ENDPOINT, query).await {
             Ok(value) => match value.json::<ListedFills>().await {
                 Ok(resp) => Ok(resp),
                 Err(_) => Err(CbAdvError::BadParse(

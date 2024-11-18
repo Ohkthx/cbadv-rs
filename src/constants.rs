@@ -39,9 +39,11 @@ pub(crate) mod products {
     pub(crate) const PRODUCT_BOOK_ENDPOINT: &str = "/api/v3/brokerage/product_book";
 }
 
-/// Utils API constants
-pub(crate) mod utils {
-    pub(crate) const UNIXTIME_ENDPOINT: &str = "/api/v3/brokerage/time";
+/// Public API constants
+pub(crate) mod public {
+    pub(crate) const SERVERTIME_ENDPOINT: &str = "/api/v3/brokerage/time";
+    pub(crate) const PRODUCT_BOOK_ENDPOINT: &str = "/api/v3/brokerage/market/product_book";
+    pub(crate) const RESOURCE_ENDPOINT: &str = "/api/v3/brokerage/market/products";
 }
 
 /// REST API constants

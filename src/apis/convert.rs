@@ -8,14 +8,14 @@ use crate::convert::{
     ConvertQuery, ConvertQuoteQuery, ConvertResponse, Trade, TradeIncentiveMetadata,
 };
 use crate::errors::CbAdvError;
-use crate::signer::Signer;
+use crate::http_agent::{HttpAgent, SecureHttpAgent};
 use crate::traits::NoQuery;
 use crate::types::CbResult;
 
 /// Provides access to the Convert API for the service.
 pub struct ConvertApi {
     /// Object used to sign requests made to the API.
-    signer: Signer,
+    agent: SecureHttpAgent,
 }
 
 impl ConvertApi {
@@ -23,10 +23,9 @@ impl ConvertApi {
     ///
     /// # Arguments
     ///
-    /// * `signer` - A Signer that include the API Key & Secret along with a client to make
-    /// requests.
-    pub(crate) fn new(signer: Signer) -> Self {
-        Self { signer }
+    /// * `agent` - A agent that include the API Key & Secret along with a client to make requests.
+    pub(crate) fn new(agent: SecureHttpAgent) -> Self {
+        Self { agent }
     }
 
     /// Create a convert quote with a specified source currency, target currency, and amount.
@@ -51,7 +50,7 @@ impl ConvertApi {
             trade_incentive_metadata: metadata,
         };
 
-        match self.signer.post(QUOTE_ENDPOINT, &NoQuery, &query).await {
+        match self.agent.post(QUOTE_ENDPOINT, &NoQuery, &query).await {
             Ok(value) => match value.json::<ConvertResponse>().await {
                 Ok(resp) => Ok(resp.trade),
                 Err(_) => Err(CbAdvError::BadParse(
@@ -77,7 +76,7 @@ impl ConvertApi {
             to_account: to_account.to_string(),
         };
 
-        match self.signer.get(&resource, &query).await {
+        match self.agent.get(&resource, &query).await {
             Ok(value) => match value.json::<ConvertResponse>().await {
                 Ok(resp) => Ok(resp.trade),
                 Err(_) => Err(CbAdvError::BadParse(
@@ -103,7 +102,7 @@ impl ConvertApi {
             to_account: to_account.to_string(),
         };
 
-        match self.signer.post(&resource, &NoQuery, &query).await {
+        match self.agent.post(&resource, &NoQuery, &query).await {
             Ok(value) => match value.json::<ConvertResponse>().await {
                 Ok(resp) => Ok(resp.trade),
                 Err(_) => Err(CbAdvError::BadParse(

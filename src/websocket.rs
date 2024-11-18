@@ -12,8 +12,8 @@ use tokio_tungstenite::{connect_async, tungstenite, MaybeTlsStream, WebSocketStr
 
 use crate::constants::websocket::{RESOURCE_ENDPOINT, SERVICE};
 use crate::errors::CbAdvError;
+use crate::http_agent::{HttpAgent, SecureHttpAgent};
 use crate::models::websocket::{Channel, Subscription};
-use crate::signer::Signer;
 use crate::task_tracker::TaskTracker;
 use crate::time;
 use crate::traits::{CandleCallback, MessageCallback};
@@ -28,7 +28,7 @@ type Socket = WebSocketStream<MaybeTlsStream<TcpStream>>;
 /// the WebSocket.
 pub struct WebSocketClient {
     /// Signs the messages sent.
-    signer: Signer,
+    agent: SecureHttpAgent,
     /// Writes data to the stream, gets sent to the API.
     socket_tx: Option<SplitSink<Socket, tungstenite::Message>>,
 }
@@ -44,7 +44,7 @@ impl WebSocketClient {
     /// * `use_sandbox` - A boolean that determines if the sandbox should be used.
     pub fn new(key: &str, secret: &str, use_sandbox: bool) -> CbResult<Self> {
         Ok(Self {
-            signer: Signer::new(key, secret, false, use_sandbox)?,
+            agent: SecureHttpAgent::new(key, secret, false, use_sandbox)?,
             socket_tx: None,
         })
     }
@@ -180,7 +180,7 @@ impl WebSocketClient {
             r#type: update,
             product_ids: product_ids.to_vec(),
             channel,
-            jwt: self.signer.get_jwt(SERVICE, None)?,
+            jwt: self.agent.get_jwt(SERVICE, None)?,
             timestamp,
         };
 
@@ -194,7 +194,7 @@ impl WebSocketClient {
                 let body_str = serde_json::to_string(&sub).unwrap();
 
                 // Wait until a token is available to make the request. Immediately consume it.
-                self.signer.bucket.wait_on().await;
+                self.agent.bucket_mut().wait_on().await;
 
                 match socket.send(tungstenite::Message::text(body_str)).await {
                     Ok(_) => Ok(()),

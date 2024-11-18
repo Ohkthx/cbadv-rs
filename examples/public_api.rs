@@ -1,17 +1,17 @@
-//! # Product API Example, check out the Product API for all functionality.
+//! # Public API Example, check out the Public API for all functionality.
 //!
 //! Shows how to:
+//! - Obtain the API Unix time.
+//! - Obtain the Product Book for a product.
 //! - Obtain multiple products.
-//! - Obtain specific product by ID (Pair)
-//! - Obtain best bids and asks for multiple products.
-//! - Obtain candles for specific product.
-//! - Obtain ticker (Market Trades) for specific product.
+//! - Obtain candles for a product.
+//! - Obtain the ticker for a product.
 
 use std::process::exit;
 
 use cbadv::config::{self, BaseConfig};
 use cbadv::product::{ListProductsQuery, TickerQuery};
-use cbadv::{time, RestClient};
+use cbadv::{time, PublicRestClient};
 
 #[tokio::main]
 async fn main() {
@@ -35,7 +35,7 @@ async fn main() {
     };
 
     // Create a client to interact with the API.
-    let mut client = match RestClient::from_config(&config) {
+    let mut client = match PublicRestClient::from_config(&config) {
         Ok(c) => c,
         Err(why) => {
             eprintln!("!ERROR! {}", why);
@@ -43,26 +43,19 @@ async fn main() {
         }
     };
 
-    // Pull a singular product from the Product API.
-    println!("Getting product: {}.", product_pair);
-    let product = client.product.get(product_pair).await.unwrap();
-    println!("{:#?}\n\n", product);
-
-    println!("Getting best bids and asks.");
-    match client
-        .product
-        .best_bid_ask(vec!["BTC-USD".to_string()])
-        .await
-    {
-        Ok(bidasks) => println!("{:#?}", bidasks),
-        Err(error) => println!("Unable to get best bids and asks: {}", error),
+    // Get API Unix time.
+    println!("Obtaining API Unix time");
+    match client.public.server_time().await {
+        Ok(time) => println!("{:#?}", time),
+        Err(error) => println!("Unable to get the Unix time: {}", error),
     }
 
     // NOTE: Commented out due to large amounts of output.
-    // println!("\n\nGetting product book.");
-    // match client.product.product_book(product_pair, None).await {
+    // Get the Product Book for BTC-USD.
+    // println!("\n\nObtain the Product Book for {product_pair}.");
+    // match client.public.product_book(product_pair, None).await {
     //     Ok(book) => println!("{:#?}", book),
-    //     Err(error) => println!("Unable to get product book: {}", error),
+    //     Err(error) => println!("Unable to get the Product Book: {}", error),
     // }
 
     println!("\n\nGetting multiple products.");
@@ -74,7 +67,7 @@ async fn main() {
     };
 
     // Pull multiple products from the Product API.
-    match client.product.get_bulk(&query).await {
+    match client.public.products(&query).await {
         Ok(products) => println!("Obtained {:#?} products", products.len()),
         Err(error) => println!("Unable to get products: {}", error),
     }
@@ -87,7 +80,7 @@ async fn main() {
     let start = time::before(end, interval * 730);
     let time_span = time::Span::new(start, end, &granularity);
     println!("Intervals collecting: {}", time_span.count());
-    match client.product.candles_ext(product_pair, &time_span).await {
+    match client.public.candles_ext(product_pair, &time_span).await {
         Ok(candles) => {
             println!("Obtained {} candles.", candles.len());
             match candles.first() {
@@ -101,7 +94,7 @@ async fn main() {
     // Pull ticker.
     println!("\n\nGetting ticker for: {}.", product_pair);
     let query = TickerQuery { limit: 200 };
-    match client.product.ticker(product_pair, &query).await {
+    match client.public.ticker(product_pair, &query).await {
         Ok(ticker) => {
             println!(
                 "best bid: {:#?}\nbest ask: {:#?}\ntrades: {:#?}",

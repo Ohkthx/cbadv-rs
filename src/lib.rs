@@ -14,8 +14,8 @@
 #[cfg(feature = "config")]
 pub mod config;
 
+pub(crate) mod http_agent;
 pub(crate) mod jwt;
-pub(crate) mod signer;
 mod task_tracker;
 mod token_bucket;
 
@@ -28,9 +28,9 @@ pub(crate) mod utils;
 
 pub(crate) mod apis;
 pub(crate) mod models;
-pub use models::{account, convert, fee, order, product, util, websocket as ws};
+pub use models::{account, convert, fee, order, product, public, websocket as ws};
 
 mod rest;
 mod websocket;
-pub use rest::RestClient;
+pub use rest::{PublicRestClient, RestClient};
 pub use websocket::WebSocketClient;

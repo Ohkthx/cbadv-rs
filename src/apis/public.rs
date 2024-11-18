@@ -1,58 +1,51 @@
-//! # Coinbase Advanced Product API
+//! # Coinbase Advanced Public API
 //!
-//! `product` gives access to the Product API and the various endpoints associated with it.
-//! This allows you to obtain product information such as: Ticker (Market Trades), Product and
-//! Currency information, Product Book, and Best Bids and Asks for multiple products.
+//! `public` gives access to the Public API and the various endpoints associated with it.
+//! Some of the features include getting the API current time in ISO format.
 
-use crate::constants::products::{
-    BID_ASK_ENDPOINT, CANDLE_MAXIMUM, PRODUCT_BOOK_ENDPOINT, RESOURCE_ENDPOINT,
-};
+use crate::constants::products::CANDLE_MAXIMUM;
+use crate::constants::public::{PRODUCT_BOOK_ENDPOINT, RESOURCE_ENDPOINT, SERVERTIME_ENDPOINT};
 use crate::errors::CbAdvError;
-use crate::http_agent::{HttpAgent, SecureHttpAgent};
+use crate::http_agent::{HttpAgent, PublicHttpAgent};
 use crate::models::product::{
-    BidAskResponse, Candle, CandleResponse, ListProductsQuery, ListProductsResponse, Product,
-    ProductBook, ProductBookResponse, Ticker, TickerQuery,
+    Candle, CandleResponse, ListProductsQuery, ListProductsResponse, Product, ProductBook,
+    ProductBookResponse, Ticker, TickerQuery,
 };
-use crate::product::{BidAskQuery, ProductBookQuery};
+use crate::models::public::ServerTime;
+use crate::product::ProductBookQuery;
 use crate::time;
 use crate::traits::NoQuery;
 use crate::types::CbResult;
 
-/// Provides access to the Product API for the service.
-pub struct ProductApi {
+/// Provides access to the Public API for the service.
+pub struct PublicApi {
     /// Object used to sign requests made to the API.
-    agent: SecureHttpAgent,
+    agent: PublicHttpAgent,
 }
 
-impl ProductApi {
-    /// Creates a new instance of the Product API. This grants access to product information.
+impl PublicApi {
+    /// Creates a new instance of the Public API. This grants access to public information that requires no authentication.
     ///
     /// # Arguments
     ///
     /// * `agent` - A agent that include the API Key & Secret along with a client to make requests.
-    pub(crate) fn new(agent: SecureHttpAgent) -> Self {
+    pub(crate) fn new(agent: PublicHttpAgent) -> Self {
         Self { agent }
     }
 
-    /// Obtains best bids and asks for a vector of product IDs..
-    ///
-    /// # Arguments
-    ///
-    /// * `product_ids` - A vector of strings the represents the product IDs of product books to obtain.
+    /// Get the current time from the Coinbase Advanced API.
     ///
     /// # Endpoint / Reference
     ///
     #[allow(rustdoc::bare_urls)]
-    /// https://api.coinbase.com/api/v3/brokerage/best_bid_ask
+    /// https://api.coinbase.com/api/v3/brokerage/time
     ///
-    /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getbestbidask>
-    pub async fn best_bid_ask(&mut self, product_ids: Vec<String>) -> CbResult<Vec<ProductBook>> {
-        let query = BidAskQuery { product_ids };
-
-        match self.agent.get(BID_ASK_ENDPOINT, &query).await {
-            Ok(value) => match value.json::<BidAskResponse>().await {
-                Ok(bidasks) => Ok(bidasks.pricebooks),
-                Err(_) => Err(CbAdvError::BadParse("bid asks object".to_string())),
+    /// <https://docs.cdp.coinbase.com/advanced-trade/reference/retailbrokerageapi_getservertime>
+    pub async fn server_time(&mut self) -> CbResult<ServerTime> {
+        match self.agent.get(SERVERTIME_ENDPOINT, &NoQuery).await {
+            Ok(value) => match value.json::<ServerTime>().await {
+                Ok(resp) => Ok(resp),
+                Err(_) => Err(CbAdvError::BadParse("public servertime object".to_string())),
             },
             Err(error) => Err(error),
         }
@@ -68,9 +61,9 @@ impl ProductApi {
     /// # Endpoint / Reference
     ///
     #[allow(rustdoc::bare_urls)]
-    /// https://api.coinbase.com/api/v3/brokerage/product_book
+    /// https://api.coinbase.com/api/v3/brokerage/market/product_book
     ///
-    /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getproductbook>
+    /// <https://docs.cdp.coinbase.com/advanced-trade/reference/retailbrokerageapi_getpublicproductbook>
     pub async fn product_book(
         &mut self,
         product_id: &str,
@@ -84,7 +77,10 @@ impl ProductApi {
         match self.agent.get(PRODUCT_BOOK_ENDPOINT, &query).await {
             Ok(value) => match value.json::<ProductBookResponse>().await {
                 Ok(book) => Ok(book.pricebook),
-                Err(_) => Err(CbAdvError::BadParse("product book object".to_string())),
+                Err(err) => Err(CbAdvError::BadParse(format!(
+                    "product book object: {err:?}"
+                ))),
+                // Err(_) => Err(CbAdvError::BadParse("product book object".to_string())),
             },
             Err(error) => Err(error),
         }
@@ -102,7 +98,7 @@ impl ProductApi {
     /// https://api.coinbase.com/api/v3/brokerage/products/{product_id}
     ///
     /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getproduct>
-    pub async fn get(&mut self, product_id: &str) -> CbResult<Product> {
+    pub async fn product(&mut self, product_id: &str) -> CbResult<Product> {
         let resource = format!("{}/{}", RESOURCE_ENDPOINT, product_id);
         match self.agent.get(&resource, &NoQuery).await {
             Ok(value) => match value.json::<Product>().await {
@@ -125,7 +121,7 @@ impl ProductApi {
     /// https://api.coinbase.com/api/v3/brokerage/products
     ///
     /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getproducts>
-    pub async fn get_bulk(&mut self, query: &ListProductsQuery) -> CbResult<Vec<Product>> {
+    pub async fn products(&mut self, query: &ListProductsQuery) -> CbResult<Vec<Product>> {
         match self.agent.get(RESOURCE_ENDPOINT, query).await {
             Ok(value) => match value.json::<ListProductsResponse>().await {
                 Ok(resp) => Ok(resp.products),
