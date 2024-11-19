@@ -31,6 +31,12 @@ pub(crate) mod orders {
     pub(crate) const FILLS_ENDPOINT: &str = "/api/v3/brokerage/orders/historical/fills";
 }
 
+/// Portfolios API constants
+pub(crate) mod portfolios {
+    pub(crate) const RESOURCE_ENDPOINT: &str = "/api/v3/brokerage/portfolios";
+    pub(crate) const MOVE_FUNDS_ENDPOINT: &str = "/api/v3/brokerage/portfolios/move_funds";
+}
+
 /// Products API constants
 pub(crate) mod products {
     pub(crate) const CANDLE_MAXIMUM: u64 = 350;
@@ -46,11 +52,6 @@ pub(crate) mod public {
     pub(crate) const RESOURCE_ENDPOINT: &str = "/api/v3/brokerage/market/products";
 }
 
-/// REST API constants
-pub(crate) mod rest {
-    pub(crate) const SERVICE: &str = "retail_rest_api_proxy";
-}
-
 /// Websocket API constants
 pub(crate) mod websocket {
     pub(crate) const RESOURCE_ENDPOINT: &str = "wss://advanced-trade-ws.coinbase.com";
@@ -58,7 +59,6 @@ pub(crate) mod websocket {
     /// Granularity of Candles from the WebSocket Candle subscription.
     /// NOTE: This is a restriction by CoinBase and cannot be currently changed (20240125)
     pub(crate) const GRANULARITY: u64 = 300;
-    pub(crate) const SERVICE: &str = "public_websocket_api";
 }
 
 /// Amount of tokens per second refilled.

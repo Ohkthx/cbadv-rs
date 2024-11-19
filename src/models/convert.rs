@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{traits::Query, utils::QueryBuilder};
 
-use super::account::Balance;
+use super::shared::Balance;
 
 #[derive(Deserialize, Debug)]
 pub(crate) struct ConvertResponse {

@@ -6,17 +6,9 @@
 use serde::{Deserialize, Serialize};
 
 use crate::traits::Query;
-use crate::utils::{deserialize_numeric, QueryBuilder};
+use crate::utils::QueryBuilder;
 
-/// Represents a Balance for either Available or Held funds.
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Balance {
-    /// Value for the currency available or held.
-    #[serde(deserialize_with = "deserialize_numeric")]
-    pub value: f64,
-    /// Denomination of the currency.
-    pub currency: String,
-}
+use super::shared::Balance;
 
 /// Represents an Account received from the API.
 #[derive(Serialize, Deserialize, Debug, Clone)]

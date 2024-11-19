@@ -4,7 +4,7 @@
 //! This is the primary method of accessing the endpoints and handles all of the configurations and
 //! negotiations for the user.
 
-use crate::apis::{AccountApi, ConvertApi, FeeApi, OrderApi, ProductApi, PublicApi};
+use crate::apis::{AccountApi, ConvertApi, FeeApi, OrderApi, PortfolioApi, ProductApi, PublicApi};
 use crate::http_agent::{PublicHttpAgent, SecureHttpAgent};
 
 #[cfg(feature = "config")]
@@ -21,6 +21,8 @@ pub struct RestClient {
     pub fee: FeeApi,
     /// Gives access to the Order API.
     pub order: OrderApi,
+    /// Gives access to the Portfolio API.
+    pub portfolio: PortfolioApi,
     /// Gives access to the Convert API.
     pub convert: ConvertApi,
     /// Gives access to the Public API.
@@ -43,6 +45,7 @@ impl RestClient {
             product: ProductApi::new(agent.clone()),
             fee: FeeApi::new(agent.clone()),
             order: OrderApi::new(agent.clone()),
+            portfolio: PortfolioApi::new(agent.clone()),
             convert: ConvertApi::new(agent),
             public: PublicApi::new(PublicHttpAgent::new(true, use_sandbox)?),
         })

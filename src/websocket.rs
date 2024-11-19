@@ -10,7 +10,7 @@ use tokio::net::TcpStream;
 use tokio::task::JoinHandle;
 use tokio_tungstenite::{connect_async, tungstenite, MaybeTlsStream, WebSocketStream};
 
-use crate::constants::websocket::{RESOURCE_ENDPOINT, SERVICE};
+use crate::constants::websocket::RESOURCE_ENDPOINT;
 use crate::errors::CbAdvError;
 use crate::http_agent::{HttpAgent, SecureHttpAgent};
 use crate::models::websocket::{Channel, Subscription};
@@ -180,7 +180,7 @@ impl WebSocketClient {
             r#type: update,
             product_ids: product_ids.to_vec(),
             channel,
-            jwt: self.agent.get_jwt(SERVICE, None)?,
+            jwt: self.agent.get_jwt(None)?,
             timestamp,
         };
 

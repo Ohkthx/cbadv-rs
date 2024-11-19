@@ -23,17 +23,6 @@ pub enum OrderType {
     StopLimit,
 }
 
-impl fmt::Display for OrderType {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            OrderType::Market => write!(f, "MARKET"),
-            OrderType::Limit => write!(f, "LIMIT"),
-            OrderType::Stop => write!(f, "STOP"),
-            OrderType::StopLimit => write!(f, "STOPLIMIT"),
-        }
-    }
-}
-
 impl AsRef<str> for OrderType {
     fn as_ref(&self) -> &str {
         match self {
@@ -42,6 +31,12 @@ impl AsRef<str> for OrderType {
             OrderType::Stop => "STOP",
             OrderType::StopLimit => "STOPLIMIT",
         }
+    }
+}
+
+impl fmt::Display for OrderType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.as_ref())
     }
 }
 
@@ -65,10 +60,7 @@ impl AsRef<str> for OrderSide {
 
 impl fmt::Display for OrderSide {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            OrderSide::Buy => write!(f, "BUY"),
-            OrderSide::Sell => write!(f, "SELL"),
-        }
+        write!(f, "{}", self.as_ref())
     }
 }
 
@@ -83,16 +75,6 @@ pub enum OrderStatus {
     Expired,
 }
 
-impl fmt::Display for OrderStatus {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            OrderStatus::Open => write!(f, "OPEN"),
-            OrderStatus::Cancelled => write!(f, "CANCELLED"),
-            OrderStatus::Expired => write!(f, "EXPIRED"),
-        }
-    }
-}
-
 impl AsRef<str> for OrderStatus {
     fn as_ref(&self) -> &str {
         match self {
@@ -100,6 +82,12 @@ impl AsRef<str> for OrderStatus {
             OrderStatus::Cancelled => "CANCELLED",
             OrderStatus::Expired => "EXPIRED",
         }
+    }
+}
+
+impl fmt::Display for OrderStatus {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.as_ref())
     }
 }
 

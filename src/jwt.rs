@@ -19,7 +19,6 @@ struct Header {
     alg: String,
     kid: String,
     nonce: String,
-    typ: String,
 }
 
 #[derive(Serialize)]
@@ -28,7 +27,6 @@ struct Payload {
     iss: String,
     nbf: u64,
     exp: u64,
-    aud: Vec<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     uri: Option<String>,
 }
@@ -73,19 +71,17 @@ impl Jwt {
             alg: "ES256".to_string(),
             kid: self.api_key.clone(),
             nonce,
-            typ: "JWT".to_string(),
         }
     }
 
     /// Creates the payload for the message.
-    fn build_payload(&self, service: &str, uri: Option<&str>) -> Payload {
+    fn build_payload(&self, uri: Option<&str>) -> Payload {
         let now = time::now();
         Payload {
             sub: self.api_key.clone(),
             iss: "coinbase-cloud".to_string(),
             nbf: now,
             exp: now + 120,
-            aud: [service.to_string()].to_vec(),
             uri: uri.map(|u| u.to_string()),
         }
     }
@@ -221,10 +217,10 @@ impl Jwt {
     /// # Returns
     ///
     /// A `CbResult<String>` with the JWT token if successful; otherwise, an error.
-    pub(crate) fn encode(&self, service: &str, uri: Option<&str>) -> CbResult<String> {
+    pub(crate) fn encode(&self, uri: Option<&str>) -> CbResult<String> {
         // Conver the header and payload into base64.
         let header = Self::base64_encode(&self.build_header())?;
-        let payload = Self::base64_encode(&self.build_payload(service, uri))?;
+        let payload = Self::base64_encode(&self.build_payload(uri))?;
 
         // Create the message w/ header and payload.
         let mut message = String::with_capacity(header.len() + payload.len() + 128);

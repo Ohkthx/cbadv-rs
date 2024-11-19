@@ -8,7 +8,7 @@ use reqwest::header::{CONTENT_TYPE, USER_AGENT};
 use reqwest::{Method, Response, StatusCode, Url};
 use serde::Serialize;
 
-use crate::constants::{ratelimits, rest};
+use crate::constants::ratelimits;
 use crate::constants::{API_ROOT_URI, API_SANDBOX_ROOT_URI, CRATE_USER_AGENT};
 use crate::errors::CbAdvError;
 use crate::jwt::Jwt;
@@ -81,6 +81,28 @@ pub(crate) trait HttpAgent {
         query: &impl Query,
         body: T,
     ) -> CbResult<Response>;
+
+    /// Performs a HTTP PUT Request.
+    ///
+    /// # Arguments
+    ///
+    /// * `resource` - A string representing the resource that is being accessed.
+    /// * `query` - A string containing options / parameters for the URL.
+    /// * `body` - An object to send to the URL via POST request.
+    async fn put<T: Serialize>(
+        &mut self,
+        resource: &str,
+        query: &impl Query,
+        body: T,
+    ) -> CbResult<Response>;
+
+    /// Performs a HTTP DELETE Request.
+    ///
+    /// # Arguments
+    ///
+    /// * `resource` - A string representing the resource that is being accessed.
+    /// * `query` - A string containing options / parameters for the URL.
+    async fn delete(&mut self, resource: &str, query: &impl Query) -> CbResult<Response>;
 }
 
 /// Base HTTP Agent that is responsible for making requests and token bucket.
@@ -245,6 +267,26 @@ impl HttpAgent for PublicHttpAgent {
             .execute_request(Method::POST, url, Some(body_str), None)
             .await
     }
+
+    async fn put<T: Serialize>(
+        &mut self,
+        resource: &str,
+        query: &impl Query,
+        body: T,
+    ) -> CbResult<Response> {
+        let url = self.base.build_url(resource, query)?;
+        let body_str = serde_json::to_string(&body).map_err(|_| CbAdvError::BadSerialization)?;
+        self.base
+            .execute_request(Method::PUT, url, Some(body_str), None)
+            .await
+    }
+
+    async fn delete(&mut self, resource: &str, query: &impl Query) -> CbResult<Response> {
+        let url = self.base.build_url(resource, query)?;
+        self.base
+            .execute_request(Method::DELETE, url, None, None)
+            .await
+    }
 }
 
 /// Creates and signs HTTP Requests to the API.
@@ -294,9 +336,9 @@ impl SecureHttpAgent {
     ///
     /// * `service` - The service name for which the JWT is generated.
     /// * `uri` - Optional URI to include in the JWT payload.
-    pub(crate) fn get_jwt(&self, service: &str, uri: Option<&str>) -> CbResult<String> {
+    pub(crate) fn get_jwt(&self, uri: Option<&str>) -> CbResult<String> {
         if let Some(jwt) = &self.jwt {
-            jwt.encode(service, uri)
+            jwt.encode(uri)
         } else {
             Err(CbAdvError::Unknown(
     "JWT not setup. This request requires authentication, but JWT is disabled (likely sandbox mode).".to_string(),
@@ -313,7 +355,7 @@ impl SecureHttpAgent {
     fn build_token(&self, method: Method, resource: &str) -> CbResult<Option<String>> {
         if let Some(jwt) = &self.jwt {
             let uri = Jwt::build_uri(method.as_str(), self.base.root_uri, resource);
-            Ok(Some(jwt.encode(rest::SERVICE, Some(&uri))?))
+            Ok(Some(jwt.encode(Some(&uri))?))
         } else {
             Ok(None)
         }
@@ -344,6 +386,28 @@ impl HttpAgent for SecureHttpAgent {
         let token = self.build_token(Method::POST, resource)?;
         self.base
             .execute_request(Method::POST, url, Some(body_str), token)
+            .await
+    }
+
+    async fn put<T: Serialize>(
+        &mut self,
+        resource: &str,
+        query: &impl Query,
+        body: T,
+    ) -> CbResult<Response> {
+        let url = self.base.build_url(resource, query)?;
+        let body_str = serde_json::to_string(&body).map_err(|_| CbAdvError::BadSerialization)?;
+        let token = self.build_token(Method::PUT, resource)?;
+        self.base
+            .execute_request(Method::PUT, url, Some(body_str), token)
+            .await
+    }
+
+    async fn delete(&mut self, resource: &str, query: &impl Query) -> CbResult<Response> {
+        let url = self.base.build_url(resource, query)?;
+        let token = self.build_token(Method::DELETE, resource)?;
+        self.base
+            .execute_request(Method::DELETE, url, None, token)
             .await
     }
 }
