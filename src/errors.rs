@@ -5,7 +5,7 @@ use std::fmt;
 /// Types of errors that can occur.
 #[derive(Debug)]
 pub enum CbAdvError {
-    /// Unable to parse JSON successfully.
+    /// Unable to parse JSON or Builders successfully.
     BadParse(String),
     /// Non-200 status code received.
     BadStatus(String),

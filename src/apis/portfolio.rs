@@ -33,6 +33,10 @@ impl PortfolioApi {
 
     /// Obtains various portfolios from the API.
     ///
+    /// # Arguments
+    ///
+    /// * `query` - The query parameters to filter the results.
+    ///
     /// # Endpoint / Reference
     ///
     #[allow(rustdoc::bare_urls)]
@@ -50,6 +54,10 @@ impl PortfolioApi {
     }
 
     /// Creates a new portfolio.
+    ///
+    /// # Arguments
+    ///
+    /// * `portfolio_name` - The name of the portfolio to create.
     ///
     /// # Endpoint / Reference
     ///
@@ -72,6 +80,11 @@ impl PortfolioApi {
     }
 
     /// Edits an existing portfolio.
+    ///
+    /// # Arguments
+    ///
+    /// * `portfolio_uuid` - The UUID of the portfolio to edit.
+    /// * `new_name` - The new name of the portfolio.
     ///
     /// # Endpoint / Reference
     ///
@@ -96,6 +109,10 @@ impl PortfolioApi {
 
     /// Edits an existing portfolio.
     ///
+    /// # Arguments
+    ///
+    /// * `portfolio_uuid` - The UUID of the portfolio to delete.
+    ///
     /// # Endpoint / Reference
     ///
     #[allow(rustdoc::bare_urls)]
@@ -111,6 +128,12 @@ impl PortfolioApi {
     }
 
     /// Move funds from a source portfolio to a target portfolio.
+    ///
+    /// # Arguments
+    ///
+    /// * `funds` - The amount of funds to move.
+    /// * `source_portfolio_uuid` - The UUID of the source portfolio.
+    /// * `target_portfolio_uuid` - The UUID of the target portfolio.
     ///
     /// # Endpoint / Reference
     ///
@@ -137,6 +160,11 @@ impl PortfolioApi {
     }
 
     /// Obtains a breakdown of a specific portfolio.
+    ///
+    /// # Arguments
+    ///
+    /// * `portfolio_uuid` - The UUID of the portfolio to obtain a breakdown for.
+    /// * `currency` - The currency to obtain the breakdown in.
     ///
     /// # Endpoint / Reference
     ///

@@ -11,7 +11,7 @@
 use std::process::exit;
 
 use cbadv::config::{self, BaseConfig};
-use cbadv::order::{ListOrdersQuery, OrderSide};
+use cbadv::order::{CreateOrderBuilder, ListOrdersQuery, OrderSide, OrderType, TimeInForce};
 use cbadv::RestClient;
 
 #[tokio::main]
@@ -19,8 +19,8 @@ async fn main() {
     let create_trade: bool = false;
     let cancel_open_orders: bool = false;
     let edit_open_order_id: Option<String> = None;
-    let product_pair: &str = "DOGE-USD";
-    let total_size: f64 = 300.0;
+    let product_pair: &str = "ETH-USDC";
+    let total_size: f64 = 0.005;
     let price: f64 = 100.00;
     let edit_price: f64 = 50.00;
     let side: OrderSide = OrderSide::Buy;
@@ -53,16 +53,31 @@ async fn main() {
 
     if create_trade {
         println!("Creating Order for {}.", product_pair);
-        match client
-            .order
-            .create_limit_gtc(product_pair, &side, &total_size, &price, true)
-            .await
+
+        // Create an order request using the `CreateOrderBuilder`.
+        // This example creates a Limit Order that is Good-Til-Cancelled (GTC) and post-only.
+        let order = match CreateOrderBuilder::new(product_pair, &side)
+            .base_size(total_size)
+            .limit_price(price)
+            .post_only(true)
+            .order_type(OrderType::Limit)
+            .time_in_force(TimeInForce::Gtc)
+            .build()
         {
+            Ok(order) => order,
+            Err(error) => {
+                println!("Unable to build order: {}", error);
+                exit(1);
+            }
+        };
+
+        match client.order.create(&order).await {
             Ok(summary) => println!("Order creation result: {:#?}", summary),
             Err(error) => println!("Unable to create order: {}", error),
         }
     }
 
+    // Edit and open order.
     if let Some(order_id) = edit_open_order_id {
         println!("\n\nEditing order for {}.", order_id);
         match client.order.edit(&order_id, total_size, edit_price).await {
@@ -71,6 +86,7 @@ async fn main() {
         }
     }
 
+    // Cancels all OPEN orders.
     if cancel_open_orders {
         println!("\n\nCancelling all OPEN orders for {}.", product_pair);
         match client.order.cancel_all(product_pair).await {
@@ -79,21 +95,21 @@ async fn main() {
         }
     }
 
-    println!("\n\nGetting all orders for {}.", product_pair);
+    println!("\n\nGetting all orders for {} (get_all).", product_pair);
     match client.order.get_all(product_pair, None).await {
         Ok(orders) => println!("Orders obtained: {:#?}", orders.len()),
         Err(error) => println!("Unable to obtain all orders: {}", error),
     }
 
-    // Get all SELLING orders.
+    // Get all BUYING orders.
     let mut order_id = "".to_string();
     let query = ListOrdersQuery {
-        product_id: Some(product_pair.to_string()),
-        order_side: Some(OrderSide::Sell),
+        product_ids: Some(vec![product_pair.to_string()]),
+        order_side: Some(OrderSide::Buy),
         ..Default::default()
     };
 
-    println!("\n\nObtaining Orders.");
+    println!("\n\nObtaining Orders (bulk).");
     match client.order.get_bulk(&query).await {
         Ok(orders) => {
             println!("Orders obtained: {:#?}", orders.orders.len());

@@ -3,8 +3,6 @@
 //! `order` gives access to the Order API and the various endpoints associated with it.
 //! These allow you to obtain past created orders, create new orders, and cancel orders.
 
-use uuid::Uuid;
-
 use crate::constants::orders::{
     BATCH_ENDPOINT, CANCEL_BATCH_ENDPOINT, EDIT_ENDPOINT, EDIT_PREVIEW_ENDPOINT, FILLS_ENDPOINT,
     RESOURCE_ENDPOINT,
@@ -12,10 +10,9 @@ use crate::constants::orders::{
 use crate::errors::CbAdvError;
 use crate::http_agent::{HttpAgent, SecureHttpAgent};
 use crate::order::{
-    CancelOrders, CancelOrdersResponse, CreateOrder, EditOrder, EditOrderResponse, LimitGtc,
-    LimitGtd, ListFillsQuery, ListOrdersQuery, ListedFills, ListedOrders, MarketIoc, Order,
-    OrderConfiguration, OrderResponse, OrderSide, OrderStatus, OrderStatusResponse,
-    PreviewEditOrderResponse, StopLimitGtc, StopLimitGtd,
+    CancelOrders, CancelOrdersResponse, CreateOrder, EditOrder, EditOrderResponse, ListFillsQuery,
+    ListOrdersQuery, ListedFills, ListedOrders, Order, OrderResponse, OrderStatus,
+    OrderStatusResponse, PreviewEditOrderResponse,
 };
 use crate::traits::NoQuery;
 use crate::types::CbResult;
@@ -72,7 +69,7 @@ impl OrderApi {
     /// * `product_id` - Product to cancel all OPEN orders for.
     pub async fn cancel_all(&mut self, product_id: &str) -> CbResult<Vec<OrderResponse>> {
         let query = ListOrdersQuery {
-            product_id: Some(product_id.to_string()),
+            product_ids: Some(vec![product_id.to_string()]),
             order_status: Some(vec![OrderStatus::Open]),
             ..Default::default()
         };
@@ -189,230 +186,14 @@ impl OrderApi {
     /// https://api.coinbase.com/api/v3/brokerage/orders
     ///
     /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_postorder>
-    async fn create(
-        &mut self,
-        product_id: &str,
-        side: &OrderSide,
-        configuration: OrderConfiguration,
-    ) -> CbResult<OrderResponse> {
-        let body = CreateOrder {
-            client_order_id: Uuid::new_v4().to_string(),
-            product_id: product_id.to_string(),
-            side: side.to_string(),
-            order_configuration: configuration,
-        };
-
-        match self.agent.post(RESOURCE_ENDPOINT, &NoQuery, body).await {
+    pub async fn create(&mut self, order: &CreateOrder) -> CbResult<OrderResponse> {
+        match self.agent.post(RESOURCE_ENDPOINT, &NoQuery, order).await {
             Ok(value) => match value.json::<OrderResponse>().await {
                 Ok(resp) => Ok(resp),
                 Err(_) => Err(CbAdvError::BadParse("created order object".to_string())),
             },
             Err(error) => Err(error),
         }
-    }
-
-    /// Create a market order.
-    ///
-    /// # Arguments
-    ///
-    /// * `product_id` - A string that represents the product's ID.
-    /// * `side` - A string that represents the side: BUY or SELL
-    /// * `size` - A 64-bit float that represents the size to buy or sell.
-    ///
-    /// # Endpoint / Reference
-    ///
-    #[allow(rustdoc::bare_urls)]
-    /// https://api.coinbase.com/api/v3/brokerage/orders
-    ///
-    /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_postorder>
-    pub async fn create_market(
-        &mut self,
-        product_id: &str,
-        side: &OrderSide,
-        size: &f64,
-    ) -> CbResult<OrderResponse> {
-        let market = match side {
-            OrderSide::Buy => MarketIoc {
-                quote_size: Some(size.to_string()),
-                base_size: None,
-            },
-            OrderSide::Sell => MarketIoc {
-                quote_size: None,
-                base_size: Some(size.to_string()),
-            },
-        };
-
-        let config = OrderConfiguration {
-            market_market_ioc: Some(market),
-            ..Default::default()
-        };
-
-        self.create(product_id, side, config).await
-    }
-
-    /// Create a Good til Cancelled Limit order.
-    ///
-    /// # Arguments
-    ///
-    /// * `product_id` - A string that represents the product's ID.
-    /// * `side` - A string that represents the side: BUY or SELL
-    /// * `size` - A 64-bit float that represents the size to buy or sell.
-    /// * `price` - A 64-bit float that represents the price to buy or sell.
-    /// * `post_only` - A boolean that represents MAKER or TAKER.
-    ///
-    /// # Endpoint / Reference
-    ///
-    #[allow(rustdoc::bare_urls)]
-    /// https://api.coinbase.com/api/v3/brokerage/orders
-    ///
-    /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_postorder>
-    pub async fn create_limit_gtc(
-        &mut self,
-        product_id: &str,
-        side: &OrderSide,
-        size: &f64,
-        price: &f64,
-        post_only: bool,
-    ) -> CbResult<OrderResponse> {
-        let limit = LimitGtc {
-            base_size: size.to_string(),
-            limit_price: price.to_string(),
-            post_only,
-        };
-
-        let config = OrderConfiguration {
-            limit_limit_gtc: Some(limit),
-            ..Default::default()
-        };
-
-        self.create(product_id, side, config).await
-    }
-
-    /// Create a Good til Time (Date) Limit order.
-    ///
-    /// # Arguments
-    ///
-    /// * `product_id` - A string that represents the product's ID.
-    /// * `side` - A string that represents the side: BUY or SELL
-    /// * `size` - A 64-bit float that represents the size to buy or sell.
-    /// * `price` - A 64-bit float that represents the price to buy or sell.
-    /// * `end_time` - A string that represents the time to kill the order.
-    /// * `post_only` - A boolean that represents MAKER or TAKER.
-    ///
-    /// # Endpoint / Reference
-    ///
-    #[allow(rustdoc::bare_urls)]
-    /// https://api.coinbase.com/api/v3/brokerage/orders
-    ///
-    /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_postorder>
-    pub async fn create_limit_gtd(
-        &mut self,
-        product_id: &str,
-        side: &OrderSide,
-        size: &f64,
-        price: &f64,
-        end_time: &str,
-        post_only: bool,
-    ) -> CbResult<OrderResponse> {
-        let limit = LimitGtd {
-            base_size: size.to_string(),
-            limit_price: price.to_string(),
-            end_time: end_time.to_string(),
-            post_only,
-        };
-
-        let config = OrderConfiguration {
-            limit_limit_gtd: Some(limit),
-            ..Default::default()
-        };
-
-        self.create(product_id, side, config).await
-    }
-
-    /// Create a Good til Cancelled Stop Limit order.
-    ///
-    /// # Arguments
-    ///
-    /// * `product_id` - A string that represents the product's ID.
-    /// * `side` - A string that represents the side: BUY or SELL
-    /// * `size` - A 64-bit float that represents the size to buy or sell.
-    /// * `limit_price` - Ceiling price for which the order should get filled.
-    /// * `stop_price` - Price at which the order should trigger - if stop direction is Up, then the order will trigger when the last trade price goes above this, otherwise order will trigger when last trade price goes below this price.
-    /// * `stop_direction` - Possible values: [UNKNOWN_STOP_DIRECTION, STOP_DIRECTION_STOP_UP, STOP_DIRECTION_STOP_DOWN]
-    ///
-    /// # Endpoint / Reference
-    ///
-    #[allow(rustdoc::bare_urls)]
-    /// https://api.coinbase.com/api/v3/brokerage/orders
-    ///
-    /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_postorder>
-    pub async fn create_stop_limit_gtc(
-        &mut self,
-        product_id: &str,
-        side: &OrderSide,
-        size: &f64,
-        limit_price: &f64,
-        stop_price: &f64,
-        stop_direction: &str,
-    ) -> CbResult<OrderResponse> {
-        let stoplimit = StopLimitGtc {
-            base_size: size.to_string(),
-            limit_price: limit_price.to_string(),
-            stop_price: stop_price.to_string(),
-            stop_direction: stop_direction.to_string(),
-        };
-
-        let config = OrderConfiguration {
-            stop_limit_stop_limit_gtc: Some(stoplimit),
-            ..Default::default()
-        };
-
-        self.create(product_id, side, config).await
-    }
-
-    /// Create a Good til Time (Date) Stop Limit order.
-    ///
-    /// # Arguments
-    ///
-    /// * `product_id` - A string that represents the product's ID.
-    /// * `side` - A string that represents the side: BUY or SELL
-    /// * `size` - A 64-bit float that represents the size to buy or sell.
-    /// * `limit_price` - Ceiling price for which the order should get filled.
-    /// * `stop_price` - Price at which the order should trigger - if stop direction is Up, then the order will trigger when the last trade price goes above this, otherwise order will trigger when last trade price goes below this price.
-    /// * `stop_direction` - Possible values: [UNKNOWN_STOP_DIRECTION, STOP_DIRECTION_STOP_UP, STOP_DIRECTION_STOP_DOWN]
-    /// * `end_time` - Time at which the order should be cancelled if it's not filled.
-    ///
-    /// # Endpoint / Reference
-    ///
-    #[allow(rustdoc::bare_urls)]
-    /// https://api.coinbase.com/api/v3/brokerage/orders
-    ///
-    /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_postorder>
-    #[allow(clippy::too_many_arguments)]
-    pub async fn create_stop_limit_gtd(
-        &mut self,
-        product_id: &str,
-        side: &OrderSide,
-        size: &f64,
-        limit_price: &f64,
-        stop_price: &f64,
-        stop_direction: &str,
-        end_time: &str,
-    ) -> CbResult<OrderResponse> {
-        let stoplimit = StopLimitGtd {
-            base_size: size.to_string(),
-            limit_price: limit_price.to_string(),
-            stop_price: stop_price.to_string(),
-            end_time: end_time.to_string(),
-            stop_direction: stop_direction.to_string(),
-        };
-
-        let config = OrderConfiguration {
-            stop_limit_stop_limit_gtd: Some(stoplimit),
-            ..Default::default()
-        };
-
-        self.create(product_id, side, config).await
     }
 
     /// Obtains a single order based on the Order ID (ex. "XXXX-YYYY-ZZZZ").
@@ -480,7 +261,7 @@ impl OrderApi {
         let mut query = query.unwrap_or_default();
 
         // Override product ID.
-        query.product_id = Some(product_id.to_string());
+        query.product_ids = Some(vec![product_id.to_string()]);
         let mut orders: Vec<Order> = vec![];
         let mut has_next: bool = true;
 
