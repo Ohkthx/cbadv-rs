@@ -4,15 +4,15 @@
 //! These allow you to obtain past created orders, create new orders, and cancel orders.
 
 use crate::constants::orders::{
-    BATCH_ENDPOINT, CANCEL_BATCH_ENDPOINT, EDIT_ENDPOINT, EDIT_PREVIEW_ENDPOINT, FILLS_ENDPOINT,
-    RESOURCE_ENDPOINT,
+    BATCH_ENDPOINT, CANCEL_BATCH_ENDPOINT, CLOSE_POSITION_ENDPOINT, CREATE_PREVIEW_ENDPOINT,
+    EDIT_ENDPOINT, EDIT_PREVIEW_ENDPOINT, FILLS_ENDPOINT, RESOURCE_ENDPOINT,
 };
 use crate::errors::CbAdvError;
 use crate::http_agent::{HttpAgent, SecureHttpAgent};
 use crate::order::{
-    CancelOrders, CancelOrdersResponse, CreateOrder, EditOrder, EditOrderResponse, ListFillsQuery,
-    ListOrdersQuery, ListedFills, ListedOrders, Order, OrderResponse, OrderStatus,
-    OrderStatusResponse, PreviewEditOrderResponse,
+    CancelOrders, CancelOrdersResponse, ClosePositionQuery, CreateOrder, CreateOrderPreview,
+    EditOrder, EditOrderPreview, EditOrderResponse, ListFillsQuery, ListOrdersQuery, ListedFills,
+    ListedOrders, Order, OrderResponse, OrderStatus, OrderStatusResponse,
 };
 use crate::traits::NoQuery;
 use crate::types::CbResult;
@@ -134,6 +134,37 @@ impl OrderApi {
         }
     }
 
+    /// Preview creating an order.
+    ///
+    /// # Arguments
+    ///
+    /// * `product_id` - A string that represents the product's ID.
+    /// * `side` - A string that represents the side: BUY or SELL
+    /// * `configuration` - A OrderConfiguration containing details on type of order.
+    ///
+    /// # Endpoint / Reference
+    ///
+    #[allow(rustdoc::bare_urls)]
+    /// https://api.coinbase.com/api/v3/brokerage/orders/preview
+    ///
+    /// <https://docs.cdp.coinbase.com/advanced-trade/reference/retailbrokerageapi_previeworder>
+    pub async fn preview_create(&mut self, order: &CreateOrder) -> CbResult<CreateOrderPreview> {
+        match self
+            .agent
+            .post(CREATE_PREVIEW_ENDPOINT, &NoQuery, order)
+            .await
+        {
+            Ok(value) => match value.json::<CreateOrderPreview>().await {
+                Ok(resp) => Ok(resp),
+                Err(err) => Err(CbAdvError::BadParse(format!(
+                    "preview create order object: {}",
+                    err
+                ))),
+            },
+            Err(error) => Err(error),
+        }
+    }
+
     /// Simulate an edit order request with a specified new size, or new price, to preview the result of an edit. Only
     /// limit order types, with time in force type of good-till-cancelled can be edited.
     ///
@@ -154,7 +185,7 @@ impl OrderApi {
         order_id: &str,
         size: f64,
         price: f64,
-    ) -> CbResult<PreviewEditOrderResponse> {
+    ) -> CbResult<EditOrderPreview> {
         let body = EditOrder {
             order_id: order_id.to_string(),
             size: size.to_string(),
@@ -162,7 +193,7 @@ impl OrderApi {
         };
 
         match self.agent.post(EDIT_PREVIEW_ENDPOINT, &NoQuery, body).await {
-            Ok(value) => match value.json::<PreviewEditOrderResponse>().await {
+            Ok(value) => match value.json::<EditOrderPreview>().await {
                 Ok(response) => Ok(response),
                 Err(_) => Err(CbAdvError::BadParse(
                     "could not parse preview edit order response".to_string(),
@@ -223,6 +254,8 @@ impl OrderApi {
 
     /// Obtains various orders from the API.
     ///
+    /// # Arguments
+    ///
     /// * `query` - A Parameters to modify what is returned by the API.
     ///
     /// # Endpoint / Reference
@@ -282,6 +315,8 @@ impl OrderApi {
 
     /// Obtains fills from the API.
     ///
+    /// # Arguments
+    ///
     /// * `query` - A Parameters to modify what is returned by the API.
     ///
     /// # Endpoint / Reference
@@ -296,6 +331,30 @@ impl OrderApi {
                 Ok(resp) => Ok(resp),
                 Err(_) => Err(CbAdvError::BadParse(
                     "could not parse fills vector".to_string(),
+                )),
+            },
+            Err(error) => Err(error),
+        }
+    }
+
+    /// Places an order to close any open positions for a specified product_id.
+    ///
+    /// # Arguments
+    ///
+    /// * `query` - A Parameters to modify what is returned by the API.
+    ///
+    /// # Endpoint / Reference
+    ///
+    #[allow(rustdoc::bare_urls)]
+    /// https://api.coinbase.com/api/v3/brokerage/orders/close_position
+    ///
+    /// <https://docs.cdp.coinbase.com/advanced-trade/reference/retailbrokerageapi_closeposition>
+    pub async fn close_position(&mut self, query: &ClosePositionQuery) -> CbResult<OrderResponse> {
+        match self.agent.get(CLOSE_POSITION_ENDPOINT, query).await {
+            Ok(value) => match value.json::<OrderResponse>().await {
+                Ok(resp) => Ok(resp),
+                Err(_) => Err(CbAdvError::BadParse(
+                    "could not parse close position".to_string(),
                 )),
             },
             Err(error) => Err(error),

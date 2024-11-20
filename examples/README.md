@@ -22,6 +22,8 @@ Welcome to **cbadv-rs**, a Rust crate for interacting with the Coinbase Advanced
   - [Fee API](#fee-api)
   - [Order API](#order-api)
   - [Portfolio API](#portfolio-api)
+  - [Payment API](#payment-api)
+  - [Data API](#data-api)
   - [Public API](#public-api)
   - [Sandbox API](#sandbox-api)
   - [WebSocket API](#websocket-api)
@@ -92,6 +94,30 @@ Learn how to use the Portfolio API. Example source: [portfolio_api.rs](https://g
 
 ```bash
 cargo run --example portfolio_api --features="config"
+```
+
+---
+
+### Payment API
+
+Learn how to use the Payment API. Example source: [payment_api.rs](https://github.com/Ohkthx/cbadv-rs/tree/main/examples/payment_api.rs)
+
+**Run the example**:
+
+```bash
+cargo run --example payment_api --features="config"
+```
+
+---
+
+### Data API
+
+Learn how to use the Data API. Example source: [data_api.rs](https://github.com/Ohkthx/cbadv-rs/tree/main/examples/data_api.rs)
+
+**Run the example**:
+
+```bash
+cargo run --example data_api --features="config"
 ```
 
 ---

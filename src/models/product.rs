@@ -4,16 +4,46 @@
 //! This allows you to obtain product information such as: Ticker (Market Trades), Product and
 //! Currency information, Product Book, and Best Bids and Asks for multiple products.
 
+use core::fmt;
+
 use serde::{Deserialize, Serialize};
 
 use crate::traits::Query;
 use crate::utils::{deserialize_numeric, QueryBuilder};
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum ProductType {
+    /// Unknown product type.
+    #[serde(rename = "UNKOWNN_PRODUCT_TYPE")]
+    Unknown,
+    /// Spot product type.
+    Spot,
+    /// Future product type.
+    Future,
+}
+
+impl fmt::Display for ProductType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.as_ref())
+    }
+}
+
+impl AsRef<str> for ProductType {
+    fn as_ref(&self) -> &str {
+        match self {
+            ProductType::Unknown => "UNKNOWN_PRODUCT_TYPE",
+            ProductType::Spot => "SPOT",
+            ProductType::Future => "FUTURE",
+        }
+    }
+}
+
 /// Represents a Product received from the Websocket API.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ProductUpdate {
     /// Type of the product.
-    pub product_type: String,
+    pub product_type: ProductType,
     /// ID of the product.
     pub id: String,
     /// Symbol of the base currency.
@@ -155,7 +185,7 @@ pub struct Product {
     /// Whether or not the product is in auction mode.
     pub auction_mode: bool,
     /// Possible values: [SPOT, FUTURE]
-    pub product_type: String,
+    pub product_type: ProductType,
     /// Symbol of the quote currency.
     pub quote_currency_id: String,
     /// Symbol of the base currency.
@@ -353,7 +383,7 @@ pub struct ListProductsQuery {
     /// Number of products to offset before returning.
     pub offset: Option<u32>,
     /// Type of products to return. Valid options: SPOT or FUTURE
-    pub product_type: Option<String>,
+    pub product_type: Option<ProductType>,
     /// List of product IDs to return.
     pub product_ids: Option<Vec<String>>,
     /// If true, return all products of all product types (including expired futures contracts).

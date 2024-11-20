@@ -102,18 +102,15 @@ Clients: `use cbadv::RestClient` and `use cbadv::PublicRestClient`
   - Get Product Candles: `client.product.candles`
   - Get Market Trades (Ticker): `client.product.ticker`
 - **Orders (`client.order`)**:
-  - Create Order:
-    - Market IOC (untested): `client.order.create_market`
-    - Limit GTC: `client.order.create_limit_gtc`
-    - Limit GTD (untested): `client.order.create_limit_gtd`
-    - Stop Limit GTC (untested): `client.order.create_stop_limit_gtc`
-    - Stop Limit GTD (untested): `client.order.create_stop_limit_gtd`
+  - Create Order: `client.order.create`
   - Edit Order: `client.order.edit`
   - Preview Order Edit: `client.order.preview_edit`
+  - Preview Order Create: `client.order.preview_create`
   - Cancel Order: `client.order.cancel`
   - List Orders: `client.order.get_bulk`
   - List Fills (untested): `client.order.fills`
   - Get Order: `client.order.get`
+  - Close Position (untested): `client.order.close_position`
 - **Fees (`client.fee`)**:
   - Get Transaction Summary: `client.fee.get`
 - **Converts (`client.convert`)**:
@@ -127,6 +124,11 @@ Clients: `use cbadv::RestClient` and `use cbadv::PublicRestClient`
   - Edit Portfolio: `client.portfolio.edit`
   - Delete Portfolio: `client.portfolio.delete`
   - Move Funds (untested): `client.portfolio.move_funds`
+- **Payments** (`client.payment`)
+  - List Payments: `client.payment.get_all`
+  - Get Payment: `client.payment.get`
+- **Data** (`client.data`)
+  - API Key Permissions: `client.data.key_permissions`
 - **Public (`client.public`)**:
   - Get API Unix Server Time: `client.public.server_time`
   - Get Product Book: `client.public.product_book`

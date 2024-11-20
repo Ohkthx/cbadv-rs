@@ -312,6 +312,7 @@ pub enum OrderConfiguration {
 pub struct CreateOrderBuilder {
     product_id: String,
     side: OrderSide,
+    is_preview: bool,
     order_type: Option<OrderType>,
     time_in_force: Option<TimeInForce>,
     base_size: Option<String>,
@@ -343,6 +344,7 @@ impl CreateOrderBuilder {
         Self {
             product_id: product_id.to_string(),
             side: side.clone(),
+            is_preview: false,
             order_type: None,
             time_in_force: None,
             base_size: None,
@@ -616,6 +618,26 @@ impl CreateOrderBuilder {
         self
     }
 
+    /// Sets whether the order is a preview order. This will skip serializing the `client_order_id`.
+    ///
+    /// # Arguments
+    ///
+    /// * `is_preview` - A boolean indicating if it is a preview or not.
+    ///
+    /// # Note
+    ///
+    /// - By default, preview is false.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// builder.preview(true);
+    /// ```
+    pub fn preview(mut self, is_preview: bool) -> Self {
+        self.is_preview = is_preview;
+        self
+    }
+
     /// Builds the `CreateOrder` object based on the provided parameters.
     ///
     /// This method validates that all required parameters have been set according to the
@@ -755,10 +777,15 @@ impl CreateOrderBuilder {
             )),
         }?;
 
+        let client_order_id = if self.is_preview {
+            "".to_string()
+        } else {
+            self.client_order_id
+                .unwrap_or_else(|| uuid::Uuid::new_v4().to_string())
+        };
+
         Ok(CreateOrder {
-            client_order_id: self
-                .client_order_id
-                .unwrap_or_else(|| uuid::Uuid::new_v4().to_string()),
+            client_order_id,
             product_id: self.product_id,
             side: self.side.to_string(),
             order_configuration,
@@ -769,7 +796,8 @@ impl CreateOrderBuilder {
 /// Represents an order created to BUY or SELL.
 #[derive(Serialize, Debug)]
 pub struct CreateOrder {
-    /// Client Order ID (UUID)
+    /// Client Order ID (UUID). Skipped if creating a preview order.
+    #[serde(skip_serializing_if = "str::is_empty")]
     pub client_order_id: String,
     /// Product ID (pair)
     pub product_id: String,
@@ -1038,7 +1066,7 @@ pub struct EditOrderErrors {
 
 /// Response from a preview edit order.
 #[derive(Deserialize, Debug)]
-pub struct PreviewEditOrderResponse {
+pub struct EditOrderPreview {
     /// Contains reasons for failure in the edit or preview edit operation.
     pub errors: Vec<EditOrderErrors>,
     /// The amount of slippage in the order.
@@ -1066,6 +1094,55 @@ pub struct PreviewEditOrderResponse {
     #[serde(deserialize_with = "deserialize_numeric")]
     pub average_filled_price: f64,
 }
+
+/// Represents the response for a preview of creating an order.
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct CreateOrderPreview {
+    /// The total value of the order.
+    #[serde(deserialize_with = "deserialize_numeric")]
+    pub order_total: f64,
+    /// The total commission for the order.
+    #[serde(deserialize_with = "deserialize_numeric")]
+    pub commission_total: f64,
+    /// List of errors encountered during the preview.
+    pub errs: Vec<String>,
+    /// List of warnings related to the order preview.
+    pub warning: Vec<String>,
+    /// The best bid price at the time of the preview.
+    #[serde(deserialize_with = "deserialize_numeric")]
+    pub best_bid: f64,
+    /// The best ask price at the time of the preview.
+    #[serde(deserialize_with = "deserialize_numeric")]
+    pub best_ask: f64,
+    /// The size of the quote currency in the order.
+    /// Note: Currently does not appear to work as of 20241119
+    // pub quote_size: Option<f64>,
+    /// The size of the base currency in the order.
+    /// Note: Currently does not appear to work as of 20241119
+    // pub base_size: Option<f64>,
+    /// Indicates whether the maximum allowed amount was used.
+    pub is_max: bool,
+    /// The total margin required for the order.
+    pub order_margin_total: String,
+    /// The leverage applied to the order.
+    pub leverage: String,
+    /// The long leverage available for the order.
+    pub long_leverage: String,
+    /// The short leverage available for the order.
+    pub short_leverage: String,
+    /// The projected slippage for the order.
+    pub slippage: String,
+    /// The unique identifier for the order preview.
+    pub preview_id: String,
+    /// The current liquidation buffer for the account.
+    pub current_liquidation_buffer: String,
+    /// The projected liquidation buffer after the order.
+    pub projected_liquidation_buffer: String,
+    /// The maximum leverage available for the order.
+    pub max_leverage: String,
+}
+
+pub struct _Temp {}
 
 /// Represents parameters that are optional for List Orders API request.
 #[derive(Serialize, Default, Debug)]
@@ -1143,6 +1220,28 @@ impl Query for ListFillsQuery {
             .push_optional("end_sequence_timestamp", &self.end_sequence_timestamp)
             .push_u32_optional("limit", self.limit)
             .push_optional("cursor", &self.cursor)
+            .build()
+    }
+}
+
+/// Represents parameters that are needed to close positions.
+#[derive(Serialize, Default, Debug)]
+pub struct ClosePositionQuery {
+    /// The unique ID provided for the order (used for identification purposes).
+    pub client_order_id: Option<String>,
+    /// The trading pair (e.g. 'BIT-28JUL23-CDE').
+    pub product_id: Option<String>,
+    /// The amount of contracts that should be closed.
+    pub size: Option<u32>,
+}
+
+impl Query for ClosePositionQuery {
+    /// Converts the object into HTTP request parameters.
+    fn to_query(&self) -> String {
+        QueryBuilder::new()
+            .push_optional("client_order_id", &self.client_order_id)
+            .push_optional("product_id", &self.product_id)
+            .push_u32_optional("size", self.size)
             .build()
     }
 }

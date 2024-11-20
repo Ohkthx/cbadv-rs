@@ -26,9 +26,11 @@ pub(crate) mod orders {
     pub(crate) const RESOURCE_ENDPOINT: &str = "/api/v3/brokerage/orders";
     pub(crate) const CANCEL_BATCH_ENDPOINT: &str = "/api/v3/brokerage/orders/batch_cancel";
     pub(crate) const EDIT_ENDPOINT: &str = "/api/v3/brokerage/orders/edit";
+    pub(crate) const CREATE_PREVIEW_ENDPOINT: &str = "/api/v3/brokerage/orders/preview";
     pub(crate) const EDIT_PREVIEW_ENDPOINT: &str = "/api/v3/brokerage/orders/edit_preview";
     pub(crate) const BATCH_ENDPOINT: &str = "/api/v3/brokerage/orders/historical/batch";
     pub(crate) const FILLS_ENDPOINT: &str = "/api/v3/brokerage/orders/historical/fills";
+    pub(crate) const CLOSE_POSITION_ENDPOINT: &str = "/api/v3/brokerage/orders/close_position";
 }
 
 /// Portfolios API constants
@@ -43,6 +45,16 @@ pub(crate) mod products {
     pub(crate) const RESOURCE_ENDPOINT: &str = "/api/v3/brokerage/products";
     pub(crate) const BID_ASK_ENDPOINT: &str = "/api/v3/brokerage/best_bid_ask";
     pub(crate) const PRODUCT_BOOK_ENDPOINT: &str = "/api/v3/brokerage/product_book";
+}
+
+/// Payment API constants
+pub(crate) mod payments {
+    pub(crate) const RESOURCE_ENDPOINT: &str = "/api/v3/brokerage/payment_methods";
+}
+
+/// Data API constants
+pub(crate) mod data {
+    pub(crate) const KEY_PERMISSIONS_ENDPOINT: &str = "/api/v3/brokerage/key_permissions";
 }
 
 /// Public API constants
