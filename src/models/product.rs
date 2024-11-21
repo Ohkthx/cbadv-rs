@@ -346,7 +346,7 @@ pub struct Ticker {
 
 /// Represents a list of Products received from the API.
 #[derive(Deserialize, Debug)]
-pub(crate) struct ListProductsResponse {
+pub(crate) struct ProductsWrapper {
     /// Array of objects, each representing one product.
     pub(crate) products: Vec<Product>,
     // Number of products that were returned.
@@ -356,21 +356,21 @@ pub(crate) struct ListProductsResponse {
 
 /// Represents a candle response from the API.
 #[derive(Deserialize, Debug)]
-pub(crate) struct CandleResponse {
+pub(crate) struct CandlesWrapper {
     /// Array of candles for the product.
     pub(crate) candles: Vec<Candle>,
 }
 
 /// Represents a best bid and ask response from the API.
 #[derive(Deserialize, Debug)]
-pub(crate) struct BidAskResponse {
+pub(crate) struct ProductBooksWrapper {
     /// Array of product books.
     pub(crate) pricebooks: Vec<ProductBook>,
 }
 
 /// Represents a product book response from the API.
 #[derive(Deserialize, Debug)]
-pub(crate) struct ProductBookResponse {
+pub(crate) struct ProductBookWrapper {
     /// Price book for the product.
     pub(crate) pricebook: ProductBook,
 }

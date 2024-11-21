@@ -32,16 +32,16 @@ pub struct PaymentMethod {
     pub updated_at: Option<String>,
 }
 
-/// Response from the API for listing payment methods.
+/// Response from the API that wraps a list of payment methods.
 #[derive(Deserialize, Debug, Clone)]
-pub(crate) struct ListPaymentMethods {
+pub(crate) struct PaymentMethodsWrapper {
     /// List of payment methods available to the user.
     pub(crate) payment_methods: Vec<PaymentMethod>,
 }
 
-/// Response from the API for obtaining a payment methods.
+/// Response from the API that wraps a single payment method.
 #[derive(Deserialize, Debug, Clone)]
-pub(crate) struct GetPaymentMethod {
+pub(crate) struct PaymentMethodWrapper {
     /// A payment method requested by the user.
     pub(crate) payment_method: PaymentMethod,
 }

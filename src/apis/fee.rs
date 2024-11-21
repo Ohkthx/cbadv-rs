@@ -38,12 +38,11 @@ impl FeeApi {
     ///
     /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_gettransactionsummary>
     pub async fn get(&mut self, query: &TransactionSummaryQuery) -> CbResult<TransactionSummary> {
-        match self.agent.get(RESOURCE_ENDPOINT, query).await {
-            Ok(value) => match value.json::<TransactionSummary>().await {
-                Ok(resp) => Ok(resp),
-                Err(_) => Err(CbAdvError::BadParse("fee summary object".to_string())),
-            },
-            Err(error) => Err(error),
-        }
+        let response = self.agent.get(RESOURCE_ENDPOINT, query).await?;
+        let data: TransactionSummary = response
+            .json()
+            .await
+            .map_err(|e| CbAdvError::JsonError(e.to_string()))?;
+        Ok(data)
     }
 }

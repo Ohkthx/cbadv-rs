@@ -39,9 +39,9 @@ pub struct Account {
     pub hold: Balance,
 }
 
-/// Represents a list of accounts received from the API.
+/// Response from the API that wraps a list of accounts.
 #[derive(Deserialize, Debug)]
-pub struct ListedAccounts {
+pub struct PaginatedAccounts {
     /// Accounts returned from the API.
     pub accounts: Vec<Account>,
     /// Whether there are additional pages for this query.
@@ -52,9 +52,9 @@ pub struct ListedAccounts {
     pub size: u32,
 }
 
-/// Represents an account response from the API.
+/// Response from the API that wraps a single account.
 #[derive(Deserialize, Debug)]
-pub(crate) struct AccountResponse {
+pub(crate) struct AccountWrapper {
     /// Account returned from the API.
     pub(crate) account: Account,
 }

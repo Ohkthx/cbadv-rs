@@ -10,8 +10,8 @@ use crate::constants::products::{
 use crate::errors::CbAdvError;
 use crate::http_agent::{HttpAgent, SecureHttpAgent};
 use crate::models::product::{
-    BidAskResponse, Candle, CandleResponse, ListProductsQuery, ListProductsResponse, Product,
-    ProductBook, ProductBookResponse, Ticker, TickerQuery,
+    Candle, CandlesWrapper, ListProductsQuery, Product, ProductBook, ProductBookWrapper,
+    ProductBooksWrapper, ProductsWrapper, Ticker, TickerQuery,
 };
 use crate::product::{BidAskQuery, ProductBookQuery};
 use crate::time;
@@ -48,14 +48,12 @@ impl ProductApi {
     /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getbestbidask>
     pub async fn best_bid_ask(&mut self, product_ids: Vec<String>) -> CbResult<Vec<ProductBook>> {
         let query = BidAskQuery { product_ids };
-
-        match self.agent.get(BID_ASK_ENDPOINT, &query).await {
-            Ok(value) => match value.json::<BidAskResponse>().await {
-                Ok(bidasks) => Ok(bidasks.pricebooks),
-                Err(_) => Err(CbAdvError::BadParse("bid asks object".to_string())),
-            },
-            Err(error) => Err(error),
-        }
+        let response = self.agent.get(BID_ASK_ENDPOINT, &query).await?;
+        let data: ProductBooksWrapper = response
+            .json()
+            .await
+            .map_err(|e| CbAdvError::JsonError(e.to_string()))?;
+        Ok(data.pricebooks)
     }
 
     /// Obtains the product book (bids and asks) for the product ID provided.
@@ -81,13 +79,12 @@ impl ProductApi {
             limit,
         };
 
-        match self.agent.get(PRODUCT_BOOK_ENDPOINT, &query).await {
-            Ok(value) => match value.json::<ProductBookResponse>().await {
-                Ok(book) => Ok(book.pricebook),
-                Err(_) => Err(CbAdvError::BadParse("product book object".to_string())),
-            },
-            Err(error) => Err(error),
-        }
+        let response = self.agent.get(PRODUCT_BOOK_ENDPOINT, &query).await?;
+        let data: ProductBookWrapper = response
+            .json()
+            .await
+            .map_err(|e| CbAdvError::JsonError(e.to_string()))?;
+        Ok(data.pricebook)
     }
 
     /// Obtains a single product based on the Product ID (ex. "BTC-USD").
@@ -104,13 +101,12 @@ impl ProductApi {
     /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getproduct>
     pub async fn get(&mut self, product_id: &str) -> CbResult<Product> {
         let resource = format!("{}/{}", RESOURCE_ENDPOINT, product_id);
-        match self.agent.get(&resource, &NoQuery).await {
-            Ok(value) => match value.json::<Product>().await {
-                Ok(product) => Ok(product),
-                Err(_) => Err(CbAdvError::BadParse("product object".to_string())),
-            },
-            Err(error) => Err(error),
-        }
+        let response = self.agent.get(&resource, &NoQuery).await?;
+        let data: Product = response
+            .json()
+            .await
+            .map_err(|e| CbAdvError::JsonError(e.to_string()))?;
+        Ok(data)
     }
 
     /// Obtains bulk products from the API.
@@ -126,13 +122,12 @@ impl ProductApi {
     ///
     /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getproducts>
     pub async fn get_bulk(&mut self, query: &ListProductsQuery) -> CbResult<Vec<Product>> {
-        match self.agent.get(RESOURCE_ENDPOINT, query).await {
-            Ok(value) => match value.json::<ListProductsResponse>().await {
-                Ok(resp) => Ok(resp.products),
-                Err(_) => Err(CbAdvError::BadParse("products vector".to_string())),
-            },
-            Err(error) => Err(error),
-        }
+        let response = self.agent.get(RESOURCE_ENDPOINT, query).await?;
+        let data: ProductsWrapper = response
+            .json()
+            .await
+            .map_err(|e| CbAdvError::JsonError(e.to_string()))?;
+        Ok(data.products)
     }
 
     /// Obtains candles for a specific product.
@@ -150,13 +145,12 @@ impl ProductApi {
     /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getcandles>
     pub async fn candles(&mut self, product_id: &str, query: &time::Span) -> CbResult<Vec<Candle>> {
         let resource = format!("{}/{}/candles", RESOURCE_ENDPOINT, product_id);
-        match self.agent.get(&resource, query).await {
-            Ok(value) => match value.json::<CandleResponse>().await {
-                Ok(resp) => Ok(resp.candles),
-                Err(_) => Err(CbAdvError::BadParse("candle object".to_string())),
-            },
-            Err(error) => Err(error),
-        }
+        let response = self.agent.get(&resource, query).await?;
+        let data: CandlesWrapper = response
+            .json()
+            .await
+            .map_err(|e| CbAdvError::JsonError(e.to_string()))?;
+        Ok(data.candles)
     }
 
     /// Obtains candles for a specific product extended. This will exceed the 300 limit threshold
@@ -174,45 +168,33 @@ impl ProductApi {
         product_id: &str,
         query: &time::Span,
     ) -> CbResult<Vec<Candle>> {
-        let resource = format!("{}/{}/candles", RESOURCE_ENDPOINT, product_id);
+        // Extract query parameters.
+        let end_time = query.end;
+        let interval_seconds = query.granularity as u64;
+        let maximum_candles = CANDLE_MAXIMUM;
+        let granularity = time::Granularity::from_secs(query.granularity);
 
-        // Make a copy of the query.
-        let end = query.end;
-        let interval = query.granularity as u64;
-        let maximum = CANDLE_MAXIMUM;
-        let granularity = &time::Granularity::from_secs(query.granularity);
+        // Initialize the span.
+        let mut current_start = query.start;
+        let mut all_candles: Vec<Candle> = Vec::new();
 
-        // Create new span.
-        let mut span = time::Span::new(query.start, end, granularity);
-        span.end = time::after(query.start, interval * maximum);
-        if span.end > end {
-            span.end = end;
+        while current_start < end_time {
+            // Calculate the end time for the current batch.
+            let current_end = std::cmp::min(
+                time::after(current_start, interval_seconds * maximum_candles),
+                end_time,
+            );
+
+            // Create a new span for the current batch and fetch candles.
+            let current_span = time::Span::new(current_start, current_end, &granularity);
+            let mut candles = self.candles(product_id, &current_span).await?;
+            all_candles.append(&mut candles);
+
+            // Update the start time for the next batch.
+            current_start = current_end;
         }
 
-        let mut candles: Vec<Candle> = vec![];
-        while span.count() > 0 {
-            match self.agent.get(&resource, &span).await {
-                Ok(value) => match value.json::<CandleResponse>().await {
-                    Ok(resp) => candles.extend(resp.candles),
-                    Err(_) => return Err(CbAdvError::BadParse("candle object".to_string())),
-                },
-                Err(error) => return Err(error),
-            }
-
-            // Update to get additional candles.
-            span.start = span.end;
-            span.end = time::after(span.start, interval * CANDLE_MAXIMUM);
-            if span.end > end {
-                span.end = end;
-            }
-
-            // Stop condition.
-            if span.start > span.end {
-                span.start = span.end;
-            }
-        }
-
-        Ok(candles)
+        Ok(all_candles)
     }
 
     /// Obtains product ticker from the API.
@@ -230,12 +212,11 @@ impl ProductApi {
     /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getmarkettrades>
     pub async fn ticker(&mut self, product_id: &str, query: &TickerQuery) -> CbResult<Ticker> {
         let resource = format!("{}/{}/ticker", RESOURCE_ENDPOINT, product_id);
-        match self.agent.get(&resource, query).await {
-            Ok(value) => match value.json::<Ticker>().await {
-                Ok(resp) => Ok(resp),
-                Err(_) => Err(CbAdvError::BadParse("ticker object".to_string())),
-            },
-            Err(error) => Err(error),
-        }
+        let response = self.agent.get(&resource, query).await?;
+        let data: Ticker = response
+            .json()
+            .await
+            .map_err(|e| CbAdvError::JsonError(e.to_string()))?;
+        Ok(data)
     }
 }

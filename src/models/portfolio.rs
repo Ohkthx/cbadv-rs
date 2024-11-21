@@ -55,27 +55,20 @@ pub struct Portfolio {
 
 /// Portfolio information returned from the API.
 #[derive(Deserialize, Debug)]
-pub(crate) struct ListedPortfolios {
+pub(crate) struct PortfoliosWrapper {
     pub portfolios: Vec<Portfolio>,
-}
-
-/// Create a new portfolio.
-#[derive(Serialize, Default, Debug)]
-pub(crate) struct CreatePortfolio {
-    /// Name of the portfolio.
-    pub(crate) name: String,
 }
 
 /// Response for creating or editing a  portfolio.
 #[derive(Deserialize, Debug)]
-pub(crate) struct PortfolioResponse {
+pub(crate) struct PortfolioWrapper {
     /// Updated portfolio from the API.
     pub(crate) portfolio: Portfolio,
 }
 
-/// Edit an existing portfolio.
+/// Create or Edit an existing portfolio.
 #[derive(Serialize, Default, Debug)]
-pub(crate) struct EditPortfolio {
+pub(crate) struct PortfolioQuery {
     /// New name of the portfolio.
     pub(crate) name: String,
 }
@@ -288,7 +281,7 @@ pub struct PortfolioBreakdown {
 
 /// Represents a response for a portfolio breakdown.
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub(crate) struct PortfolioBreakdownResponse {
+pub(crate) struct PortfolioBreakdownWrapper {
     /// The portfolio breakdown details.
     pub(crate) breakdown: PortfolioBreakdown,
 }

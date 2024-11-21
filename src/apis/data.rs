@@ -34,12 +34,11 @@ impl DataApi {
     ///
     /// <https://docs.cdp.coinbase.com/advanced-trade/reference/retailbrokerageapi_getapikeypermissions>
     pub async fn key_permissions(&mut self) -> CbResult<KeyPermissions> {
-        match self.agent.get(KEY_PERMISSIONS_ENDPOINT, &NoQuery).await {
-            Ok(value) => match value.json::<KeyPermissions>().await {
-                Ok(resp) => Ok(resp),
-                Err(_) => Err(CbAdvError::BadParse("key permissions object".to_string())),
-            },
-            Err(error) => Err(error),
-        }
+        let response = self.agent.get(KEY_PERMISSIONS_ENDPOINT, &NoQuery).await?;
+        let data: KeyPermissions = response
+            .json()
+            .await
+            .map_err(|e| CbAdvError::JsonError(e.to_string()))?;
+        Ok(data)
     }
 }

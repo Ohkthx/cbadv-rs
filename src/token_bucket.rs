@@ -3,6 +3,59 @@
 use std::time::{Duration, Instant};
 use tokio::time::sleep as async_sleep;
 
+use crate::constants::ratelimits;
+
+/// Rate Limits for REST and WebSocket requests.
+///
+/// # Endpoint / Reference
+///
+/// * REST: <https://docs.cloud.coinbase.com/advanced-trade-api/docs/rest-api-rate-limits>
+/// * WebSocket: <https://docs.cloud.coinbase.com/advanced-trade-api/docs/ws-rate-limits>
+pub(crate) struct RateLimits {}
+impl RateLimits {
+    /// Maximum amount of tokens per bucket.
+    const PUBLIC_REST_MAX_TOKENS: f64 = ratelimits::PUBLIC_REST_REFRESH_RATE;
+    const SECURE_REST_MAX_TOKENS: f64 = ratelimits::SECURE_REST_REFRESH_RATE;
+    const PUBLIC_WEBSOCKET_MAX_TOKENS: f64 = ratelimits::PUBLIC_WEBSOCKET_REFRESH_RATE;
+    const SECURE_WEBSOCKET_MAX_TOKENS: f64 = ratelimits::SECURE_WEBSOCKET_REFRESH_RATE;
+
+    /// Amount of tokens refreshed per second.
+    ///
+    /// # Arguments
+    ///
+    /// * `is_rest` - Requester is REST Client, true, otherwise false.
+    /// * `is_public` - Requester is Public Client, true, otherwise false.
+    pub(crate) fn refresh_rate(is_rest: bool, is_public: bool) -> f64 {
+        if is_rest {
+            is_public
+                .then(|| ratelimits::PUBLIC_REST_REFRESH_RATE)
+                .unwrap_or(ratelimits::SECURE_REST_REFRESH_RATE)
+        } else {
+            is_public
+                .then(|| ratelimits::PUBLIC_WEBSOCKET_REFRESH_RATE)
+                .unwrap_or(ratelimits::SECURE_WEBSOCKET_REFRESH_RATE)
+        }
+    }
+
+    /// Maximum amount of tokens for a bucket.
+    ///
+    /// # Arguments
+    ///
+    /// * `is_rest` - Requester is REST Client, true, otherwise false.
+    /// * `is_public` - Requester is Public Client, true, otherwise false.
+    pub(crate) fn max_tokens(is_rest: bool, is_public: bool) -> f64 {
+        if is_rest {
+            is_public
+                .then(|| RateLimits::PUBLIC_REST_MAX_TOKENS)
+                .unwrap_or(RateLimits::SECURE_REST_MAX_TOKENS)
+        } else {
+            is_public
+                .then(|| RateLimits::PUBLIC_WEBSOCKET_MAX_TOKENS)
+                .unwrap_or(RateLimits::SECURE_WEBSOCKET_MAX_TOKENS)
+        }
+    }
+}
+
 /// Contains and tracks token usage for rate limits.
 #[derive(Debug, Clone)]
 pub(crate) struct TokenBucket {

@@ -4,11 +4,13 @@
 //! all requests to the API for ensure proper authentication. The HttpAgents are also responsible for handling
 //! the GET and POST requests.
 
+use std::sync::Arc;
+
+use futures::lock::Mutex;
 use reqwest::header::{CONTENT_TYPE, USER_AGENT};
-use reqwest::{Method, Response, StatusCode, Url};
+use reqwest::{Method, Response, Url};
 use serde::Serialize;
 
-use crate::constants::ratelimits;
 use crate::constants::{API_ROOT_URI, API_SANDBOX_ROOT_URI, CRATE_USER_AGENT};
 use crate::errors::CbAdvError;
 use crate::jwt::Jwt;
@@ -16,49 +18,10 @@ use crate::token_bucket::TokenBucket;
 use crate::traits::Query;
 use crate::types::CbResult;
 
-/// Rate Limits for REST and WebSocket requests.
-///
-/// # Endpoint / Reference
-///
-/// * REST: <https://docs.cloud.coinbase.com/advanced-trade-api/docs/rest-api-rate-limits>
-/// * WebSocket: <https://docs.cloud.coinbase.com/advanced-trade-api/docs/ws-rate-limits>
-struct RateLimits {}
-impl RateLimits {
-    /// Maximum amount of tokens per bucket.
-    const REST_MAX_TOKENS: f64 = ratelimits::REST_REFRESH_RATE;
-    const WEBSOCKET_MAX_TOKENS: f64 = ratelimits::WEBSOCKET_REFRESH_RATE;
-
-    /// Amount of tokens refreshed per second.
-    ///
-    /// # Arguments
-    ///
-    /// * `is_rest` - Requester is REST Client, true, otherwise false.
-    fn refresh_rate(is_rest: bool) -> f64 {
-        if is_rest {
-            ratelimits::REST_REFRESH_RATE
-        } else {
-            ratelimits::WEBSOCKET_REFRESH_RATE
-        }
-    }
-
-    /// Maximum amount of tokens for a bucket.
-    ///
-    /// # Arguments
-    ///
-    /// * `is_rest` - Requester is REST Client, true, otherwise false.
-    fn max_tokens(is_rest: bool) -> f64 {
-        if is_rest {
-            RateLimits::REST_MAX_TOKENS
-        } else {
-            RateLimits::WEBSOCKET_MAX_TOKENS
-        }
-    }
-}
-
 /// Trait for the HttpAgent that is responsible for making HTTP requests and managing the token bucket.
 pub(crate) trait HttpAgent {
     /// Returns a mutable reference to the token bucket.
-    fn bucket_mut(&mut self) -> &mut TokenBucket;
+    fn bucket_mut(&self) -> Arc<Mutex<TokenBucket>>;
 
     /// Performs a HTTP GET Request.
     ///
@@ -111,7 +74,7 @@ pub(crate) struct HttpAgentBase {
     /// Wrapped client that is responsible for making the requests.
     client: reqwest::Client,
     /// Token bucket, used for rate limiting.
-    bucket: TokenBucket,
+    bucket: Arc<Mutex<TokenBucket>>,
     /// Root URI for the API.
     root_uri: &'static str,
 }
@@ -121,9 +84,9 @@ impl HttpAgentBase {
     ///
     /// # Arguments
     ///
-    /// * `is_rest` - SecureHttpAgent for REST Client, true, otherwise false.
     /// * `use_sandbox` - A boolean that determines if the sandbox should be used.
-    pub(crate) fn new(is_rest: bool, use_sandbox: bool) -> CbResult<Self> {
+    /// * `shared_bucket` - Shared token bucket for all APIs.
+    pub(crate) fn new(use_sandbox: bool, shared_bucket: Arc<Mutex<TokenBucket>>) -> CbResult<Self> {
         let root_uri = if use_sandbox {
             API_SANDBOX_ROOT_URI
         } else {
@@ -133,14 +96,11 @@ impl HttpAgentBase {
         let client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(10))
             .build()
-            .map_err(|e| CbAdvError::Unknown(format!("Client Error: {}", e)))?;
+            .map_err(|e| CbAdvError::RequestError(e.to_string()))?;
 
         Ok(Self {
             client,
-            bucket: TokenBucket::new(
-                RateLimits::max_tokens(is_rest),
-                RateLimits::refresh_rate(is_rest),
-            ),
+            bucket: shared_bucket,
             root_uri,
         })
     }
@@ -153,10 +113,10 @@ impl HttpAgentBase {
     /// * `query` - A string containing options / parameters for the URL.
     fn build_url(&self, resource: &str, query: &impl Query) -> CbResult<Url> {
         let base_url = Url::parse(&format!("https://{}", self.root_uri))
-            .map_err(|_| CbAdvError::Unknown("Invalid Base URL".to_string()))?;
+            .map_err(|e| CbAdvError::UrlParseError(e.to_string()))?;
         let mut url = base_url
             .join(resource)
-            .map_err(|_| CbAdvError::Unknown("Invalid Resource Path".to_string()))?;
+            .map_err(|e| CbAdvError::UrlParseError(e.to_string()))?;
         url.set_query(Some(&query.to_query()));
         Ok(url)
     }
@@ -167,18 +127,15 @@ impl HttpAgentBase {
     ///
     /// * `response` - The response from the API.
     async fn handle_response(&self, response: Response) -> CbResult<Response> {
-        if response.status() == StatusCode::OK {
+        if response.status().is_success() {
             Ok(response)
         } else {
-            let code = response.status().as_u16();
-            let error_text = response
+            let status = response.status();
+            let body = response
                 .text()
                 .await
                 .unwrap_or_else(|_| "Could not parse error message".to_string());
-            Err(CbAdvError::BadStatus(format!(
-                "Status Code: {}, Error: {}",
-                code, error_text
-            )))
+            Err(CbAdvError::BadStatus { code: status, body })
         }
     }
 
@@ -197,7 +154,11 @@ impl HttpAgentBase {
         body: Option<String>,
         token: Option<String>,
     ) -> CbResult<Response> {
-        self.bucket.wait_on().await;
+        {
+            let bucket = self.bucket_mut();
+            let mut locked_bucket = bucket.lock().await;
+            locked_bucket.wait_on().await;
+        }
 
         let mut request = self
             .client
@@ -216,9 +177,14 @@ impl HttpAgentBase {
         let response = request
             .send()
             .await
-            .map_err(|e| CbAdvError::Unknown(format!("Request Error: {}", e)))?;
+            .map_err(|e| CbAdvError::RequestError(e.to_string()))?;
 
         self.handle_response(response).await
+    }
+
+    /// Returns a mutable reference to the token bucket.
+    pub(crate) fn bucket_mut(&self) -> Arc<Mutex<TokenBucket>> {
+        self.bucket.clone()
     }
 }
 
@@ -234,18 +200,18 @@ impl PublicHttpAgent {
     ///
     /// # Arguments
     ///
-    /// * `is_rest` - SecureHttpAgent for REST Client, true, otherwise false.
     /// * `use_sandbox` - A boolean that determines if the sandbox should be used.
-    pub(crate) fn new(is_rest: bool, use_sandbox: bool) -> CbResult<Self> {
+    /// * `shared_bucket` - Shared token bucket for all APIs.
+    pub(crate) fn new(use_sandbox: bool, shared_bucket: Arc<Mutex<TokenBucket>>) -> CbResult<Self> {
         Ok(Self {
-            base: HttpAgentBase::new(is_rest, use_sandbox)?,
+            base: HttpAgentBase::new(use_sandbox, shared_bucket)?,
         })
     }
 }
 
 impl HttpAgent for PublicHttpAgent {
-    fn bucket_mut(&mut self) -> &mut TokenBucket {
-        &mut self.base.bucket
+    fn bucket_mut(&self) -> Arc<Mutex<TokenBucket>> {
+        self.base.bucket.clone()
     }
 
     async fn get(&mut self, resource: &str, query: &impl Query) -> CbResult<Response> {
@@ -262,7 +228,8 @@ impl HttpAgent for PublicHttpAgent {
         body: T,
     ) -> CbResult<Response> {
         let url = self.base.build_url(resource, query)?;
-        let body_str = serde_json::to_string(&body).map_err(|_| CbAdvError::BadSerialization)?;
+        let body_str = serde_json::to_string(&body)
+            .map_err(|e| CbAdvError::BadSerialization(e.to_string()))?;
         self.base
             .execute_request(Method::POST, url, Some(body_str), None)
             .await
@@ -275,7 +242,8 @@ impl HttpAgent for PublicHttpAgent {
         body: T,
     ) -> CbResult<Response> {
         let url = self.base.build_url(resource, query)?;
-        let body_str = serde_json::to_string(&body).map_err(|_| CbAdvError::BadSerialization)?;
+        let body_str = serde_json::to_string(&body)
+            .map_err(|e| CbAdvError::BadSerialization(e.to_string()))?;
         self.base
             .execute_request(Method::PUT, url, Some(body_str), None)
             .await
@@ -306,13 +274,13 @@ impl SecureHttpAgent {
     ///
     /// * `api_key` - A string that holds the key for the API service.
     /// * `api_secret` - A string that holds the secret for the API service.
-    /// * `is_rest` - SecureHttpAgent for REST Client, true, otherwise false.
     /// * `use_sandbox` - A boolean that determines if the sandbox should be used.
+    /// * `shared_bucket` - Shared token bucket for all APIs.
     pub(crate) fn new(
         api_key: &str,
         api_secret: &str,
-        is_rest: bool,
         use_sandbox: bool,
+        shared_bucket: Arc<Mutex<TokenBucket>>,
     ) -> CbResult<Self> {
         let jwt = if use_sandbox {
             // Do not generate JWT in sandbox mode.
@@ -326,7 +294,7 @@ impl SecureHttpAgent {
 
         Ok(Self {
             jwt,
-            base: HttpAgentBase::new(is_rest, use_sandbox)?,
+            base: HttpAgentBase::new(use_sandbox, shared_bucket)?,
         })
     }
 
@@ -363,8 +331,8 @@ impl SecureHttpAgent {
 }
 
 impl HttpAgent for SecureHttpAgent {
-    fn bucket_mut(&mut self) -> &mut TokenBucket {
-        &mut self.base.bucket
+    fn bucket_mut(&self) -> Arc<Mutex<TokenBucket>> {
+        self.base.bucket.clone()
     }
 
     async fn get(&mut self, resource: &str, query: &impl Query) -> CbResult<Response> {
@@ -382,7 +350,8 @@ impl HttpAgent for SecureHttpAgent {
         body: T,
     ) -> CbResult<Response> {
         let url = self.base.build_url(resource, query)?;
-        let body_str = serde_json::to_string(&body).map_err(|_| CbAdvError::BadSerialization)?;
+        let body_str = serde_json::to_string(&body)
+            .map_err(|e| CbAdvError::BadSerialization(e.to_string()))?;
         let token = self.build_token(Method::POST, resource)?;
         self.base
             .execute_request(Method::POST, url, Some(body_str), token)
@@ -396,7 +365,8 @@ impl HttpAgent for SecureHttpAgent {
         body: T,
     ) -> CbResult<Response> {
         let url = self.base.build_url(resource, query)?;
-        let body_str = serde_json::to_string(&body).map_err(|_| CbAdvError::BadSerialization)?;
+        let body_str = serde_json::to_string(&body)
+            .map_err(|e| CbAdvError::BadSerialization(e.to_string()))?;
         let token = self.build_token(Method::PUT, resource)?;
         self.base
             .execute_request(Method::PUT, url, Some(body_str), token)

@@ -971,7 +971,7 @@ pub struct Fill {
 
 /// Represents a list of orders received from the API.
 #[derive(Deserialize, Debug)]
-pub struct ListedOrders {
+pub struct PaginatedOrders {
     /// Vector of orders obtained.
     pub orders: Vec<Order>,
     /// If there are additional orders.
@@ -982,7 +982,7 @@ pub struct ListedOrders {
 
 /// Represents a list of fills received from the API.
 #[derive(Deserialize, Debug)]
-pub struct ListedFills {
+pub struct PaginatedFills {
     /// Vector of filled orders.
     pub orders: Vec<Fill>,
     /// Cursor used to pull more fills.
@@ -1019,7 +1019,7 @@ pub struct ErrorResponse {
     pub new_order_failure_reason: String,
 }
 
-/// Represents a create order response from the API.
+/// Represents a create, edit, or cancel order response from the API.
 #[derive(Deserialize, Debug)]
 pub struct OrderResponse {
     /// Whether the order was successfully created.
@@ -1034,14 +1034,14 @@ pub struct OrderResponse {
 
 /// Represents a cancel order response from the API.
 #[derive(Deserialize, Debug)]
-pub(crate) struct CancelOrdersResponse {
+pub(crate) struct CancelOrdersWrapper {
     /// Vector of orders cancelled.
     pub(crate) results: Vec<OrderResponse>,
 }
 
 /// Represents an order when obtaining a single order from the API.
 #[derive(Deserialize, Debug)]
-pub(crate) struct OrderStatusResponse {
+pub(crate) struct OrderWrapper {
     /// Order received.
     pub(crate) order: Order,
 }

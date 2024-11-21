@@ -4,6 +4,9 @@
 //! Many parts of the REST API suggest using websockets instead due to ratelimits and being quicker
 //! for large amount of constantly changing data.
 
+use std::sync::Arc;
+
+use futures::lock::Mutex;
 use futures_util::stream::SplitSink;
 use futures_util::{SinkExt, StreamExt};
 use tokio::net::TcpStream;
@@ -16,6 +19,7 @@ use crate::http_agent::{HttpAgent, SecureHttpAgent};
 use crate::models::websocket::{Channel, Subscription};
 use crate::task_tracker::TaskTracker;
 use crate::time;
+use crate::token_bucket::{RateLimits, TokenBucket};
 use crate::traits::{CandleCallback, MessageCallback};
 use crate::types::{CbResult, MessageCallbackFn, WebSocketReader};
 
@@ -43,8 +47,14 @@ impl WebSocketClient {
     /// * `secret` - A string that holds the secret for the API service.
     /// * `use_sandbox` - A boolean that determines if the sandbox should be used.
     pub fn new(key: &str, secret: &str, use_sandbox: bool) -> CbResult<Self> {
+        // Shared token bucket for all APIs.
+        let bucket = Arc::new(Mutex::new(TokenBucket::new(
+            RateLimits::max_tokens(false, false),
+            RateLimits::refresh_rate(false, false),
+        )));
+
         Ok(Self {
-            agent: SecureHttpAgent::new(key, secret, false, use_sandbox)?,
+            agent: SecureHttpAgent::new(key, secret, use_sandbox, bucket)?,
             socket_tx: None,
         })
     }
@@ -194,7 +204,12 @@ impl WebSocketClient {
                 let body_str = serde_json::to_string(&sub).unwrap();
 
                 // Wait until a token is available to make the request. Immediately consume it.
-                self.agent.bucket_mut().wait_on().await;
+                {
+                    // Store the Arc<Mutex<TokenBucket>> in a local variable.
+                    let bucket = self.agent.bucket_mut();
+                    let mut locked_bucket = bucket.lock().await; // Acquire the lock.
+                    locked_bucket.wait_on().await; // Token is consumed here.
+                }
 
                 match socket.send(tungstenite::Message::text(body_str)).await {
                     Ok(_) => Ok(()),

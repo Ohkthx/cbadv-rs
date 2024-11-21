@@ -3,7 +3,7 @@
 //! `account` gives access to the Account API and the various endpoints associated with it.
 //! This allows you to obtain account information either by account UUID or in bulk (all accounts).
 
-use crate::account::{Account, AccountResponse, ListAccountsQuery, ListedAccounts};
+use crate::account::{Account, AccountWrapper, ListAccountsQuery, PaginatedAccounts};
 use crate::constants::accounts::RESOURCE_ENDPOINT;
 use crate::errors::CbAdvError;
 use crate::http_agent::{HttpAgent, SecureHttpAgent};
@@ -41,13 +41,12 @@ impl AccountApi {
     /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getaccount>
     pub async fn get(&mut self, account_uuid: &str) -> CbResult<Account> {
         let resource = format!("{}/{}", RESOURCE_ENDPOINT, account_uuid);
-        match self.agent.get(&resource, &NoQuery).await {
-            Ok(value) => match value.json::<AccountResponse>().await {
-                Ok(resp) => Ok(resp.account),
-                Err(_) => Err(CbAdvError::BadParse("account object".to_string())),
-            },
-            Err(error) => Err(error),
-        }
+        let response = self.agent.get(&resource, &NoQuery).await?;
+        let data: AccountWrapper = response
+            .json()
+            .await
+            .map_err(|e| CbAdvError::JsonError(e.to_string()))?;
+        Ok(data.account)
     }
 
     /// Obtains a single account based on the Account ID (ex. "BTC").
@@ -70,26 +69,24 @@ impl AccountApi {
         let mut query = query.unwrap_or_default();
 
         loop {
-            match self.get_bulk(&query).await {
-                Ok(mut listed) => {
-                    // Check if the desired account is in the current batch
-                    if let Some(index) = listed.accounts.iter().position(|r| r.currency == id) {
-                        return Ok(listed.accounts.swap_remove(index));
-                    }
+            // Fetch accounts with the current query, propagating any errors.
+            let mut listed = self.get_bulk(&query).await?;
 
-                    // If no more pages to fetch, return a "not found" error
-                    if !listed.has_next {
-                        return Err(CbAdvError::NotFound("no matching ids".to_string()));
-                    }
-
-                    // Update the cursor for the next API call
-                    query.cursor = Some(listed.cursor);
-                }
-                Err(error) => {
-                    // Return an error if the API call fails
-                    return Err(error);
-                }
+            // Check if the desired account is in the current batch.
+            if let Some(index) = listed.accounts.iter().position(|r| r.currency == id) {
+                return Ok(listed.accounts.swap_remove(index));
             }
+
+            // If no more pages to fetch, return a "not found" error with context.
+            if !listed.has_next {
+                return Err(CbAdvError::NotFound(format!(
+                    "No account found with ID '{}'.",
+                    id
+                )));
+            }
+
+            // Update the cursor for the next API call.
+            query.cursor = Some(listed.cursor);
         }
     }
 
@@ -107,25 +104,19 @@ impl AccountApi {
         let mut all_accounts = Vec::new();
 
         loop {
-            // Fetch accounts with the current query
-            match self.get_bulk(&query).await {
-                Ok(mut listed) => {
-                    // Append fetched accounts to the result list
-                    all_accounts.append(&mut listed.accounts);
+            // Fetch accounts with the current query, propagating any errors.
+            let mut listed = self.get_bulk(&query).await?;
 
-                    // Check if there's more data to fetch
-                    if listed.has_next {
-                        // Update the cursor for the next request
-                        query.cursor = Some(listed.cursor);
-                    } else {
-                        // No more data to fetch
-                        break;
-                    }
-                }
-                Err(error) => {
-                    // Return an error if the fetch fails
-                    return Err(error);
-                }
+            // Append fetched accounts to the result list.
+            all_accounts.append(&mut listed.accounts);
+
+            // Check if there's more data to fetch.
+            if listed.has_next {
+                // Update the cursor for the next request.
+                query.cursor = Some(listed.cursor);
+            } else {
+                // No more data to fetch.
+                break;
             }
         }
 
@@ -140,13 +131,12 @@ impl AccountApi {
     /// https://api.coinbase.com/api/v3/brokerage/accounts
     ///
     /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getaccounts>
-    pub async fn get_bulk(&mut self, query: &ListAccountsQuery) -> CbResult<ListedAccounts> {
-        match self.agent.get(RESOURCE_ENDPOINT, query).await {
-            Ok(value) => match value.json::<ListedAccounts>().await {
-                Ok(resp) => Ok(resp),
-                Err(_) => Err(CbAdvError::BadParse("accounts vector".to_string())),
-            },
-            Err(error) => Err(error),
-        }
+    pub async fn get_bulk(&mut self, query: &ListAccountsQuery) -> CbResult<PaginatedAccounts> {
+        let response = self.agent.get(RESOURCE_ENDPOINT, query).await?;
+        let data: PaginatedAccounts = response
+            .json()
+            .await
+            .map_err(|e| CbAdvError::JsonError(e.to_string()))?;
+        Ok(data)
     }
 }

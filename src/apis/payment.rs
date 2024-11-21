@@ -5,7 +5,7 @@
 use crate::constants::payments::RESOURCE_ENDPOINT;
 use crate::errors::CbAdvError;
 use crate::http_agent::{HttpAgent, SecureHttpAgent};
-use crate::models::payment::{GetPaymentMethod, ListPaymentMethods, PaymentMethod};
+use crate::models::payment::{PaymentMethod, PaymentMethodWrapper, PaymentMethodsWrapper};
 use crate::traits::NoQuery;
 use crate::types::CbResult;
 
@@ -34,16 +34,12 @@ impl PaymentApi {
     ///
     /// <https://docs.cdp.coinbase.com/advanced-trade/reference/retailbrokerageapi_getpaymentmethods>
     pub async fn get_all(&mut self) -> CbResult<Vec<PaymentMethod>> {
-        match self.agent.get(RESOURCE_ENDPOINT, &NoQuery).await {
-            Ok(value) => match value.json::<ListPaymentMethods>().await {
-                Ok(resp) => Ok(resp.payment_methods),
-                Err(err) => Err(CbAdvError::BadParse(format!(
-                    "payment methods object: {}",
-                    err
-                ))),
-            },
-            Err(error) => Err(error),
-        }
+        let response = self.agent.get(RESOURCE_ENDPOINT, &NoQuery).await?;
+        let data: PaymentMethodsWrapper = response
+            .json()
+            .await
+            .map_err(|e| CbAdvError::JsonError(e.to_string()))?;
+        Ok(data.payment_methods)
     }
 
     /// Obtains a single payment method by its unique identifier.
@@ -60,12 +56,11 @@ impl PaymentApi {
     /// <https://docs.cdp.coinbase.com/advanced-trade/reference/retailbrokerageapi_getpaymentmethod>
     pub async fn get(&mut self, payment_method_id: &str) -> CbResult<PaymentMethod> {
         let resource = format!("{}/{}", RESOURCE_ENDPOINT, payment_method_id);
-        match self.agent.get(&resource, &NoQuery).await {
-            Ok(value) => match value.json::<GetPaymentMethod>().await {
-                Ok(resp) => Ok(resp.payment_method),
-                Err(_) => Err(CbAdvError::BadParse("payment method object".to_string())),
-            },
-            Err(error) => Err(error),
-        }
+        let response = self.agent.get(&resource, &NoQuery).await?;
+        let data: PaymentMethodWrapper = response
+            .json()
+            .await
+            .map_err(|e| CbAdvError::JsonError(e.to_string()))?;
+        Ok(data.payment_method)
     }
 }

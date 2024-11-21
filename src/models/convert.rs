@@ -10,11 +10,6 @@ use crate::{traits::Query, utils::QueryBuilder};
 use super::shared::Balance;
 
 #[derive(Deserialize, Debug)]
-pub(crate) struct ConvertResponse {
-    pub(crate) trade: Trade,
-}
-
-#[derive(Deserialize, Debug)]
 pub struct Trade {
     /// The trade id, used to get and commit the trade
     pub id: String,
@@ -159,6 +154,12 @@ pub struct TradeIncentiveInfo {
 pub struct TradeIncentiveMetadata {
     pub user_incentive_id: Option<String>,
     pub code_val: Option<String>,
+}
+
+/// Response from the convert API endpoint.
+#[derive(Deserialize, Debug)]
+pub(crate) struct TradeWrapper {
+    pub(crate) trade: Trade,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

@@ -12,8 +12,8 @@ pub(crate) mod accounts {
 
 /// Convert API constants
 pub(crate) mod convert {
-    pub(crate) const RESOURCE_ENDPOINT: &str = "/api/v3/brokerage/convert";
     pub(crate) const QUOTE_ENDPOINT: &str = "/api/v3/brokerage/convert/quote";
+    pub(crate) const TRADE_ENDPOINT: &str = "/api/v3/brokerage/convert/trade";
 }
 
 /// Fees API constants
@@ -75,6 +75,8 @@ pub(crate) mod websocket {
 
 /// Amount of tokens per second refilled.
 pub(crate) mod ratelimits {
-    pub(crate) const REST_REFRESH_RATE: f64 = 30.0;
-    pub(crate) const WEBSOCKET_REFRESH_RATE: f64 = 750.0;
+    pub(crate) const SECURE_REST_REFRESH_RATE: f64 = 30.0;
+    pub(crate) const PUBLIC_REST_REFRESH_RATE: f64 = 10.0;
+    pub(crate) const SECURE_WEBSOCKET_REFRESH_RATE: f64 = 750.0;
+    pub(crate) const PUBLIC_WEBSOCKET_REFRESH_RATE: f64 = 8.0;
 }

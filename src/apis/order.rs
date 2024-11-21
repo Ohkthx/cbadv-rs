@@ -10,9 +10,9 @@ use crate::constants::orders::{
 use crate::errors::CbAdvError;
 use crate::http_agent::{HttpAgent, SecureHttpAgent};
 use crate::order::{
-    CancelOrders, CancelOrdersResponse, ClosePositionQuery, CreateOrder, CreateOrderPreview,
-    EditOrder, EditOrderPreview, EditOrderResponse, ListFillsQuery, ListOrdersQuery, ListedFills,
-    ListedOrders, Order, OrderResponse, OrderStatus, OrderStatusResponse,
+    CancelOrders, CancelOrdersWrapper, ClosePositionQuery, CreateOrder, CreateOrderPreview,
+    EditOrder, EditOrderPreview, EditOrderResponse, ListFillsQuery, ListOrdersQuery, Order,
+    OrderResponse, OrderStatus, OrderWrapper, PaginatedFills, PaginatedOrders,
 };
 use crate::traits::NoQuery;
 use crate::types::CbResult;
@@ -50,13 +50,15 @@ impl OrderApi {
             order_ids: order_ids.to_vec(),
         };
 
-        match self.agent.post(CANCEL_BATCH_ENDPOINT, &NoQuery, body).await {
-            Ok(value) => match value.json::<CancelOrdersResponse>().await {
-                Ok(resp) => Ok(resp.results),
-                Err(_) => Err(CbAdvError::BadParse("cancel order object".to_string())),
-            },
-            Err(error) => Err(error),
-        }
+        let response = self
+            .agent
+            .post(CANCEL_BATCH_ENDPOINT, &NoQuery, body)
+            .await?;
+        let data: CancelOrdersWrapper = response
+            .json()
+            .await
+            .map_err(|e| CbAdvError::JsonError(e.to_string()))?;
+        Ok(data.results)
     }
 
     /// Cancel all OPEN orders for a specific product ID.
@@ -74,24 +76,25 @@ impl OrderApi {
             ..Default::default()
         };
 
-        // Obtain all open orders.
-        match self.get_all(product_id, Some(query)).await {
-            Ok(orders) => {
-                // Build list of orders to cancel.
-                let order_ids: Vec<String> = orders.iter().map(|o| o.order_id.clone()).collect();
+        // Obtain all open orders for the given product.
+        let open_orders = self.get_all(product_id, Some(query)).await?;
 
-                // Do nothing since no orders found.
-                if order_ids.is_empty() {
-                    return Err(CbAdvError::NothingToDo(
-                        "no orders found to cancel".to_string(),
-                    ));
-                }
+        // Collect the IDs of orders to cancel.
+        let order_ids: Vec<String> = open_orders
+            .iter()
+            .map(|order| order.order_id.clone())
+            .collect();
 
-                // Cancel the order list.
-                self.cancel(&order_ids).await
-            }
-            Err(error) => Err(error),
+        // If no orders are found, return a "nothing to do" error.
+        if order_ids.is_empty() {
+            return Err(CbAdvError::NothingToDo(format!(
+                "No open orders found to cancel for product '{}'.",
+                product_id
+            )));
         }
+
+        // Cancel the orders and return the response.
+        self.cancel(&order_ids).await
     }
 
     /// Edit an order with a specified new size, or new price. Only limit order types, with time
@@ -123,15 +126,12 @@ impl OrderApi {
             price: price.to_string(),
         };
 
-        match self.agent.post(EDIT_ENDPOINT, &NoQuery, body).await {
-            Ok(value) => match value.json::<EditOrderResponse>().await {
-                Ok(edits) => Ok(edits),
-                Err(_) => Err(CbAdvError::BadParse(
-                    "could not parse edit order object".to_string(),
-                )),
-            },
-            Err(error) => Err(error),
-        }
+        let response = self.agent.post(EDIT_ENDPOINT, &NoQuery, body).await?;
+        let data: EditOrderResponse = response
+            .json()
+            .await
+            .map_err(|e| CbAdvError::JsonError(e.to_string()))?;
+        Ok(data)
     }
 
     /// Preview creating an order.
@@ -149,20 +149,15 @@ impl OrderApi {
     ///
     /// <https://docs.cdp.coinbase.com/advanced-trade/reference/retailbrokerageapi_previeworder>
     pub async fn preview_create(&mut self, order: &CreateOrder) -> CbResult<CreateOrderPreview> {
-        match self
+        let response = self
             .agent
             .post(CREATE_PREVIEW_ENDPOINT, &NoQuery, order)
+            .await?;
+        let data: CreateOrderPreview = response
+            .json()
             .await
-        {
-            Ok(value) => match value.json::<CreateOrderPreview>().await {
-                Ok(resp) => Ok(resp),
-                Err(err) => Err(CbAdvError::BadParse(format!(
-                    "preview create order object: {}",
-                    err
-                ))),
-            },
-            Err(error) => Err(error),
-        }
+            .map_err(|e| CbAdvError::JsonError(e.to_string()))?;
+        Ok(data)
     }
 
     /// Simulate an edit order request with a specified new size, or new price, to preview the result of an edit. Only
@@ -192,15 +187,15 @@ impl OrderApi {
             price: price.to_string(),
         };
 
-        match self.agent.post(EDIT_PREVIEW_ENDPOINT, &NoQuery, body).await {
-            Ok(value) => match value.json::<EditOrderPreview>().await {
-                Ok(response) => Ok(response),
-                Err(_) => Err(CbAdvError::BadParse(
-                    "could not parse preview edit order response".to_string(),
-                )),
-            },
-            Err(error) => Err(error),
-        }
+        let response = self
+            .agent
+            .post(EDIT_PREVIEW_ENDPOINT, &NoQuery, body)
+            .await?;
+        let data: EditOrderPreview = response
+            .json()
+            .await
+            .map_err(|e| CbAdvError::JsonError(e.to_string()))?;
+        Ok(data)
     }
 
     /// Create an order.
@@ -218,13 +213,12 @@ impl OrderApi {
     ///
     /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_postorder>
     pub async fn create(&mut self, order: &CreateOrder) -> CbResult<OrderResponse> {
-        match self.agent.post(RESOURCE_ENDPOINT, &NoQuery, order).await {
-            Ok(value) => match value.json::<OrderResponse>().await {
-                Ok(resp) => Ok(resp),
-                Err(_) => Err(CbAdvError::BadParse("created order object".to_string())),
-            },
-            Err(error) => Err(error),
-        }
+        let response = self.agent.post(RESOURCE_ENDPOINT, &NoQuery, order).await?;
+        let data: OrderResponse = response
+            .json()
+            .await
+            .map_err(|e| CbAdvError::JsonError(e.to_string()))?;
+        Ok(data)
     }
 
     /// Obtains a single order based on the Order ID (ex. "XXXX-YYYY-ZZZZ").
@@ -241,15 +235,12 @@ impl OrderApi {
     /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_gethistoricalorder>
     pub async fn get(&mut self, order_id: &str) -> CbResult<Order> {
         let resource = format!("{}/historical/{}", RESOURCE_ENDPOINT, order_id);
-        match self.agent.get(&resource, &NoQuery).await {
-            Ok(value) => match value.json::<OrderStatusResponse>().await {
-                Ok(resp) => Ok(resp.order),
-                Err(_) => Err(CbAdvError::BadParse(
-                    "could not parse order object".to_string(),
-                )),
-            },
-            Err(error) => Err(error),
-        }
+        let response = self.agent.get(&resource, &NoQuery).await?;
+        let data: OrderWrapper = response
+            .json()
+            .await
+            .map_err(|e| CbAdvError::JsonError(e.to_string()))?;
+        Ok(data.order)
     }
 
     /// Obtains various orders from the API.
@@ -264,16 +255,13 @@ impl OrderApi {
     /// https://api.coinbase.com/api/v3/brokerage/orders/historical
     ///
     /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_gethistoricalorders>
-    pub async fn get_bulk(&mut self, query: &ListOrdersQuery) -> CbResult<ListedOrders> {
-        match self.agent.get(BATCH_ENDPOINT, query).await {
-            Ok(value) => match value.json::<ListedOrders>().await {
-                Ok(resp) => Ok(resp),
-                Err(_) => Err(CbAdvError::BadParse(
-                    "could not parse orders vector".to_string(),
-                )),
-            },
-            Err(error) => Err(error),
-        }
+    pub async fn get_bulk(&mut self, query: &ListOrdersQuery) -> CbResult<PaginatedOrders> {
+        let response = self.agent.get(BATCH_ENDPOINT, query).await?;
+        let data: PaginatedOrders = response
+            .json()
+            .await
+            .map_err(|e| CbAdvError::JsonError(e.to_string()))?;
+        Ok(data)
     }
 
     /// Obtains all orders for a product based on the product ID. (ex. "BTC-USD").
@@ -293,24 +281,23 @@ impl OrderApi {
     ) -> CbResult<Vec<Order>> {
         let mut query = query.unwrap_or_default();
 
-        // Override product ID.
+        // Set the product ID for the query.
         query.product_ids = Some(vec![product_id.to_string()]);
-        let mut orders: Vec<Order> = vec![];
-        let mut has_next: bool = true;
+        let mut all_orders: Vec<Order> = vec![];
 
-        // Get the orders until there is not a next.
-        while has_next {
-            match self.get_bulk(&query).await {
-                Ok(listed) => {
-                    has_next = listed.has_next;
-                    query.cursor = Some(listed.cursor);
-                    orders.extend(listed.orders);
-                }
-                Err(error) => return Err(error),
+        // Fetch orders until no more pages are available.
+        loop {
+            let listed_orders = self.get_bulk(&query).await?;
+            all_orders.extend(listed_orders.orders);
+
+            if listed_orders.has_next {
+                query.cursor = Some(listed_orders.cursor);
+            } else {
+                break;
             }
         }
 
-        Ok(orders)
+        Ok(all_orders)
     }
 
     /// Obtains fills from the API.
@@ -325,16 +312,13 @@ impl OrderApi {
     /// https://api.coinbase.com/api/v3/brokerage/orders/historical/fills
     ///
     /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getfills>
-    pub async fn fills(&mut self, query: &ListFillsQuery) -> CbResult<ListedFills> {
-        match self.agent.get(FILLS_ENDPOINT, query).await {
-            Ok(value) => match value.json::<ListedFills>().await {
-                Ok(resp) => Ok(resp),
-                Err(_) => Err(CbAdvError::BadParse(
-                    "could not parse fills vector".to_string(),
-                )),
-            },
-            Err(error) => Err(error),
-        }
+    pub async fn fills(&mut self, query: &ListFillsQuery) -> CbResult<PaginatedFills> {
+        let response = self.agent.get(FILLS_ENDPOINT, query).await?;
+        let data: PaginatedFills = response
+            .json()
+            .await
+            .map_err(|e| CbAdvError::JsonError(e.to_string()))?;
+        Ok(data)
     }
 
     /// Places an order to close any open positions for a specified product_id.
@@ -350,14 +334,11 @@ impl OrderApi {
     ///
     /// <https://docs.cdp.coinbase.com/advanced-trade/reference/retailbrokerageapi_closeposition>
     pub async fn close_position(&mut self, query: &ClosePositionQuery) -> CbResult<OrderResponse> {
-        match self.agent.get(CLOSE_POSITION_ENDPOINT, query).await {
-            Ok(value) => match value.json::<OrderResponse>().await {
-                Ok(resp) => Ok(resp),
-                Err(_) => Err(CbAdvError::BadParse(
-                    "could not parse close position".to_string(),
-                )),
-            },
-            Err(error) => Err(error),
-        }
+        let response = self.agent.get(CLOSE_POSITION_ENDPOINT, query).await?;
+        let data: OrderResponse = response
+            .json()
+            .await
+            .map_err(|e| CbAdvError::JsonError(e.to_string()))?;
+        Ok(data)
     }
 }

@@ -4,6 +4,10 @@
 //! This is the primary method of accessing the endpoints and handles all of the configurations and
 //! negotiations for the user.
 
+use std::sync::Arc;
+
+use futures::lock::Mutex;
+
 use crate::apis::{
     AccountApi, ConvertApi, DataApi, FeeApi, OrderApi, PaymentApi, PortfolioApi, ProductApi,
     PublicApi,
@@ -12,6 +16,7 @@ use crate::http_agent::{PublicHttpAgent, SecureHttpAgent};
 
 #[cfg(feature = "config")]
 use crate::config::ConfigFile;
+use crate::token_bucket::{RateLimits, TokenBucket};
 use crate::types::CbResult;
 
 /// Represents a Client for the API.
@@ -45,7 +50,19 @@ impl RestClient {
     /// * `secret` - A string that holds the secret for the API service.
     /// * `use_sandbox` - A boolean that determines if the sandbox should be used.
     pub fn new(key: &str, secret: &str, use_sandbox: bool) -> CbResult<Self> {
-        let agent = SecureHttpAgent::new(key, secret, true, use_sandbox)?;
+        // Shared token bucket for all APIs.
+        let secure_bucket = Arc::new(Mutex::new(TokenBucket::new(
+            RateLimits::max_tokens(true, false),
+            RateLimits::refresh_rate(true, false),
+        )));
+
+        // Separate token bucket due to rate-limiting being based on portfolio and not user.
+        let public_bucket = Arc::new(Mutex::new(TokenBucket::new(
+            RateLimits::max_tokens(true, true),
+            RateLimits::refresh_rate(true, true),
+        )));
+
+        let agent = SecureHttpAgent::new(key, secret, use_sandbox, secure_bucket)?;
 
         Ok(Self {
             account: AccountApi::new(agent.clone()),
@@ -56,7 +73,7 @@ impl RestClient {
             convert: ConvertApi::new(agent.clone()),
             payment: PaymentApi::new(agent.clone()),
             data: DataApi::new(agent),
-            public: PublicApi::new(PublicHttpAgent::new(true, use_sandbox)?),
+            public: PublicApi::new(PublicHttpAgent::new(use_sandbox, public_bucket)?),
         })
     }
 
@@ -91,8 +108,14 @@ impl PublicRestClient {
     ///
     /// * `use_sandbox` - A boolean that determines if the sandbox should be used.
     fn new(use_sandbox: bool) -> CbResult<Self> {
+        // Shared token bucket for all APIs.
+        let bucket = Arc::new(Mutex::new(TokenBucket::new(
+            RateLimits::max_tokens(true, true),
+            RateLimits::refresh_rate(true, true),
+        )));
+
         Ok(Self {
-            public: PublicApi::new(PublicHttpAgent::new(true, use_sandbox)?),
+            public: PublicApi::new(PublicHttpAgent::new(use_sandbox, bucket)?),
         })
     }
 
