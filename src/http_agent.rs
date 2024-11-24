@@ -20,9 +20,6 @@ use crate::types::CbResult;
 
 /// Trait for the HttpAgent that is responsible for making HTTP requests and managing the token bucket.
 pub(crate) trait HttpAgent {
-    /// Returns a mutable reference to the token bucket.
-    fn bucket_mut(&self) -> Arc<Mutex<TokenBucket>>;
-
     /// Performs a HTTP GET Request.
     ///
     /// # Arguments
@@ -155,8 +152,7 @@ impl HttpAgentBase {
         token: Option<String>,
     ) -> CbResult<Response> {
         {
-            let bucket = self.bucket_mut();
-            let mut locked_bucket = bucket.lock().await;
+            let mut locked_bucket = self.bucket.lock().await;
             locked_bucket.wait_on().await;
         }
 
@@ -180,11 +176,6 @@ impl HttpAgentBase {
             .map_err(|e| CbAdvError::RequestError(e.to_string()))?;
 
         self.handle_response(response).await
-    }
-
-    /// Returns a mutable reference to the token bucket.
-    pub(crate) fn bucket_mut(&self) -> Arc<Mutex<TokenBucket>> {
-        self.bucket.clone()
     }
 }
 
@@ -210,10 +201,6 @@ impl PublicHttpAgent {
 }
 
 impl HttpAgent for PublicHttpAgent {
-    fn bucket_mut(&self) -> Arc<Mutex<TokenBucket>> {
-        self.base.bucket.clone()
-    }
-
     async fn get(&mut self, resource: &str, query: &impl Query) -> CbResult<Response> {
         let url = self.base.build_url(resource, query)?;
         self.base
@@ -298,22 +285,6 @@ impl SecureHttpAgent {
         })
     }
 
-    /// Generates a JSON Web Token (JWT) for authentication.
-    ///
-    /// # Arguments
-    ///
-    /// * `service` - The service name for which the JWT is generated.
-    /// * `uri` - Optional URI to include in the JWT payload.
-    pub(crate) fn get_jwt(&self, uri: Option<&str>) -> CbResult<String> {
-        if let Some(jwt) = &self.jwt {
-            jwt.encode(uri)
-        } else {
-            Err(CbAdvError::Unknown(
-    "JWT not setup. This request requires authentication, but JWT is disabled (likely sandbox mode).".to_string(),
-))
-        }
-    }
-
     /// Builds a token for the request. If JWT is not enabled, returns None.
     ///
     /// # Arguments
@@ -331,10 +302,6 @@ impl SecureHttpAgent {
 }
 
 impl HttpAgent for SecureHttpAgent {
-    fn bucket_mut(&self) -> Arc<Mutex<TokenBucket>> {
-        self.base.bucket.clone()
-    }
-
     async fn get(&mut self, resource: &str, query: &impl Query) -> CbResult<Response> {
         let url = self.base.build_url(resource, query)?;
         let token = self.build_token(Method::GET, resource)?;

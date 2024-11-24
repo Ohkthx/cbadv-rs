@@ -818,35 +818,6 @@ pub(crate) struct EditOrder {
     pub(crate) size: String,
 }
 
-/// Order updates for a user from a websocket.
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct OrderUpdate {
-    /// Type of the update.
-    pub r#type: String,
-    /// Client Order ID (Normally a UUID)
-    pub client_order_id: String,
-    #[serde(deserialize_with = "deserialize_numeric")]
-    pub cumulative_quantity: f64,
-    #[serde(deserialize_with = "deserialize_numeric")]
-    pub leaves_quantity: f64,
-    /// Average price for the order.
-    #[serde(deserialize_with = "deserialize_numeric")]
-    pub avg_price: f64,
-    /// Total fees for the order.
-    #[serde(deserialize_with = "deserialize_numeric")]
-    pub total_fees: f64,
-    /// Status of the order.
-    pub status: String,
-    /// Product ID.
-    pub product_id: String,
-    /// Date-time when the order was created.
-    pub creation_time: String,
-    /// BUY or SELL.
-    pub order_side: String,
-    /// Type of the order.
-    pub order_type: String,
-}
-
 /// Represents a vector of orders IDs to cancel.
 #[derive(Serialize, Debug)]
 pub(crate) struct CancelOrders {

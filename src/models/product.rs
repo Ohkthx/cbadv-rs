@@ -39,53 +39,6 @@ impl AsRef<str> for ProductType {
     }
 }
 
-/// Represents a Product received from the Websocket API.
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ProductUpdate {
-    /// Type of the product.
-    pub product_type: ProductType,
-    /// ID of the product.
-    pub id: String,
-    /// Symbol of the base currency.
-    pub base_currency: String,
-    /// Symbol of the quote currency.
-    pub quote_currency: String,
-    /// Minimum amount base value can be increased or decreased at once.
-    #[serde(deserialize_with = "deserialize_numeric")]
-    pub base_increment: f64,
-    /// Minimum amount quote value can be increased or decreased at once.
-    #[serde(deserialize_with = "deserialize_numeric")]
-    pub quote_increment: f64,
-    /// Name of the product.
-    pub display_name: String,
-    /// Status of the product.
-    pub status: String,
-    /// Additional status message.
-    pub status_message: String,
-    /// Minimum amount of funds.
-    #[serde(deserialize_with = "deserialize_numeric")]
-    pub min_market_funds: f64,
-}
-
-/// Represents a Market Trade received from the Websocket API.
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct MarketTradesUpdate {
-    /// Trade identity.
-    pub trade_id: String,
-    /// ID of the product.
-    pub product_id: String,
-    /// Price of the product.
-    #[serde(deserialize_with = "deserialize_numeric")]
-    pub price: f64,
-    /// Size for the trade.
-    #[serde(deserialize_with = "deserialize_numeric")]
-    pub size: f64,
-    /// Side: BUY or SELL.
-    pub side: String,
-    /// Time for the market trade.
-    pub time: String,
-}
-
 /// Session details for the product.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SessionDetails {
@@ -289,46 +242,6 @@ pub struct Trade {
     /// The best ask for the `product_id`, in quote currency.
     /// NOTE: (20230705) API gives an empty string not a number.
     pub ask: String,
-}
-
-/// Represents a Candle update received from the Websocket API.
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct CandleUpdate {
-    /// Product ID (Pair, ex 'BTC-USD')
-    pub product_id: String,
-    /// Candle for the update.
-    #[serde(flatten)]
-    pub data: Candle,
-}
-
-/// Represents a Ticker update received from the Websocket API.
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct TickerUpdate {
-    /// Ticker update type.
-    pub r#type: String,
-    /// Product ID (Pair, ex 'BTC-USD')
-    pub product_id: String,
-    /// Current price for the product.
-    #[serde(deserialize_with = "deserialize_numeric")]
-    pub price: f64,
-    /// 24hr Volume for the product.
-    #[serde(deserialize_with = "deserialize_numeric")]
-    pub volume_24_h: f64,
-    /// 24hr Lowest price.
-    #[serde(deserialize_with = "deserialize_numeric")]
-    pub low_24_h: f64,
-    /// 24hr Highest price.
-    #[serde(deserialize_with = "deserialize_numeric")]
-    pub high_24_h: f64,
-    /// 52w (52 weeks) Lowest price.
-    #[serde(deserialize_with = "deserialize_numeric")]
-    pub low_52_w: f64,
-    /// 52w (52 weeks) Highest price.
-    #[serde(deserialize_with = "deserialize_numeric")]
-    pub high_52_w: f64,
-    /// 24hr Price percentage change.
-    #[serde(deserialize_with = "deserialize_numeric")]
-    pub price_percent_chg_24_h: f64,
 }
 
 /// Represents a ticker for a product.

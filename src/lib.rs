@@ -35,4 +35,4 @@ pub use models::{
 mod rest;
 mod websocket;
 pub use rest::{PublicRestClient, RestClient};
-pub use websocket::WebSocketClient;
+pub use websocket::{WebSocketClient, WebSocketClientBuilder};

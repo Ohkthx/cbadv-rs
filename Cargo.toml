@@ -1,6 +1,6 @@
 [package]
 name = "cbadv"
-version = "1.4.4"
+version = "1.4.5"
 edition = "2021"
 description = "Asynchronous Coinbase Advanced REST and WebSocket API"
 license = "MIT"
@@ -98,6 +98,7 @@ required-features = ["config"]
 name = "websocket"
 path = "examples/websocket.rs"
 required-features = ["config"]
+
 
 [[example]]
 name = "watch_candles"

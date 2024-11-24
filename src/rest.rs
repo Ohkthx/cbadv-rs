@@ -107,7 +107,7 @@ impl PublicRestClient {
     /// # Arguments
     ///
     /// * `use_sandbox` - A boolean that determines if the sandbox should be used.
-    fn new(use_sandbox: bool) -> CbResult<Self> {
+    pub fn new(use_sandbox: bool) -> CbResult<Self> {
         // Shared token bucket for all APIs.
         let bucket = Arc::new(Mutex::new(TokenBucket::new(
             RateLimits::max_tokens(true, true),

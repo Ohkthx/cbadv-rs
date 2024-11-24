@@ -13,10 +13,12 @@ use tokio::net::TcpStream;
 use tokio::task::JoinHandle;
 use tokio_tungstenite::{connect_async, tungstenite, MaybeTlsStream, WebSocketStream};
 
-use crate::constants::websocket::RESOURCE_ENDPOINT;
+use crate::constants::websocket::{PUBLIC_ENDPOINT, SECURE_ENDPOINT};
 use crate::errors::CbAdvError;
-use crate::http_agent::{HttpAgent, SecureHttpAgent};
-use crate::models::websocket::{Channel, Subscription};
+use crate::jwt::Jwt;
+use crate::models::websocket::{
+    Channel, ChannelAccess, SecureSubscription, Subscription, UnsignedSubscription,
+};
 use crate::task_tracker::TaskTracker;
 use crate::time;
 use crate::token_bucket::{RateLimits, TokenBucket};
@@ -25,141 +27,337 @@ use crate::types::{CbResult, MessageCallbackFn, WebSocketReader};
 
 #[cfg(feature = "config")]
 use crate::config::ConfigFile;
+use crate::ws::WebSocketReaders;
 
 type Socket = WebSocketStream<MaybeTlsStream<TcpStream>>;
 
-/// Represents a Client for the Websocket API. Provides easy-access to subscribing and listening to
-/// the WebSocket.
-pub struct WebSocketClient {
-    /// Signs the messages sent.
-    agent: SecureHttpAgent,
-    /// Writes data to the stream, gets sent to the API.
-    socket_tx: Option<SplitSink<Socket, tungstenite::Message>>,
+/// Obtains the access level for the endpoint.
+fn get_channel_access(channel: &Channel) -> ChannelAccess {
+    match channel {
+        Channel::Subscriptions => ChannelAccess::Public,
+        Channel::Heartbeats => ChannelAccess::Public,
+        Channel::Status => ChannelAccess::Public,
+        Channel::Ticker => ChannelAccess::Public,
+        Channel::TickerBatch => ChannelAccess::Public,
+        Channel::MarketTrades => ChannelAccess::Public,
+        Channel::Level2 => ChannelAccess::Public,
+        Channel::Candles => ChannelAccess::Public,
+        Channel::User => ChannelAccess::Secure,
+        Channel::FuturesBalanceSummary => ChannelAccess::Secure,
+    }
 }
 
-impl WebSocketClient {
-    /// Creates a new instance of a Client. This is a wrapper for Signer and contains a socket to
-    /// the WebSocket.
-    ///
-    /// # Arguments
-    ///
-    /// * `key` - A string that holds the key for the API service.
-    /// * `secret` - A string that holds the secret for the API service.
-    /// * `use_sandbox` - A boolean that determines if the sandbox should be used.
-    pub fn new(key: &str, secret: &str, use_sandbox: bool) -> CbResult<Self> {
-        // Shared token bucket for all APIs.
-        let bucket = Arc::new(Mutex::new(TokenBucket::new(
-            RateLimits::max_tokens(false, false),
-            RateLimits::refresh_rate(false, false),
-        )));
+/// Builder to create a WebSocketClient.
+pub struct WebSocketClientBuilder {
+    /// Signs the messages sent.
+    api_key: Option<String>,
+    api_secret: Option<String>,
+    enable_public: bool,
+    enable_user: bool,
+    public_bucket: Arc<Mutex<TokenBucket>>,
+    secure_bucket: Arc<Mutex<TokenBucket>>,
+}
 
-        Ok(Self {
-            agent: SecureHttpAgent::new(key, secret, use_sandbox, bucket)?,
-            socket_tx: None,
-        })
+impl Default for WebSocketClientBuilder {
+    fn default() -> Self {
+        Self {
+            api_key: None,
+            api_secret: None,
+            enable_public: true, // By default, enable public connection.
+            enable_user: false,  // By default, do not enable secure connection.
+            public_bucket: Arc::new(Mutex::new(TokenBucket::new(
+                RateLimits::max_tokens(false, true),
+                RateLimits::refresh_rate(false, true),
+            ))),
+            secure_bucket: Arc::new(Mutex::new(TokenBucket::new(
+                RateLimits::max_tokens(false, false),
+                RateLimits::refresh_rate(false, false),
+            ))),
+        }
+    }
+}
+
+impl WebSocketClientBuilder {
+    /// Creates a new WebSocketClientBuilder.
+    pub fn new() -> Self {
+        Self::default()
     }
 
-    /// Creates a new instance of a Client using a configuration file. This is a wrapper for
-    /// Signer and contains a socket to the WebSocket.
+    /// Uses a configuration to initialize the the authentication.
     ///
     /// # Arguments
     ///
     /// * `config` - Configuration that implements ConfigFile trait.
     #[cfg(feature = "config")]
-    pub fn from_config<T>(config: &T) -> CbResult<Self>
+    pub fn with_config<T>(mut self, config: &T) -> Self
     where
         T: ConfigFile,
     {
-        Self::new(
-            &config.coinbase().api_key,
-            &config.coinbase().api_secret,
-            config.coinbase().use_sandbox,
-        )
+        self.api_key = Some(config.coinbase().api_key.to_string());
+        self.api_secret = Some(config.coinbase().api_secret.to_string());
+        self.enable_user = true;
+        self
     }
 
+    /// Uses the provided key and secret to initialize the authentication.
+    ///
+    /// # Arguments
+    ///
+    /// * `key` - API key.
+    /// * `secret` - API secret.
+    pub fn with_authentication(mut self, key: &str, secret: &str) -> Self {
+        self.api_key = Some(key.to_string());
+        self.api_secret = Some(secret.to_string());
+        self.enable_user = true;
+        self
+    }
+
+    /// Enables or disables the public connection.
+    ///
+    /// # Arguments
+    ///
+    /// * `enable` - Enable or disable the public connection.
+    pub fn enable_public(mut self, enable: bool) -> Self {
+        self.enable_public = enable;
+        self
+    }
+
+    /// Enables or disables the secure user connection.
+    ///
+    /// # Arguments
+    ///
+    /// * `enable` - Enable or disable the secure user connection.
+    pub fn enable_user(mut self, enable: bool) -> Self {
+        self.enable_user = enable;
+        self
+    }
+
+    /// Builds the WebSocketClient.
+    pub fn build(self) -> CbResult<WebSocketClient> {
+        // Ensure at least one connection is enabled.
+        if !self.enable_public && !self.enable_user {
+            return Err(CbAdvError::BadConnection(
+                "At least one of public or secure connections must be enabled.".to_string(),
+            ));
+        }
+
+        // Create JWT if user connection is enabled.
+        let jwt = if self.enable_user {
+            let key = self.api_key.ok_or_else(|| {
+                CbAdvError::BadPrivateKey("API key is required for authentication.".to_string())
+            })?;
+            let secret = self.api_secret.ok_or_else(|| {
+                CbAdvError::BadPrivateKey("API secret is required for authentication.".to_string())
+            })?;
+            Some(Jwt::new(&key, &secret)?)
+        } else {
+            None
+        };
+
+        Ok(WebSocketClient {
+            jwt,
+            public_bucket: self.public_bucket,
+            secure_bucket: self.secure_bucket,
+            public_tx: None,
+            secure_tx: None,
+            enable_public: self.enable_public,
+            enable_user: self.enable_user,
+        })
+    }
+}
+
+/// Represents a Client for the Websocket API. Provides easy-access to subscribing and listening to
+/// the WebSocket.
+pub struct WebSocketClient {
+    /// Signs the messages sent.
+    pub(crate) jwt: Option<Jwt>,
+    /// Public bucket.
+    pub(crate) public_bucket: Arc<Mutex<TokenBucket>>,
+    /// Secure bucket.
+    pub(crate) secure_bucket: Arc<Mutex<TokenBucket>>,
+    /// Writes data to the public stream, gets sent to the API.
+    pub(crate) public_tx: Option<SplitSink<Socket, tungstenite::Message>>,
+    /// Writes data to the secure stream, gets sent to the API.
+    pub(crate) secure_tx: Option<SplitSink<Socket, tungstenite::Message>>,
+    /// Enable public connection.
+    pub(crate) enable_public: bool,
+    /// Enable secure user connection.
+    pub(crate) enable_user: bool,
+}
+
+impl WebSocketClient {
     /// Connects to the WebSocket. This is required before subscribing, unsubscribing, and
-    /// listening for updates. A reader is returned to allow for `listener` to parse events.
-    pub async fn connect(&mut self) -> CbResult<WebSocketReader> {
-        match connect_async(RESOURCE_ENDPOINT).await {
-            Ok((socket, _)) => {
-                let (sink, stream) = socket.split();
-                self.socket_tx = Some(sink);
-                Ok(stream)
+    /// listening for updates. A public and secure user reader is returned to allow for `listener` to parse events.
+    pub async fn connect(&mut self) -> CbResult<WebSocketReaders> {
+        let mut public_stream = None;
+        let mut secure_stream = None;
+
+        if self.enable_public {
+            let (public_socket, _) = connect_async(PUBLIC_ENDPOINT).await.map_err(|e| {
+                CbAdvError::BadConnection(format!(
+                    "Unable to establish public WebSocket connection: {}",
+                    e
+                ))
+            })?;
+            let (public_sink, stream) = public_socket.split();
+            self.public_tx = Some(public_sink);
+            public_stream = Some(stream);
+        }
+
+        if self.enable_user {
+            let (secure_socket, _) = connect_async(SECURE_ENDPOINT).await.map_err(|e| {
+                CbAdvError::BadConnection(format!(
+                    "Unable to establish secure WebSocket connection: {}",
+                    e
+                ))
+            })?;
+            let (secure_sink, stream) = secure_socket.split();
+            self.secure_tx = Some(secure_sink);
+            secure_stream = Some(stream);
+        }
+
+        Ok(WebSocketReaders {
+            public: public_stream,
+            user: secure_stream,
+        })
+    }
+
+    /// Waits for a token to be consumable for the correct bucket.
+    async fn wait_on_bucket(&mut self, endpoint: &ChannelAccess) {
+        match endpoint {
+            ChannelAccess::Public => {
+                let mut locked_bucket = self.public_bucket.lock().await;
+                locked_bucket.wait_on().await;
             }
-            Err(_) => Err(CbAdvError::BadConnection(
-                "unable to get handshake".to_string(),
-            )),
+            ChannelAccess::Secure => {
+                let mut locked_bucket = self.secure_bucket.lock().await;
+                locked_bucket.wait_on().await;
+            }
         }
     }
 
-    /// Starts the listener which returns Messages via a callback function provided by the user.
-    /// This allows the user to get objects out of the WebSocket stream for additional processing.
-    /// the WebSocket. If it is unable to parse an object received, the user is supplied
-    /// CBAdvError::BadParse along with the data it failed to parse.
+    /// Listens to a single WebSocket reader using a function callback.
     ///
     /// # Arguments
     ///
-    /// * `reader` - Allows the listener to receive messages. `Obtained from connect``.
-    /// * `callback` - A callback function that is trigger and passed the Message received via WebSocket, if an error occurred.
-    pub async fn listener(reader: WebSocketReader, callback: MessageCallbackFn) {
-        // Read messages and send to the callback as they come in.
-        let read_future = reader.for_each(|message| {
-            let data: String = match message {
-                Ok(value) => value.to_string(),
-                Err(err) => format!("websocket sent the following error, {}", err),
+    /// * `reader` - A WebSocket reader for a single channel (e.g., public or user).
+    /// * `callback` - A function callback that processes WebSocket messages.
+    pub async fn listen_reader_fn(mut reader: WebSocketReader, callback: MessageCallbackFn) {
+        while let Some(message) = reader.next().await {
+            let data = match message {
+                Ok(msg) => msg.to_string(),
+                Err(err) => {
+                    callback(Err(CbAdvError::BadConnection(format!(
+                        "WebSocket error: {}",
+                        err
+                    ))));
+                    continue;
+                }
             };
 
-            // Parse the message.
             match serde_json::from_str(&data) {
-                Ok(message) => callback(Ok(message)),
-                _ => callback(Err(CbAdvError::BadParse(format!(
-                    "unable to parse message: {}",
-                    data
+                Ok(parsed_message) => callback(Ok(parsed_message)),
+                Err(err) => callback(Err(CbAdvError::BadParse(format!(
+                    "Unable to parse message: {}. Error: {}",
+                    data, err
                 )))),
             }
-
-            async {}
-        });
-
-        read_future.await
+        }
     }
 
-    /// Starts the listener with a callback object that implements the `MessageCallback` trait.
-    /// This allows the user to get objects out of the WebSocket stream for additional processing.
-    /// the WebSocket. If it is unable to parse an object received, the user is supplied
-    /// CBAdvError::BadParse along with the data it failed to parse.
+    /// Listens to WebSocket readers using a function callback.
     ///
     /// # Arguments
     ///
-    /// * `reader` - Allows the listener to receive messages. `Obtained from connect``.
-    /// * `callback_obj` - A callback object that implements `MessageCallback` trait.
-    pub async fn listener_with<T>(reader: WebSocketReader, callback_obj: T)
-    where
-        T: MessageCallback,
-    {
-        // Make the callback object mutable.
-        let mut obj: T = callback_obj;
+    /// * `readers` - WebSocket readers for the public and user channels.
+    /// * `callback` - A function callback that processes WebSocket messages.
+    pub async fn listen_readers_fn(
+        &mut self,
+        readers: WebSocketReaders,
+        callback: MessageCallbackFn,
+    ) -> Vec<JoinHandle<()>> {
+        let mut handles = Vec::new();
 
-        // Read messages and send to the callback as they come in.
-        let read_future = reader.for_each(|message| {
-            let data: String = match message {
-                Ok(value) => value.to_string(),
-                Err(err) => format!("websocket sent the following error, {}", err),
+        if let Some(public_reader) = readers.public {
+            let handle = tokio::spawn(Self::listen_reader_fn(public_reader, callback));
+            handles.push(handle);
+        }
+
+        if let Some(user_reader) = readers.user {
+            let handle = tokio::spawn(Self::listen_reader_fn(user_reader, callback));
+            handles.push(handle);
+        }
+
+        handles
+    }
+
+    /// Listens to a single WebSocket reader using a callback object that implements `MessageCallback`.
+    ///
+    /// # Arguments
+    ///
+    /// * `reader` - A WebSocket reader for a single channel (e.g., public or user).
+    /// * `callback_obj` - A callback object that implements the `MessageCallback` trait.
+    pub async fn listen_reader_trait<T>(mut reader: WebSocketReader, callback_obj: Arc<Mutex<T>>)
+    where
+        T: MessageCallback + Send + Sync + 'static,
+    {
+        while let Some(message) = reader.next().await {
+            let data = match message {
+                Ok(msg) => msg.to_string(),
+                Err(err) => {
+                    let mut cb_obj = callback_obj.lock().await;
+                    cb_obj.message_callback(Err(CbAdvError::BadConnection(format!(
+                        "WebSocket error: {}",
+                        err
+                    ))));
+                    continue;
+                }
             };
 
-            // Parse the message.
             match serde_json::from_str(&data) {
-                Ok(message) => obj.message_callback(Ok(message)),
-                _ => obj.message_callback(Err(CbAdvError::BadParse(format!(
-                    "unable to parse message: {}",
-                    data
-                )))),
+                Ok(parsed_message) => {
+                    let mut cb_obj = callback_obj.lock().await;
+                    cb_obj.message_callback(Ok(parsed_message));
+                }
+                Err(err) => {
+                    let mut cb_obj = callback_obj.lock().await;
+                    cb_obj.message_callback(Err(CbAdvError::BadParse(format!(
+                        "Unable to parse message: {}. Error: {}",
+                        data, err
+                    ))));
+                }
             }
+        }
+    }
 
-            async {}
-        });
+    /// Listens to WebSocket readers using a callback object that implements `MessageCallback`.
+    ///
+    /// # Arguments
+    ///
+    /// * `readers` - WebSocket readers for the public and user channels.
+    /// * `callback_obj` - A callback object that implements the `MessageCallback` trait.
+    pub async fn listen_readers_trait<T>(
+        readers: WebSocketReaders,
+        callback_obj: Arc<Mutex<T>>,
+    ) -> Vec<JoinHandle<()>>
+    where
+        T: MessageCallback + Send + Sync + 'static,
+    {
+        let mut handles = Vec::new();
 
-        read_future.await
+        if let Some(public_reader) = readers.public {
+            let cb_obj = callback_obj.clone();
+            let handle = tokio::spawn(Self::listen_reader_trait(public_reader, cb_obj));
+            handles.push(handle);
+        }
+
+        if let Some(user_reader) = readers.user {
+            let cb_obj = callback_obj.clone();
+            let handle = tokio::spawn(Self::listen_reader_trait(user_reader, cb_obj));
+            handles.push(handle);
+        }
+
+        handles
     }
 
     /// Updates the WebSocket with either additional subscriptions or unsubscriptions. This is
@@ -170,53 +368,73 @@ impl WebSocketClient {
     /// * `channel` - The Channel that is being updated.
     /// * `product_ids` - A vector of product IDs that are being changed.
     /// * `subscribe` - Subscription updates, this is true. Unsubscribing this is false.
-    async fn update(
+    pub(crate) async fn update(
         &mut self,
         channel: Channel,
         product_ids: &[String],
         subscribe: bool,
+        endpoint: ChannelAccess,
     ) -> CbResult<()> {
         // Set the correct direction for the update.
-        let update = match subscribe {
-            true => "subscribe".to_string(),
-            false => "unsubscribe".to_string(),
-        };
-
-        let timestamp = time::now().to_string();
-        let channel = channel.to_string();
+        let update_type = if subscribe {
+            "subscribe"
+        } else {
+            "unsubscribe"
+        }
+        .to_string();
 
         // Create the subscription/unsubscription.
-        let sub = Subscription {
-            r#type: update,
-            product_ids: product_ids.to_vec(),
-            channel,
-            jwt: self.agent.get_jwt(None)?,
-            timestamp,
+        let sub = if endpoint == ChannelAccess::Public {
+            Subscription::Unsigned(UnsignedSubscription {
+                r#type: update_type,
+                product_ids: product_ids.to_vec(),
+                channel,
+                timestamp: time::now().to_string(),
+            })
+        } else {
+            Subscription::Secure(SecureSubscription {
+                r#type: update_type,
+                product_ids: product_ids.to_vec(),
+                channel,
+                jwt: self
+                    .jwt
+                    .as_ref()
+                    .ok_or_else(|| {
+                        CbAdvError::BadPrivateKey("User authentication required.".to_string())
+                    })
+                    .unwrap()
+                    .encode(None)?,
+            })
         };
 
-        match self.socket_tx {
-            None => Err(CbAdvError::BadConnection(
-                "need to connect first.".to_string(),
-            )),
+        let body = serde_json::to_string(&sub).map_err(|e| {
+            CbAdvError::BadSerialization(format!("Failed to serialize subscription: {}", e))
+        })?;
 
-            Some(ref mut socket) => {
-                // Serialize and send the update to the API.
-                let body_str = serde_json::to_string(&sub).unwrap();
+        // Wait until a token is available to make the request. Immediately consume it.
+        self.wait_on_bucket(&endpoint).await;
 
-                // Wait until a token is available to make the request. Immediately consume it.
-                {
-                    // Store the Arc<Mutex<TokenBucket>> in a local variable.
-                    let bucket = self.agent.bucket_mut();
-                    let mut locked_bucket = bucket.lock().await; // Acquire the lock.
-                    locked_bucket.wait_on().await; // Token is consumed here.
-                }
+        let socket = match endpoint {
+            ChannelAccess::Public => self.public_tx.as_mut().ok_or_else(|| {
+                CbAdvError::BadConnection(
+                    "Public WebSocket connection not established. Call `connect()` first."
+                        .to_string(),
+                )
+            })?,
+            ChannelAccess::Secure => self.secure_tx.as_mut().ok_or_else(|| {
+                CbAdvError::BadConnection(
+                    "Secure WebSocket connection not established. Call `connect()` first."
+                        .to_string(),
+                )
+            })?,
+        };
 
-                match socket.send(tungstenite::Message::text(body_str)).await {
-                    Ok(_) => Ok(()),
-                    _ => Ok(()),
-                }
-            }
-        }
+        socket
+            .send(tungstenite::Message::text(body))
+            .await
+            .map_err(|e| {
+                CbAdvError::BadConnection(format!("Failed to send message over WebSocket: {}", e))
+            })
     }
 
     /// Subscribes to the Channel provided with interests in the specified product IDs.
@@ -228,7 +446,21 @@ impl WebSocketClient {
     /// * `channel` - The Channel that is being subscribed to.
     /// * `product_ids` - A vector of product IDs to listen for.
     pub async fn subscribe(&mut self, channel: Channel, product_ids: &[String]) -> CbResult<()> {
-        self.update(channel, product_ids, true).await
+        let endpoint = get_channel_access(&channel);
+        match endpoint {
+            ChannelAccess::Public if !self.enable_public => {
+                return Err(CbAdvError::BadConnection(
+                    "Public connection is not enabled.".to_string(),
+                ));
+            }
+            ChannelAccess::Secure if !self.enable_user => {
+                return Err(CbAdvError::BadConnection(
+                    "Secure user connection is not enabled.".to_string(),
+                ));
+            }
+            _ => {}
+        }
+        self.update(channel, product_ids, true, endpoint).await
     }
 
     /// Shorthand version of `subscribe`.
@@ -249,7 +481,21 @@ impl WebSocketClient {
     /// * `channel` - The Channel that is being changed to.
     /// * `product_ids` - A vector of product IDs to no longer listen for.
     pub async fn unsubscribe(&mut self, channel: Channel, product_ids: &[String]) -> CbResult<()> {
-        self.update(channel, product_ids, false).await
+        let endpoint = get_channel_access(&channel);
+        match endpoint {
+            ChannelAccess::Public if !self.enable_public => {
+                return Err(CbAdvError::BadConnection(
+                    "Public connection is not enabled.".to_string(),
+                ));
+            }
+            ChannelAccess::Secure if !self.enable_user => {
+                return Err(CbAdvError::BadConnection(
+                    "Secure user connection is not enabled.".to_string(),
+                ));
+            }
+            _ => {}
+        }
+        self.update(channel, product_ids, false, endpoint).await
     }
 
     /// Shorthand version of `unsubscribe`.
@@ -274,29 +520,28 @@ impl WebSocketClient {
         watcher: T,
     ) -> CbResult<JoinHandle<()>>
     where
-        T: CandleCallback + Send + 'static,
+        T: CandleCallback + Send + Sync + 'static,
     {
+        if !self.enable_public {
+            return Err(CbAdvError::BadConnection(
+                "Public connection is not enabled.".to_string(),
+            ));
+        }
+
         // Connect and spawn a task.
-        let reader = match self.connect().await {
-            Ok(reader) => reader,
-            Err(err) => return Err(err),
-        };
-
-        // Starts task to watch candles using users watcher.
-        let listener = tokio::spawn(TaskTracker::start(reader, watcher));
-
-        // Keep the connection open.
-        match self.sub(Channel::Heartbeats, &[]).await {
-            Ok(_) => (),
-            Err(err) => return Err(err),
-        };
-
-        // Subscribe to the candle updates for the products.
-        match self.sub(Channel::Candles, products).await {
-            Ok(_) => (),
-            Err(err) => return Err(err),
-        };
-
-        Ok(listener)
+        match self.connect().await?.public {
+            Some(public) => {
+                // Start task to watch candles using user's watcher.
+                let listener = tokio::spawn(TaskTracker::start(public, watcher));
+                // Keep the connection open by subscribing to heartbeats.
+                self.sub(Channel::Heartbeats, &[]).await?;
+                // Subscribe to the candle updates for the products.
+                self.sub(Channel::Candles, products).await?;
+                Ok(listener)
+            }
+            None => Err(CbAdvError::BadConnection(
+                "Public connection is not connected.".to_string(),
+            )),
+        }
     }
 }
