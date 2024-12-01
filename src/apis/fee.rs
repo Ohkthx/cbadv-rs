@@ -4,15 +4,16 @@
 //! Currently the only endpoint available is the Transaction Summary endpoint.
 
 use crate::constants::fees::RESOURCE_ENDPOINT;
-use crate::errors::CbAdvError;
-use crate::fee::{TransactionSummary, TransactionSummaryQuery};
-use crate::signer::Signer;
+use crate::errors::CbError;
+use crate::fee::{FeeTransactionSummaryQuery, TransactionSummary};
+use crate::http_agent::SecureHttpAgent;
+use crate::traits::HttpAgent;
 use crate::types::CbResult;
 
 /// Provides access to the Fee API for the service.
 pub struct FeeApi {
     /// Object used to sign requests made to the API.
-    signer: Signer,
+    agent: Option<SecureHttpAgent>,
 }
 
 impl FeeApi {
@@ -20,18 +21,16 @@ impl FeeApi {
     ///
     /// # Arguments
     ///
-    /// * `signer` - A Signer that include the API Key & Secret along with a client to make
-    /// requests.
-    pub(crate) fn new(signer: Signer) -> Self {
-        Self { signer }
+    /// * `agent` - A agent that include the API Key & Secret along with a client to make requests.
+    pub(crate) fn new(agent: Option<SecureHttpAgent>) -> Self {
+        Self { agent }
     }
 
     /// Obtains fee transaction summary from the API.
     ///
     /// # Arguments
     ///
-    /// * `query` - Optional paramaters used to modify the resulting scope of the
-    /// summary.
+    /// * `query` - Paramaters used to modify the resulting scope of the summary.
     ///
     /// # Endpoint / Reference
     ///
@@ -39,13 +38,16 @@ impl FeeApi {
     /// https://api.coinbase.com/api/v3/brokerage/transaction_summary
     ///
     /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_gettransactionsummary>
-    pub async fn get(&mut self, query: &TransactionSummaryQuery) -> CbResult<TransactionSummary> {
-        match self.signer.get(RESOURCE_ENDPOINT, query).await {
-            Ok(value) => match value.json::<TransactionSummary>().await {
-                Ok(resp) => Ok(resp),
-                Err(_) => Err(CbAdvError::BadParse("fee summary object".to_string())),
-            },
-            Err(error) => Err(error),
-        }
+    pub async fn get(
+        &mut self,
+        query: &FeeTransactionSummaryQuery,
+    ) -> CbResult<TransactionSummary> {
+        let agent = get_auth!(self.agent, "get fee transaction summary");
+        let response = agent.get(RESOURCE_ENDPOINT, query).await?;
+        let data: TransactionSummary = response
+            .json()
+            .await
+            .map_err(|e| CbError::JsonError(e.to_string()))?;
+        Ok(data)
     }
 }

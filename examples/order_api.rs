@@ -9,21 +9,38 @@
 //! - Obtain specific order by ID.
 
 use std::process::exit;
+use std::thread;
 
 use cbadv::config::{self, BaseConfig};
-use cbadv::order::{ListOrdersQuery, OrderSide};
-use cbadv::RestClient;
+use cbadv::order::{
+    OrderCancelRequest, OrderCreateBuilder, OrderEditRequest, OrderListQuery, OrderSide,
+    OrderStatus, OrderType, TimeInForce,
+};
+use cbadv::RestClientBuilder;
+use chrono::Duration;
 
 #[tokio::main]
 async fn main() {
-    let create_trade: bool = false;
-    let cancel_open_orders: bool = false;
-    let edit_open_order_id: Option<String> = None;
-    let product_pair: &str = "DOGE-USD";
-    let total_size: f64 = 300.0;
-    let price: f64 = 100.00;
-    let edit_price: f64 = 50.00;
-    let side: &str = "SELL";
+    let create_new: bool = false;
+    let edit_created: bool = true;
+    let cancel_created: bool = true;
+    let cancel_all: bool = false;
+    let product_id: &str = "ETH-USDC";
+    let mut created_order_id: Option<String> = None;
+    let new_order = match OrderCreateBuilder::new(product_id, &OrderSide::Buy)
+        .base_size(0.005)
+        .limit_price(100.0)
+        .post_only(true)
+        .order_type(OrderType::Limit)
+        .time_in_force(TimeInForce::GoodUntilCancelled)
+        .build()
+    {
+        Ok(order) => order,
+        Err(error) => {
+            println!("Unable to build order: {}", error);
+            exit(1);
+        }
+    };
 
     // Load the configuration file.
     let config: BaseConfig = match config::load("config.toml") {
@@ -43,7 +60,7 @@ async fn main() {
     };
 
     // Create a client to interact with the API.
-    let mut client = match RestClient::from_config(&config) {
+    let mut client = match RestClientBuilder::new().with_config(&config).build() {
         Ok(c) => c,
         Err(why) => {
             eprintln!("!ERROR! {}", why);
@@ -51,49 +68,76 @@ async fn main() {
         }
     };
 
-    if create_trade {
-        println!("Creating Order for {}.", product_pair);
-        match client
-            .order
-            .create_limit_gtc(product_pair, side, &total_size, &price, true)
-            .await
-        {
-            Ok(summary) => println!("Order creation result: {:#?}", summary),
+    if create_new {
+        println!(
+            "Creating Order with Client ID: {}",
+            new_order.client_order_id
+        );
+        match client.order.create(&new_order).await {
+            Ok(summary) => {
+                if let Some(success) = &summary.success_response {
+                    created_order_id = Some(success.order_id.clone());
+                }
+                println!("Order creation result: {:#?}", summary);
+            }
             Err(error) => println!("Unable to create order: {}", error),
         }
     }
 
-    if let Some(order_id) = edit_open_order_id {
-        println!("\n\nEditing order for {}.", order_id);
-        match client.order.edit(&order_id, total_size, edit_price).await {
-            Ok(result) => println!("{:#?}", result),
-            Err(error) => println!("Unable to edit order: {}", error),
+    if let Some(order_id) = &created_order_id {
+        if create_new && edit_created {
+            thread::sleep(Duration::seconds(1).to_std().unwrap());
+            let edit_order = OrderEditRequest::new(order_id, 50.0, 0.006);
+            println!("\n\nEditing order for {}.", order_id);
+            match client.order.edit(&edit_order).await {
+                Ok(result) => println!("{:#?}", result),
+                Err(error) => println!("Unable to edit order: {}", error),
+            }
         }
     }
 
-    if cancel_open_orders {
-        println!("\n\nCancelling all OPEN orders for {}.", product_pair);
-        match client.order.cancel_all(product_pair).await {
+    if let Some(order_id) = &created_order_id {
+        if create_new && cancel_created {
+            println!("\n\nCancelling Order with ID: {}", order_id);
+            match client
+                .order
+                .cancel(&OrderCancelRequest::new(&[order_id.clone()]))
+                .await
+            {
+                Ok(summary) => println!("Order cancel result: {:#?}", summary),
+                Err(error) => println!("Unable to cancel order: {}", error),
+            }
+        }
+    }
+
+    // Cancels all OPEN orders.
+    if cancel_all {
+        println!("\n\nCancelling all OPEN orders for {}.", product_id);
+        match client.order.cancel_all(product_id).await {
             Ok(result) => println!("{:#?}", result),
             Err(error) => println!("Unable to cancel orders: {}", error),
         }
     }
 
-    println!("\n\nGetting all orders for {}.", product_pair);
-    match client.order.get_all(product_pair, None).await {
+    println!("\n\nGetting all orders for {} (get_all).", product_id);
+    match client
+        .order
+        .get_all(product_id, &OrderListQuery::new())
+        .await
+    {
         Ok(orders) => println!("Orders obtained: {:#?}", orders.len()),
         Err(error) => println!("Unable to obtain all orders: {}", error),
     }
 
-    // Get all SELLING orders.
+    // Get all BUYING orders.
     let mut order_id = "".to_string();
-    let query = ListOrdersQuery {
-        product_id: Some(product_pair.to_string()),
-        order_side: Some(OrderSide::Sell),
+    let query = OrderListQuery {
+        product_ids: Some(vec![product_id.to_string()]),
+        order_side: Some(OrderSide::Buy),
         ..Default::default()
     };
 
-    println!("\n\nObtaining Orders.");
+    println!("\n\nObtaining Orders (bulk).");
     match client.order.get_bulk(&query).await {
         Ok(orders) => {
             println!("Orders obtained: {:#?}", orders.orders.len());
@@ -108,15 +152,19 @@ async fn main() {
             // Build list of orders to cancel.
             let mut order_ids: Vec<String> = vec![];
             for order in orders.orders {
-                if order.status == "OPEN" {
+                if order.status == OrderStatus::Open {
                     order_ids.push(order.order_id);
                 }
             }
 
             // Cancel the orders.
-            if cancel_open_orders && !order_ids.is_empty() {
+            if cancel_all && !order_ids.is_empty() {
                 println!("\n\nCancelling open orders.");
-                match client.order.cancel(&order_ids).await {
+                match client
+                    .order
+                    .cancel(&OrderCancelRequest::new(&order_ids))
+                    .await
+                {
                     Ok(summary) => println!("Order cancel result: {:#?}", summary),
                     Err(error) => println!("Unable to cancel order: {}", error),
                 }

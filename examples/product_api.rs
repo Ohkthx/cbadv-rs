@@ -10,8 +10,11 @@
 use std::process::exit;
 
 use cbadv::config::{self, BaseConfig};
-use cbadv::product::{ListProductsQuery, TickerQuery};
-use cbadv::{time, RestClient};
+use cbadv::product::{
+    ProductBidAskQuery, ProductCandleQuery, ProductListQuery, ProductTickerQuery,
+};
+use cbadv::time::Granularity;
+use cbadv::{time, RestClientBuilder};
 
 #[tokio::main]
 async fn main() {
@@ -35,7 +38,7 @@ async fn main() {
     };
 
     // Create a client to interact with the API.
-    let mut client = match RestClient::from_config(&config) {
+    let mut client = match RestClientBuilder::new().with_config(&config).build() {
         Ok(c) => c,
         Err(why) => {
             eprintln!("!ERROR! {}", why);
@@ -49,32 +52,21 @@ async fn main() {
     println!("{:#?}\n\n", product);
 
     println!("Getting best bids and asks.");
-    match client
-        .product
-        .best_bid_ask(vec!["BTC-USD".to_string()])
-        .await
-    {
+    let query = ProductBidAskQuery::new().product_ids(&["BTC-USD".to_string()]);
+    match client.product.best_bid_ask(&query).await {
         Ok(bidasks) => println!("{:#?}", bidasks),
         Err(error) => println!("Unable to get best bids and asks: {}", error),
     }
 
     // NOTE: Commented out due to large amounts of output.
     // println!("\n\nGetting product book.");
-    // match client
-    //     .product
-    //     .product_book(product_pair.clone(), None)
-    //     .await
-    // {
+    // match client.product.product_book(product_pair, None).await {
     //     Ok(book) => println!("{:#?}", book),
     //     Err(error) => println!("Unable to get product book: {}", error),
     // }
 
     println!("\n\nGetting multiple products.");
-    let query = ListProductsQuery {
-        // limit: Some(500),
-        // product_ids: Some(vec!["BTC-USD".to_string(), "ETH-USD".to_string()]),
-        ..Default::default()
-    };
+    let query = ProductListQuery::new();
 
     // Pull multiple products from the Product API.
     match client.product.get_bulk(&query).await {
@@ -83,14 +75,16 @@ async fn main() {
     }
 
     // Pull candles.
-    println!("\n\nGetting candles for: {}.", product_pair);
-    let granularity = time::Granularity::OneDay;
-    let interval = time::Granularity::to_secs(&granularity) as u64;
     let end = time::now();
-    let start = time::before(end, interval * 730);
-    let time_span = time::Span::new(start, end, &granularity);
-    println!("Intervals collecting: {}", time_span.count());
-    match client.product.candles_ext(product_pair, &time_span).await {
+    let interval = Granularity::to_secs(&Granularity::OneDay) as u64;
+    println!("\n\nGetting candles for: {}.", product_pair);
+    let query = ProductCandleQuery::new(
+        time::before(end, interval * 365),
+        end,
+        time::Granularity::OneDay,
+    );
+
+    match client.product.candles_ext(product_pair, &query).await {
         Ok(candles) => {
             println!("Obtained {} candles.", candles.len());
             match candles.first() {
@@ -103,7 +97,7 @@ async fn main() {
 
     // Pull ticker.
     println!("\n\nGetting ticker for: {}.", product_pair);
-    let query = TickerQuery { limit: 200 };
+    let query = ProductTickerQuery::new(200);
     match client.product.ticker(product_pair, &query).await {
         Ok(ticker) => {
             println!(

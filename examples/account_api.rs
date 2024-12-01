@@ -7,9 +7,9 @@
 
 use std::process::exit;
 
-use cbadv::account::ListAccountsQuery;
+use cbadv::account::AccountListQuery;
 use cbadv::config::{self, BaseConfig};
-use cbadv::RestClient;
+use cbadv::RestClientBuilder;
 
 #[tokio::main]
 async fn main() {
@@ -33,7 +33,7 @@ async fn main() {
     };
 
     // Create a client to interact with the API.
-    let mut client = match RestClient::from_config(&config) {
+    let mut client = match RestClientBuilder::new().with_config(&config).build() {
         Ok(c) => c,
         Err(why) => {
             eprintln!("!ERROR! {}", why);
@@ -43,7 +43,11 @@ async fn main() {
 
     // Pull accounts by ID.
     println!("Obtaining account by ID (non-standard).");
-    match client.account.get_by_id(product_name, None).await {
+    match client
+        .account
+        .get_by_id(product_name, &AccountListQuery::new())
+        .await
+    {
         Ok(account) => println!("{:#?}", account),
         Err(error) => println!("Unable to get account: {}", error),
     }
@@ -51,7 +55,7 @@ async fn main() {
     // Pull accounts by ID.
     let mut account_uuid = "".to_string();
     println!("\n\nObtaining ALL accounts (non-standard).");
-    match client.account.get_all(None).await {
+    match client.account.get_all(&AccountListQuery::new()).await {
         Ok(accounts) => {
             println!("Obtained {:#?} accounts.", accounts.len());
 
@@ -68,10 +72,7 @@ async fn main() {
     }
 
     // Parameters to send to the API.
-    let query = ListAccountsQuery {
-        // limit: Some(250),
-        ..Default::default()
-    };
+    let query = AccountListQuery::new();
 
     // Pull all accounts.
     println!("\n\nObtaining Bulk Accounts.");

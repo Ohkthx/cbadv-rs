@@ -14,9 +14,12 @@
 #[cfg(feature = "config")]
 pub mod config;
 
+#[macro_use]
+pub(crate) mod macros;
+
+mod candle_watcher;
+pub(crate) mod http_agent;
 pub(crate) mod jwt;
-pub(crate) mod signer;
-mod task_tracker;
 mod token_bucket;
 
 pub(crate) mod constants;
@@ -28,9 +31,11 @@ pub(crate) mod utils;
 
 pub(crate) mod apis;
 pub(crate) mod models;
-pub use models::{account, convert, fee, order, product, util, websocket as ws};
+pub use models::{
+    account, convert, fee, order, portfolio, product, public, shared, websocket as ws,
+};
 
 mod rest;
 mod websocket;
-pub use rest::RestClient;
-pub use websocket::WebSocketClient;
+pub use rest::{RestClient, RestClientBuilder};
+pub use websocket::{WebSocketClient, WebSocketClientBuilder};

@@ -5,17 +5,41 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::constants::accounts::LIST_ACCOUNT_MAXIMUM;
+use crate::errors::CbError;
 use crate::traits::Query;
-use crate::utils::{deserialize_numeric, QueryBuilder};
+use crate::types::CbResult;
+use crate::utils::QueryBuilder;
 
-/// Represents a Balance for either Available or Held funds.
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Balance {
-    /// Value for the currency available or held.
-    #[serde(deserialize_with = "deserialize_numeric")]
-    pub value: f64,
-    /// Denomination of the currency.
-    pub currency: String,
+use super::shared::Balance;
+
+/// Platform that the account is associated with.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub enum Platform {
+    /// Spot account.
+    #[serde(rename = "ACCOUNT_PLATFORM_CONSUMER")]
+    Consumer,
+    /// US Derivatives account.
+    #[serde(rename = "ACCOUNT_PLATFORM_CFM_CONSUMER")]
+    CfmConsumer,
+    /// International Exchange account.
+    #[serde(rename = "ACCOUNT_PLATFORM_INTX")]
+    Intx,
+}
+
+/// Possible values for the account type.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub enum AccountType {
+    #[serde(rename = "ACCOUNT_TYPE_UNSPECIFIED")]
+    Unspecified,
+    #[serde(rename = "ACCOUNT_TYPE_CRYPTO")]
+    Crypto,
+    #[serde(rename = "ACCOUNT_TYPE_FIAT")]
+    Fiat,
+    #[serde(rename = "ACCOUNT_TYPE_VAULT")]
+    Vault,
+    #[serde(rename = "ACCOUNT_TYPE_PERP_FUTURES")]
+    PerpFutures,
 }
 
 /// Represents an Account received from the API.
@@ -40,16 +64,18 @@ pub struct Account {
     /// Time at which this account was deleted.
     pub deleted_at: Option<String>,
     /// Possible values: [ACCOUNT_TYPE_UNSPECIFIED, ACCOUNT_TYPE_CRYPTO, ACCOUNT_TYPE_FIAT, ACCOUNT_TYPE_VAULT]
-    pub r#type: String,
+    pub r#type: AccountType,
     /// Whether or not this account is ready to trade.
     pub ready: bool,
     /// Current balance on hold.
     pub hold: Balance,
+    /// Platform that the account is associated with.
+    pub platform: Platform,
 }
 
-/// Represents a list of accounts received from the API.
+/// Response from the API that wraps a list of accounts.
 #[derive(Deserialize, Debug)]
-pub struct ListedAccounts {
+pub struct PaginatedAccounts {
     /// Accounts returned from the API.
     pub accounts: Vec<Account>,
     /// Whether there are additional pages for this query.
@@ -60,28 +86,71 @@ pub struct ListedAccounts {
     pub size: u32,
 }
 
-/// Represents an account response from the API.
-#[derive(Deserialize, Debug)]
-pub(crate) struct AccountResponse {
-    /// Account returned from the API.
-    pub(crate) account: Account,
-}
-
 /// Represents parameters that are optional for List Account API request.
-#[derive(Serialize, Default, Debug, Clone)]
-pub struct ListAccountsQuery {
+#[derive(Serialize, Debug, Clone)]
+pub struct AccountListQuery {
     /// Amount to obtain, default 49 maximum is 250.
-    pub limit: Option<u32>,
+    pub limit: u32,
     /// Returns accounts after the cursor provided.
     pub cursor: Option<String>,
 }
 
-impl Query for ListAccountsQuery {
-    /// Converts the object into HTTP request parameters.
+impl Query for AccountListQuery {
+    fn check(&self) -> CbResult<()> {
+        if self.limit == 0 || self.limit > LIST_ACCOUNT_MAXIMUM {
+            return Err(CbError::BadQuery(format!(
+                "Limit must be greater than 0 with a maximum of {}",
+                LIST_ACCOUNT_MAXIMUM
+            )));
+        }
+        Ok(())
+    }
+
     fn to_query(&self) -> String {
         QueryBuilder::new()
-            .push_u32_optional("limit", self.limit)
+            .push("limit", self.limit)
             .push_optional("cursor", &self.cursor)
             .build()
+    }
+}
+
+impl Default for AccountListQuery {
+    fn default() -> Self {
+        Self {
+            limit: 49,
+            cursor: None,
+        }
+    }
+}
+
+impl AccountListQuery {
+    /// Creates a new AccountListQuery with default values.
+    pub fn new() -> Self {
+        Default::default()
+    }
+
+    /// Sets the limit for the query. Default is 49 and maximum is 250.
+    pub fn limit(mut self, limit: u32) -> Self {
+        self.limit = limit;
+        self
+    }
+
+    /// Sets the cursor for the query.
+    pub fn cursor(mut self, cursor: String) -> Self {
+        self.cursor = Some(cursor);
+        self
+    }
+}
+
+/// Response from the API that wraps a single account.
+#[derive(Deserialize, Debug)]
+pub(crate) struct AccountWrapper {
+    /// Account returned from the API.
+    pub(crate) account: Account,
+}
+
+impl From<AccountWrapper> for Account {
+    fn from(wrapper: AccountWrapper) -> Self {
+        wrapper.account
     }
 }

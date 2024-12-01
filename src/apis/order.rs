@@ -3,27 +3,25 @@
 //! `order` gives access to the Order API and the various endpoints associated with it.
 //! These allow you to obtain past created orders, create new orders, and cancel orders.
 
-use uuid::Uuid;
-
 use crate::constants::orders::{
-    BATCH_ENDPOINT, CANCEL_BATCH_ENDPOINT, EDIT_ENDPOINT, EDIT_PREVIEW_ENDPOINT, FILLS_ENDPOINT,
-    RESOURCE_ENDPOINT,
+    BATCH_ENDPOINT, CANCEL_BATCH_ENDPOINT, CLOSE_POSITION_ENDPOINT, CREATE_PREVIEW_ENDPOINT,
+    EDIT_ENDPOINT, EDIT_PREVIEW_ENDPOINT, FILLS_ENDPOINT, RESOURCE_ENDPOINT,
 };
-use crate::errors::CbAdvError;
+use crate::errors::CbError;
+use crate::http_agent::SecureHttpAgent;
 use crate::order::{
-    CancelOrders, CancelOrdersResponse, CreateOrder, EditOrder, EditOrderResponse, LimitGtc,
-    LimitGtd, ListFillsQuery, ListOrdersQuery, ListedFills, ListedOrders, MarketIoc, Order,
-    OrderConfiguration, OrderResponse, OrderStatus, OrderStatusResponse, PreviewEditOrderResponse,
-    StopLimitGtc, StopLimitGtd,
+    Order, OrderCancelRequest, OrderCancelResponse, OrderCancelWrapper, OrderClosePositionRequest,
+    OrderCreatePreview, OrderCreateRequest, OrderCreateResponse, OrderEditPreview,
+    OrderEditRequest, OrderEditResponse, OrderListFillsQuery, OrderListQuery, OrderStatus,
+    OrderWrapper, PaginatedFills, PaginatedOrders,
 };
-use crate::signer::Signer;
-use crate::traits::NoQuery;
+use crate::traits::{HttpAgent, NoQuery};
 use crate::types::CbResult;
 
 /// Provides access to the Order API for the service.
 pub struct OrderApi {
     /// Object used to sign requests made to the API.
-    signer: Signer,
+    agent: Option<SecureHttpAgent>,
 }
 
 impl OrderApi {
@@ -31,17 +29,16 @@ impl OrderApi {
     ///
     /// # Arguments
     ///
-    /// * `signer` - A Signer that include the API Key & Secret along with a client to make
-    /// requests.
-    pub(crate) fn new(signer: Signer) -> Self {
-        Self { signer }
+    /// * `agent` - A agent that include the API Key & Secret along with a client to make requests.
+    pub(crate) fn new(agent: Option<SecureHttpAgent>) -> Self {
+        Self { agent }
     }
 
     /// Cancel orders.
     ///
     /// # Arguments
     ///
-    /// * `order_ids` - A vector of strings that represents order IDs to cancel.
+    /// * `request` - A struct containing what orders to cancel.
     ///
     /// # Endpoint / Reference
     ///
@@ -49,22 +46,17 @@ impl OrderApi {
     /// https://api.coinbase.com/api/v3/brokerage/orders/batch_cancel
     ///
     /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_cancelorders>
-    pub async fn cancel(&mut self, order_ids: &[String]) -> CbResult<Vec<OrderResponse>> {
-        let body = CancelOrders {
-            order_ids: order_ids.to_vec(),
-        };
-
-        match self
-            .signer
-            .post(CANCEL_BATCH_ENDPOINT, &NoQuery, body)
+    pub async fn cancel(
+        &mut self,
+        request: &OrderCancelRequest,
+    ) -> CbResult<Vec<OrderCancelResponse>> {
+        let agent = get_auth!(self.agent, "cancel orders");
+        let response = agent.post(CANCEL_BATCH_ENDPOINT, &NoQuery, request).await?;
+        let data: OrderCancelWrapper = response
+            .json()
             .await
-        {
-            Ok(value) => match value.json::<CancelOrdersResponse>().await {
-                Ok(resp) => Ok(resp.results),
-                Err(_) => Err(CbAdvError::BadParse("cancel order object".to_string())),
-            },
-            Err(error) => Err(error),
-        }
+            .map_err(|e| CbError::JsonError(e.to_string()))?;
+        Ok(data.into())
     }
 
     /// Cancel all OPEN orders for a specific product ID.
@@ -75,31 +67,33 @@ impl OrderApi {
     /// # Arguments
     ///
     /// * `product_id` - Product to cancel all OPEN orders for.
-    pub async fn cancel_all(&mut self, product_id: &str) -> CbResult<Vec<OrderResponse>> {
-        let query = ListOrdersQuery {
-            product_id: Some(product_id.to_string()),
+    pub async fn cancel_all(&mut self, product_id: &str) -> CbResult<Vec<OrderCancelResponse>> {
+        is_auth!(self.agent, "cancel all orders");
+
+        let query = OrderListQuery {
+            product_ids: Some(vec![product_id.to_string()]),
             order_status: Some(vec![OrderStatus::Open]),
             ..Default::default()
         };
 
-        // Obtain all open orders.
-        match self.get_all(product_id, Some(query)).await {
-            Ok(orders) => {
-                // Build list of orders to cancel.
-                let order_ids: Vec<String> = orders.iter().map(|o| o.order_id.clone()).collect();
+        // Obtain all open orders for the given product.
+        let open_orders = self.get_all(product_id, &query).await?;
 
-                // Do nothing since no orders found.
-                if order_ids.is_empty() {
-                    return Err(CbAdvError::NothingToDo(
-                        "no orders found to cancel".to_string(),
-                    ));
-                }
+        // Collect the IDs of orders to cancel.
+        let request = OrderCancelRequest::new(
+            &open_orders
+                .iter()
+                .map(|order| order.order_id.clone())
+                .collect::<Vec<String>>(),
+        );
 
-                // Cancel the order list.
-                self.cancel(&order_ids).await
-            }
-            Err(error) => Err(error),
+        // No orders to cancel.
+        if request.order_ids.is_empty() {
+            return Ok(vec![]);
         }
+
+        // Cancel the orders and return the response.
+        self.cancel(&request).await
     }
 
     /// Edit an order with a specified new size, or new price. Only limit order types, with time
@@ -109,9 +103,7 @@ impl OrderApi {
     ///
     /// # Arguments
     ///
-    /// * `order_id` - ID of the order to edit.
-    /// * `size` - New size of the order.
-    /// * `price` - New price of the order.
+    /// * `request` - A struct containing the order ID, new size, and new price.
     ///
     /// # Endpoint / Reference
     ///
@@ -119,27 +111,41 @@ impl OrderApi {
     /// https://api.coinbase.com/api/v3/brokerage/orders/edit
     ///
     /// https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_editorder
-    pub async fn edit(
-        &mut self,
-        order_id: &str,
-        size: f64,
-        price: f64,
-    ) -> CbResult<EditOrderResponse> {
-        let body = EditOrder {
-            order_id: order_id.to_string(),
-            size: size.to_string(),
-            price: price.to_string(),
-        };
+    pub async fn edit(&mut self, request: &OrderEditRequest) -> CbResult<OrderEditResponse> {
+        let agent = get_auth!(self.agent, "edit order");
+        let response = agent.post(EDIT_ENDPOINT, &NoQuery, request).await?;
+        let data: OrderEditResponse = response
+            .json()
+            .await
+            .map_err(|e| CbError::JsonError(e.to_string()))?;
+        Ok(data)
+    }
 
-        match self.signer.post(EDIT_ENDPOINT, &NoQuery, body).await {
-            Ok(value) => match value.json::<EditOrderResponse>().await {
-                Ok(edits) => Ok(edits),
-                Err(_) => Err(CbAdvError::BadParse(
-                    "could not parse edit order object".to_string(),
-                )),
-            },
-            Err(error) => Err(error),
-        }
+    /// Preview creating an order.
+    ///
+    /// # Arguments
+    ///
+    /// * `request` - A struct containing the order details to preview.
+    ///
+    /// # Endpoint / Reference
+    ///
+    #[allow(rustdoc::bare_urls)]
+    /// https://api.coinbase.com/api/v3/brokerage/orders/preview
+    ///
+    /// <https://docs.cdp.coinbase.com/advanced-trade/reference/retailbrokerageapi_previeworder>
+    pub async fn preview_create(
+        &mut self,
+        request: &OrderCreateRequest,
+    ) -> CbResult<OrderCreatePreview> {
+        let agent = get_auth!(self.agent, "preview create order");
+        let response = agent
+            .post(CREATE_PREVIEW_ENDPOINT, &NoQuery, request)
+            .await?;
+        let data: OrderCreatePreview = response
+            .json()
+            .await
+            .map_err(|e| CbError::JsonError(e.to_string()))?;
+        Ok(data)
     }
 
     /// Simulate an edit order request with a specified new size, or new price, to preview the result of an edit. Only
@@ -147,9 +153,7 @@ impl OrderApi {
     ///
     /// # Arguments
     ///
-    /// * `order_id` - ID of the order to edit.
-    /// * `size` - New size of the order.
-    /// * `price` - New price of the order.
+    /// * `request` - A struct containing the order ID, new size, and new price.
     ///
     /// # Endpoint / Reference
     ///
@@ -157,40 +161,21 @@ impl OrderApi {
     /// https://api.coinbase.com/api/v3/brokerage/orders/edit_preivew
     ///
     /// https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_previeweditorder
-    pub async fn preview_edit(
-        &mut self,
-        order_id: &str,
-        size: f64,
-        price: f64,
-    ) -> CbResult<PreviewEditOrderResponse> {
-        let body = EditOrder {
-            order_id: order_id.to_string(),
-            size: size.to_string(),
-            price: price.to_string(),
-        };
-
-        match self
-            .signer
-            .post(EDIT_PREVIEW_ENDPOINT, &NoQuery, body)
+    pub async fn preview_edit(&mut self, request: &OrderEditRequest) -> CbResult<OrderEditPreview> {
+        let agent = get_auth!(self.agent, "preview edit order");
+        let response = agent.post(EDIT_PREVIEW_ENDPOINT, &NoQuery, request).await?;
+        let data: OrderEditPreview = response
+            .json()
             .await
-        {
-            Ok(value) => match value.json::<PreviewEditOrderResponse>().await {
-                Ok(response) => Ok(response),
-                Err(_) => Err(CbAdvError::BadParse(
-                    "could not parse preview edit order response".to_string(),
-                )),
-            },
-            Err(error) => Err(error),
-        }
+            .map_err(|e| CbError::JsonError(e.to_string()))?;
+        Ok(data)
     }
 
     /// Create an order.
     ///
     /// # Arguments
     ///
-    /// * `product_id` - A string that represents the product's ID.
-    /// * `side` - A string that represents the side: BUY or SELL
-    /// * `configuration` - A OrderConfiguration containing details on type of order.
+    /// * `request` - A struct containing the order details to create.
     ///
     /// # Endpoint / Reference
     ///
@@ -198,231 +183,14 @@ impl OrderApi {
     /// https://api.coinbase.com/api/v3/brokerage/orders
     ///
     /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_postorder>
-    async fn create(
-        &mut self,
-        product_id: &str,
-        side: &str,
-        configuration: OrderConfiguration,
-    ) -> CbResult<OrderResponse> {
-        let body = CreateOrder {
-            client_order_id: Uuid::new_v4().to_string(),
-            product_id: product_id.to_string(),
-            side: side.to_string(),
-            order_configuration: configuration,
-        };
-
-        match self.signer.post(RESOURCE_ENDPOINT, &NoQuery, body).await {
-            Ok(value) => match value.json::<OrderResponse>().await {
-                Ok(resp) => Ok(resp),
-                Err(_) => Err(CbAdvError::BadParse("created order object".to_string())),
-            },
-            Err(error) => Err(error),
-        }
-    }
-
-    /// Create a market order.
-    ///
-    /// # Arguments
-    ///
-    /// * `product_id` - A string that represents the product's ID.
-    /// * `side` - A string that represents the side: BUY or SELL
-    /// * `size` - A 64-bit float that represents the size to buy or sell.
-    ///
-    /// # Endpoint / Reference
-    ///
-    #[allow(rustdoc::bare_urls)]
-    /// https://api.coinbase.com/api/v3/brokerage/orders
-    ///
-    /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_postorder>
-    pub async fn create_market(
-        &mut self,
-        product_id: &str,
-        side: &str,
-        size: &f64,
-    ) -> CbResult<OrderResponse> {
-        let market = if side == "BUY" {
-            MarketIoc {
-                quote_size: Some(size.to_string()),
-                base_size: None,
-            }
-        } else {
-            MarketIoc {
-                quote_size: None,
-                base_size: Some(size.to_string()),
-            }
-        };
-
-        let config = OrderConfiguration {
-            market_market_ioc: Some(market),
-            ..Default::default()
-        };
-
-        self.create(product_id, side, config).await
-    }
-
-    /// Create a Good til Cancelled Limit order.
-    ///
-    /// # Arguments
-    ///
-    /// * `product_id` - A string that represents the product's ID.
-    /// * `side` - A string that represents the side: BUY or SELL
-    /// * `size` - A 64-bit float that represents the size to buy or sell.
-    /// * `price` - A 64-bit float that represents the price to buy or sell.
-    /// * `post_only` - A boolean that represents MAKER or TAKER.
-    ///
-    /// # Endpoint / Reference
-    ///
-    #[allow(rustdoc::bare_urls)]
-    /// https://api.coinbase.com/api/v3/brokerage/orders
-    ///
-    /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_postorder>
-    pub async fn create_limit_gtc(
-        &mut self,
-        product_id: &str,
-        side: &str,
-        size: &f64,
-        price: &f64,
-        post_only: bool,
-    ) -> CbResult<OrderResponse> {
-        let limit = LimitGtc {
-            base_size: size.to_string(),
-            limit_price: price.to_string(),
-            post_only,
-        };
-
-        let config = OrderConfiguration {
-            limit_limit_gtc: Some(limit),
-            ..Default::default()
-        };
-
-        self.create(product_id, side, config).await
-    }
-
-    /// Create a Good til Time (Date) Limit order.
-    ///
-    /// # Arguments
-    ///
-    /// * `product_id` - A string that represents the product's ID.
-    /// * `side` - A string that represents the side: BUY or SELL
-    /// * `size` - A 64-bit float that represents the size to buy or sell.
-    /// * `price` - A 64-bit float that represents the price to buy or sell.
-    /// * `end_time` - A string that represents the time to kill the order.
-    /// * `post_only` - A boolean that represents MAKER or TAKER.
-    ///
-    /// # Endpoint / Reference
-    ///
-    #[allow(rustdoc::bare_urls)]
-    /// https://api.coinbase.com/api/v3/brokerage/orders
-    ///
-    /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_postorder>
-    pub async fn create_limit_gtd(
-        &mut self,
-        product_id: &str,
-        side: &str,
-        size: &f64,
-        price: &f64,
-        end_time: &str,
-        post_only: bool,
-    ) -> CbResult<OrderResponse> {
-        let limit = LimitGtd {
-            base_size: size.to_string(),
-            limit_price: price.to_string(),
-            end_time: end_time.to_string(),
-            post_only,
-        };
-
-        let config = OrderConfiguration {
-            limit_limit_gtd: Some(limit),
-            ..Default::default()
-        };
-
-        self.create(product_id, side, config).await
-    }
-
-    /// Create a Good til Cancelled Stop Limit order.
-    ///
-    /// # Arguments
-    ///
-    /// * `product_id` - A string that represents the product's ID.
-    /// * `side` - A string that represents the side: BUY or SELL
-    /// * `size` - A 64-bit float that represents the size to buy or sell.
-    /// * `limit_price` - Ceiling price for which the order should get filled.
-    /// * `stop_price` - Price at which the order should trigger - if stop direction is Up, then the order will trigger when the last trade price goes above this, otherwise order will trigger when last trade price goes below this price.
-    /// * `stop_direction` - Possible values: [UNKNOWN_STOP_DIRECTION, STOP_DIRECTION_STOP_UP, STOP_DIRECTION_STOP_DOWN]
-    ///
-    /// # Endpoint / Reference
-    ///
-    #[allow(rustdoc::bare_urls)]
-    /// https://api.coinbase.com/api/v3/brokerage/orders
-    ///
-    /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_postorder>
-    pub async fn create_stop_limit_gtc(
-        &mut self,
-        product_id: &str,
-        side: &str,
-        size: &f64,
-        limit_price: &f64,
-        stop_price: &f64,
-        stop_direction: &str,
-    ) -> CbResult<OrderResponse> {
-        let stoplimit = StopLimitGtc {
-            base_size: size.to_string(),
-            limit_price: limit_price.to_string(),
-            stop_price: stop_price.to_string(),
-            stop_direction: stop_direction.to_string(),
-        };
-
-        let config = OrderConfiguration {
-            stop_limit_stop_limit_gtc: Some(stoplimit),
-            ..Default::default()
-        };
-
-        self.create(product_id, side, config).await
-    }
-
-    /// Create a Good til Time (Date) Stop Limit order.
-    ///
-    /// # Arguments
-    ///
-    /// * `product_id` - A string that represents the product's ID.
-    /// * `side` - A string that represents the side: BUY or SELL
-    /// * `size` - A 64-bit float that represents the size to buy or sell.
-    /// * `limit_price` - Ceiling price for which the order should get filled.
-    /// * `stop_price` - Price at which the order should trigger - if stop direction is Up, then the order will trigger when the last trade price goes above this, otherwise order will trigger when last trade price goes below this price.
-    /// * `stop_direction` - Possible values: [UNKNOWN_STOP_DIRECTION, STOP_DIRECTION_STOP_UP, STOP_DIRECTION_STOP_DOWN]
-    /// * `end_time` - Time at which the order should be cancelled if it's not filled.
-    ///
-    /// # Endpoint / Reference
-    ///
-    #[allow(rustdoc::bare_urls)]
-    /// https://api.coinbase.com/api/v3/brokerage/orders
-    ///
-    /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_postorder>
-    #[allow(clippy::too_many_arguments)]
-    pub async fn create_stop_limit_gtd(
-        &mut self,
-        product_id: &str,
-        side: &str,
-        size: &f64,
-        limit_price: &f64,
-        stop_price: &f64,
-        stop_direction: &str,
-        end_time: &str,
-    ) -> CbResult<OrderResponse> {
-        let stoplimit = StopLimitGtd {
-            base_size: size.to_string(),
-            limit_price: limit_price.to_string(),
-            stop_price: stop_price.to_string(),
-            end_time: end_time.to_string(),
-            stop_direction: stop_direction.to_string(),
-        };
-
-        let config = OrderConfiguration {
-            stop_limit_stop_limit_gtd: Some(stoplimit),
-            ..Default::default()
-        };
-
-        self.create(product_id, side, config).await
+    pub async fn create(&mut self, request: &OrderCreateRequest) -> CbResult<OrderCreateResponse> {
+        let agent = get_auth!(self.agent, "create order");
+        let response = agent.post(RESOURCE_ENDPOINT, &NoQuery, request).await?;
+        let data: OrderCreateResponse = response
+            .json()
+            .await
+            .map_err(|e| CbError::JsonError(e.to_string()))?;
+        Ok(data)
     }
 
     /// Obtains a single order based on the Order ID (ex. "XXXX-YYYY-ZZZZ").
@@ -438,19 +206,19 @@ impl OrderApi {
     ///
     /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_gethistoricalorder>
     pub async fn get(&mut self, order_id: &str) -> CbResult<Order> {
+        let agent = get_auth!(self.agent, "get order");
         let resource = format!("{}/historical/{}", RESOURCE_ENDPOINT, order_id);
-        match self.signer.get(&resource, &NoQuery).await {
-            Ok(value) => match value.json::<OrderStatusResponse>().await {
-                Ok(resp) => Ok(resp.order),
-                Err(_) => Err(CbAdvError::BadParse(
-                    "could not parse order object".to_string(),
-                )),
-            },
-            Err(error) => Err(error),
-        }
+        let response = agent.get(&resource, &NoQuery).await?;
+        let data: OrderWrapper = response
+            .json()
+            .await
+            .map_err(|e| CbError::JsonError(e.to_string()))?;
+        Ok(data.into())
     }
 
     /// Obtains various orders from the API.
+    ///
+    /// # Arguments
     ///
     /// * `query` - A Parameters to modify what is returned by the API.
     ///
@@ -460,60 +228,55 @@ impl OrderApi {
     /// https://api.coinbase.com/api/v3/brokerage/orders/historical
     ///
     /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_gethistoricalorders>
-    pub async fn get_bulk(&mut self, query: &ListOrdersQuery) -> CbResult<ListedOrders> {
-        match self.signer.get(BATCH_ENDPOINT, query).await {
-            Ok(value) => match value.json::<ListedOrders>().await {
-                Ok(resp) => Ok(resp),
-                Err(_) => Err(CbAdvError::BadParse(
-                    "could not parse orders vector".to_string(),
-                )),
-            },
-            Err(error) => Err(error),
-        }
+    pub async fn get_bulk(&mut self, query: &OrderListQuery) -> CbResult<PaginatedOrders> {
+        let agent = get_auth!(self.agent, "get bulk orders");
+        let response = agent.get(BATCH_ENDPOINT, query).await?;
+        let data: PaginatedOrders = response
+            .json()
+            .await
+            .map_err(|e| CbError::JsonError(e.to_string()))?;
+        Ok(data)
     }
 
     /// Obtains all orders for a product based on the product ID. (ex. "BTC-USD").
     /// This wraps `get_bulk` and makes several additional requests until there are no
     /// additional orders.
     ///
-    /// NOTE: NOT A STANDARD API FUNCTION. QoL function that may require additional API requests than
-    /// normal.
+    /// NOTE: NOT A STANDARD API FUNCTION. QoL function that may require additional API requests than normal.
     ///
     /// # Arguments
     ///
     /// * `product_id` - Identifier for the account, such as BTC-USD or ETH-USD.
-    /// * `query` - Optional parameters, should default to None unless you want additional control.
+    /// * `query` - A Parameters to modify what is returned by the API.
     pub async fn get_all(
         &mut self,
         product_id: &str,
-        query: Option<ListOrdersQuery>,
+        query: &OrderListQuery,
     ) -> CbResult<Vec<Order>> {
-        let mut query = match query {
-            Some(p) => p,
-            None => ListOrdersQuery::default(),
-        };
+        is_auth!(self.agent, "get all orders");
 
-        // Override product ID.
-        query.product_id = Some(product_id.to_string());
-        let mut orders: Vec<Order> = vec![];
-        let mut has_next: bool = true;
+        // Set the product ID for the query.
+        let mut query = query.clone().product_ids(&[product_id.to_string()]);
+        let mut all_orders: Vec<Order> = vec![];
 
-        // Get the orders until there is not a next.
-        while has_next {
-            match self.get_bulk(&query).await {
-                Ok(listed) => {
-                    has_next = listed.has_next;
-                    query.cursor = Some(listed.cursor);
-                    orders.extend(listed.orders);
-                }
-                Err(error) => return Err(error),
+        // Fetch orders until no more pages are available.
+        loop {
+            let listed_orders = self.get_bulk(&query).await?;
+            all_orders.extend(listed_orders.orders);
+
+            if listed_orders.has_next {
+                query.cursor = Some(listed_orders.cursor);
+            } else {
+                break;
             }
         }
 
-        Ok(orders)
+        Ok(all_orders)
     }
 
     /// Obtains fills from the API.
+    ///
+    /// # Arguments
     ///
     /// * `query` - A Parameters to modify what is returned by the API.
     ///
@@ -523,15 +286,40 @@ impl OrderApi {
     /// https://api.coinbase.com/api/v3/brokerage/orders/historical/fills
     ///
     /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getfills>
-    pub async fn fills(&mut self, query: &ListFillsQuery) -> CbResult<ListedFills> {
-        match self.signer.get(FILLS_ENDPOINT, query).await {
-            Ok(value) => match value.json::<ListedFills>().await {
-                Ok(resp) => Ok(resp),
-                Err(_) => Err(CbAdvError::BadParse(
-                    "could not parse fills vector".to_string(),
-                )),
-            },
-            Err(error) => Err(error),
-        }
+    pub async fn fills(&mut self, query: &OrderListFillsQuery) -> CbResult<PaginatedFills> {
+        let agent = get_auth!(self.agent, "get fills");
+        let response = agent.get(FILLS_ENDPOINT, query).await?;
+        let data: PaginatedFills = response
+            .json()
+            .await
+            .map_err(|e| CbError::JsonError(e.to_string()))?;
+        Ok(data)
+    }
+
+    /// Places an order to close any open positions for a specified product_id.
+    ///
+    /// # Arguments
+    ///
+    /// * `request` - A request as to what position to close.
+    ///
+    /// # Endpoint / Reference
+    ///
+    #[allow(rustdoc::bare_urls)]
+    /// https://api.coinbase.com/api/v3/brokerage/orders/close_position
+    ///
+    /// <https://docs.cdp.coinbase.com/advanced-trade/reference/retailbrokerageapi_closeposition>
+    pub async fn close_position(
+        &mut self,
+        request: &OrderClosePositionRequest,
+    ) -> CbResult<OrderCreateResponse> {
+        let agent = get_auth!(self.agent, "close position");
+        let response = agent
+            .post(CLOSE_POSITION_ENDPOINT, &NoQuery, request)
+            .await?;
+        let data: OrderCreateResponse = response
+            .json()
+            .await
+            .map_err(|e| CbError::JsonError(e.to_string()))?;
+        Ok(data)
     }
 }

@@ -7,7 +7,7 @@ use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::fs;
 use toml;
 
-const CURRENT_CONFIG_VERSION: u8 = 1;
+const CURRENT_CONFIG_VERSION: u8 = 2;
 
 /// Generic configuration file with the minimum requirements for API access.
 /// This is used to implement on custom configurations and to be passed when
@@ -29,6 +29,8 @@ pub struct ApiConfig {
     pub api_secret: String,
     /// Enable debug messages or not.
     pub debug: bool,
+    /// Use sandbox or not.
+    pub use_sandbox: bool,
 }
 
 impl ApiConfig {
@@ -45,6 +47,7 @@ impl Default for ApiConfig {
             api_key: "YOUR_COINBASE_API_KEY_HERE".to_string(),
             api_secret: "YOUR_COINBASE_API_SECRET_HERE".to_string(),
             debug: false,
+            use_sandbox: false,
         }
     }
 }

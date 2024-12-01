@@ -8,10 +8,9 @@
 
 use std::process::exit;
 
-use cbadv::config::{self, BaseConfig};
-use cbadv::product::{Candle, ListProductsQuery};
+use cbadv::product::{Candle, ProductListQuery};
 use cbadv::traits::CandleCallback;
-use cbadv::{RestClient, WebSocketClient};
+use cbadv::{RestClient, RestClientBuilder, WebSocketClientBuilder};
 
 /// Example of user-defined struct to pass to the candle watcher.
 pub struct UserStruct {
@@ -30,7 +29,7 @@ impl CandleCallback for UserStruct {
 
         // Processed | Product_Id | Candle Start | Current
         println!(
-            "{:<5} {:>11} ({}): finished candle {}",
+            "{:<5} {:>14} ({}): finished candle {}",
             self.processed, product_id, candle.start, is_same
         );
     }
@@ -38,22 +37,20 @@ impl CandleCallback for UserStruct {
 
 /// Obtain product names of candles to be obtained.
 async fn get_products(client: &mut RestClient) -> Vec<String> {
-    println!("Getting '*-USD' products.");
-    let query = ListProductsQuery {
-        ..Default::default()
-    };
+    println!("Getting '*-USDC' products.");
 
     // Holds all of the product names.
     let mut product_names: Vec<String> = vec![];
+    let query = ProductListQuery::new();
 
     // Pull multiple products from the Product API.
-    match client.product.get_bulk(&query).await {
+    match client.public.products(&query).await {
         Ok(products) => {
             product_names = products
                 .iter()
-                // Filter products to only containing *-USD pairs.
+                // Filter products to only containing *-USDC pairs.
                 .filter_map(|p| match p.quote_currency_id.as_str() {
-                    "USD" => Some(p.product_id.clone()),
+                    "USDC" => Some(p.product_id.clone()),
                     _ => None,
                 })
                 .collect();
@@ -66,25 +63,8 @@ async fn get_products(client: &mut RestClient) -> Vec<String> {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + 'static>> {
-    // Load the configuration file.
-    let config: BaseConfig = match config::load("config.toml") {
-        Ok(c) => c,
-        Err(err) => {
-            println!("Could not load configuration file.");
-            if config::exists("config.toml") {
-                println!("File exists, {}", err);
-                exit(1);
-            }
-
-            // Create a new configuration file with defaults.
-            config::create_base_config("config.toml").unwrap();
-            println!("Empty configuration file created, please update it.");
-            exit(1);
-        }
-    };
-
     // Create a client to interact with the API.
-    let mut rclient = match RestClient::from_config(&config) {
+    let mut rclient = match RestClientBuilder::new().build() {
         Ok(c) => c,
         Err(why) => {
             eprintln!("!ERROR! {}", why);
@@ -93,7 +73,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error + 'static>> {
     };
 
     // Create a client to interact with the API.
-    let mut wsclient = match WebSocketClient::from_config(&config) {
+    let wsclient = match WebSocketClientBuilder::new()
+        .auto_reconnect(true)
+        .max_retries(20)
+        .build()
+    {
         Ok(c) => c,
         Err(why) => {
             eprintln!("!ERROR! {}", why);

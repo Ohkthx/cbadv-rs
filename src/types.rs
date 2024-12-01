@@ -4,10 +4,10 @@ use futures_util::stream::SplitStream;
 use tokio::net::TcpStream;
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 
-use crate::{errors::CbAdvError, models::websocket::Message};
+use crate::{errors::CbError, models::websocket::Message};
 
 /// Used to return objects from the API to the end-user.
-pub type CbResult<T> = Result<T, CbAdvError>;
+pub type CbResult<T> = Result<T, CbError>;
 
 pub(crate) type Socket = WebSocketStream<MaybeTlsStream<TcpStream>>;
 

@@ -1,7 +1,11 @@
 pub mod account;
 pub mod convert;
+pub mod data;
 pub mod fee;
 pub mod order;
+pub mod payment;
+pub mod portfolio;
 pub mod product;
-pub mod util;
+pub mod public;
+pub mod shared;
 pub mod websocket;

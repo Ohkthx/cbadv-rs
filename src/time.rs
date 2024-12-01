@@ -3,10 +3,13 @@
 //! `time` plays an important role in authentication for API requests and obtaining data between
 //! spans of time such as in the Product API for obtaining Candles.
 
-use serde::Serialize;
+use core::fmt;
+use serde::{Deserialize, Serialize};
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use crate::errors::CbError;
 use crate::traits::Query;
+use crate::types::CbResult;
 use crate::utils::QueryBuilder;
 
 /// One minute of time in seconds.
@@ -24,8 +27,11 @@ const SIX_HOUR: u32 = ONE_HOUR * 6;
 const ONE_DAY: u32 = ONE_HOUR * 24;
 
 /// Span of time in seconds.
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum Granularity {
-    UnknownGranularity,
+    #[serde(rename = "UNKNOWN_GRANULARITY")]
+    Unknown,
     OneMinute,
     FiveMinute,
     FifteenMinute,
@@ -34,6 +40,28 @@ pub enum Granularity {
     TwoHour,
     SixHour,
     OneDay,
+}
+
+impl fmt::Display for Granularity {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.as_ref())
+    }
+}
+
+impl AsRef<str> for Granularity {
+    fn as_ref(&self) -> &str {
+        match self {
+            Granularity::OneMinute => "ONE_MINUTE",
+            Granularity::FiveMinute => "FIVE_MINUTE",
+            Granularity::FifteenMinute => "FIFTEEN_MINUTE",
+            Granularity::ThirtyMinute => "THIRTY_MINUTE",
+            Granularity::OneHour => "ONE_HOUR",
+            Granularity::TwoHour => "TWO_HOUR",
+            Granularity::SixHour => "SIX_HOUR",
+            Granularity::OneDay => "ONE_DAY",
+            Granularity::Unknown => "UNKNOWN_GRANULARITY",
+        }
+    }
 }
 
 impl Granularity {
@@ -51,7 +79,7 @@ impl Granularity {
 
             Granularity::OneDay => ONE_DAY,
 
-            Granularity::UnknownGranularity => 0,
+            Granularity::Unknown => 0,
         }
     }
 
@@ -70,7 +98,7 @@ impl Granularity {
             ONE_DAY => Granularity::OneDay,
 
             // UnknownGranularity is defined in the API.
-            _ => Granularity::UnknownGranularity,
+            _ => Granularity::Unknown,
         }
     }
 }
@@ -119,27 +147,23 @@ impl Span {
 }
 
 impl Query for Span {
+    fn check(&self) -> CbResult<()> {
+        if self.start >= self.end {
+            return Err(CbError::BadQuery("start must be before end".to_string()));
+        } else if self.granularity == 0 {
+            return Err(CbError::BadQuery(
+                "granularity must be greater than 0".to_string(),
+            ));
+        }
+        Ok(())
+    }
+
     fn to_query(&self) -> String {
         let granularity = Granularity::from_secs(self.granularity);
-        let granularity_str: &str = match granularity {
-            Granularity::OneMinute => "ONE_MINUTE",
-            Granularity::FiveMinute => "FIVE_MINUTE",
-            Granularity::FifteenMinute => "FIFTEEN_MINUTE",
-            Granularity::ThirtyMinute => "THIRTY_MINUTE",
-
-            Granularity::OneHour => "ONE_HOUR",
-            Granularity::TwoHour => "TWO_HOUR",
-            Granularity::SixHour => "SIX_HOUR",
-
-            Granularity::OneDay => "ONE_DAY",
-
-            Granularity::UnknownGranularity => "UNKNOWN_GRANULARITY",
-        };
-
         QueryBuilder::new()
             .push("start", self.start)
             .push("end", self.end)
-            .push("granularity", granularity_str)
+            .push("granularity", granularity)
             .build()
     }
 }

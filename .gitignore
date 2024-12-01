@@ -1,5 +1,6 @@
 config.toml
 commit_msg
+.DS_STORE
 
 target/
 configs/

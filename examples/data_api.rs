@@ -1,12 +1,12 @@
-//! # Util API Example, check out the Util API for all functionality.
+//! # Data API Example, check out the Data API for all functionality.
 //!
 //! Shows how to:
-//! - Obtain the API Unix time.
+//! - Obtain API Key Permissions.
 
 use std::process::exit;
 
 use cbadv::config::{self, BaseConfig};
-use cbadv::RestClient;
+use cbadv::RestClientBuilder;
 
 #[tokio::main]
 async fn main() {
@@ -28,7 +28,7 @@ async fn main() {
     };
 
     // Create a client to interact with the API.
-    let mut client = match RestClient::from_config(&config) {
+    let mut client = match RestClientBuilder::new().with_config(&config).build() {
         Ok(c) => c,
         Err(why) => {
             eprintln!("!ERROR! {}", why);
@@ -36,10 +36,10 @@ async fn main() {
         }
     };
 
-    // Get API Unix time.
-    println!("Obtaining API Unix time");
-    match client.util.unixtime().await {
-        Ok(time) => println!("{:#?}", time),
-        Err(error) => println!("Unable to get the Unix time: {}", error),
+    // Get the API key permissions.
+    println!("Obtaining Key Permissions for the API key.");
+    match client.data.key_permissions().await {
+        Ok(perm) => println!("{:#?}", perm),
+        Err(error) => println!("Unable to get the API key permissions: {}", error),
     }
 }

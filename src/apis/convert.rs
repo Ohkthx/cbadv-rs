@@ -3,19 +3,17 @@
 //! `convert` gives access to the Convert API and the various endpoints associated with it.
 //! This allows for the conversion between two currencies.
 
-use crate::constants::convert::{QUOTE_ENDPOINT, RESOURCE_ENDPOINT};
-use crate::convert::{
-    ConvertQuery, ConvertQuoteQuery, ConvertResponse, Trade, TradeIncentiveMetadata,
-};
-use crate::errors::CbAdvError;
-use crate::signer::Signer;
-use crate::traits::NoQuery;
+use crate::constants::convert::{QUOTE_ENDPOINT, TRADE_ENDPOINT};
+use crate::convert::{ConvertQuery, ConvertQuoteRequest, Trade, TradeWrapper};
+use crate::errors::CbError;
+use crate::http_agent::SecureHttpAgent;
+use crate::traits::{HttpAgent, NoQuery};
 use crate::types::CbResult;
 
 /// Provides access to the Convert API for the service.
 pub struct ConvertApi {
     /// Object used to sign requests made to the API.
-    signer: Signer,
+    agent: Option<SecureHttpAgent>,
 }
 
 impl ConvertApi {
@@ -23,10 +21,9 @@ impl ConvertApi {
     ///
     /// # Arguments
     ///
-    /// * `signer` - A Signer that include the API Key & Secret along with a client to make
-    /// requests.
-    pub(crate) fn new(signer: Signer) -> Self {
-        Self { signer }
+    /// * `agent` - A agent that include the API Key & Secret along with a client to make requests.
+    pub(crate) fn new(agent: Option<SecureHttpAgent>) -> Self {
+        Self { agent }
     }
 
     /// Create a convert quote with a specified source currency, target currency, and amount.
@@ -36,81 +33,71 @@ impl ConvertApi {
     ///
     /// Trades are valid for 10 minutes after the quote is created.
     ///
-    /// https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_createconvertquote
-    pub async fn create_quote(
-        &mut self,
-        from_account: &str,
-        to_account: &str,
-        amount: f64,
-        metadata: Option<TradeIncentiveMetadata>,
-    ) -> CbResult<Trade> {
-        let query = ConvertQuoteQuery {
-            from_account: from_account.to_string(),
-            to_account: to_account.to_string(),
-            amount: amount.to_string(),
-            trade_incentive_metadata: metadata,
-        };
-
-        match self.signer.post(QUOTE_ENDPOINT, &NoQuery, &query).await {
-            Ok(value) => match value.json::<ConvertResponse>().await {
-                Ok(resp) => Ok(resp.trade),
-                Err(_) => Err(CbAdvError::BadParse(
-                    "convert quote response object".to_string(),
-                )),
-            },
-            Err(error) => Err(error),
-        }
+    /// # Arguments
+    ///
+    /// * `request` - The request to create a quote.
+    ///
+    /// # Endpoint / Reference
+    ///
+    #[allow(rustdoc::bare_urls)]
+    /// https://api.coinbase.com/api/v3/brokerage/convert/quote
+    ///
+    /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_createconvertquote>
+    pub async fn create_quote(&mut self, request: &ConvertQuoteRequest) -> CbResult<Trade> {
+        let agent = get_auth!(self.agent, "create convert quote");
+        let response = agent.post(QUOTE_ENDPOINT, &NoQuery, request).await?;
+        let data = response
+            .json::<TradeWrapper>()
+            .await
+            .map_err(|e| CbError::JsonError(e.to_string()))?;
+        Ok(data.into())
     }
 
     /// Gets a list of information about a convert trade with a specified trade ID, source currency, and target currency.
     ///
-    /// https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getconverttrade
-    pub async fn get(
-        &mut self,
-        trade_id: &str,
-        from_account: &str,
-        to_account: &str,
-    ) -> CbResult<Trade> {
-        let resource = format!("{}/trade/{}", RESOURCE_ENDPOINT, trade_id);
-        let query = ConvertQuery {
-            from_account: from_account.to_string(),
-            to_account: to_account.to_string(),
-        };
-
-        match self.signer.get(&resource, &query).await {
-            Ok(value) => match value.json::<ConvertResponse>().await {
-                Ok(resp) => Ok(resp.trade),
-                Err(_) => Err(CbAdvError::BadParse(
-                    "get convert response object".to_string(),
-                )),
-            },
-            Err(error) => Err(error),
-        }
+    /// # Arguments
+    ///
+    /// * `trade_id` - The trade ID to get information about.
+    /// * `query` - The query to obtain the trade.
+    ///
+    /// # Endpoint / Reference
+    ///
+    #[allow(rustdoc::bare_urls)]
+    /// https://api.coinbase.com/api/v3/brokerage/convert/trade
+    ///
+    /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getconverttrade>
+    pub async fn get(&mut self, trade_id: &str, query: &ConvertQuery) -> CbResult<Trade> {
+        let agent = get_auth!(self.agent, "get convert trade");
+        let resource = format!("{}/{}", TRADE_ENDPOINT, trade_id);
+        let response = agent.get(&resource, query).await?;
+        let data: TradeWrapper = response
+            .json()
+            .await
+            .map_err(|e| CbError::JsonError(e.to_string()))?;
+        Ok(data.into())
     }
 
     /// Commits a convert trade with a specified trade ID, source currency, and target currency.
     ///
-    /// https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_commitconverttrade
-    pub async fn commit(
-        &mut self,
-        trade_id: &str,
-        from_account: &str,
-        to_account: &str,
-    ) -> CbResult<Trade> {
-        let resource = format!("{}/trade/{}", RESOURCE_ENDPOINT, trade_id);
-        let query = ConvertQuery {
-            from_account: from_account.to_string(),
-            to_account: to_account.to_string(),
-        };
-
-        match self.signer.post(&resource, &NoQuery, &query).await {
-            Ok(value) => match value.json::<ConvertResponse>().await {
-                Ok(resp) => Ok(resp.trade),
-                Err(_) => Err(CbAdvError::BadParse(
-                    "convert commit response object".to_string(),
-                )),
-            },
-            Err(error) => Err(error),
-        }
+    /// # Arguments
+    ///
+    /// * `trade_id` - The trade ID to get information about.
+    /// * `query` - The query to commit the trade.
+    ///
+    /// # Endpoint / Reference
+    ///
+    #[allow(rustdoc::bare_urls)]
+    /// https://api.coinbase.com/api/v3/brokerage/convert/trade
+    ///
+    /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_commitconverttrade>
+    pub async fn commit(&mut self, trade_id: &str, query: &ConvertQuery) -> CbResult<Trade> {
+        let agent = get_auth!(self.agent, "commit convert quote");
+        let resource = format!("{}/{}", TRADE_ENDPOINT, trade_id);
+        let response = agent.post(&resource, &NoQuery, query).await?;
+        let data: TradeWrapper = response
+            .json()
+            .await
+            .map_err(|e| CbError::JsonError(e.to_string()))?;
+        Ok(data.into())
     }
 }

@@ -1,70 +1,215 @@
 <p align="center">
-    <a href="https://crates.io/crates/cbadv" title="crates.io version.">
+    <a href="https://crates.io/crates/cbadv" title="View on crates.io">
         <img src="https://img.shields.io/crates/v/cbadv?style=for-the-badge&logoColor=89b4fa&labelColor=11111b&color=89b4fa"
             alt="crates.io version"></a>
-    <a href="https://crates.io/crates/cbadv" title="crates.io download counter.">
+    <a href="https://crates.io/crates/cbadv" title="Download counter on crates.io">
         <img src="https://img.shields.io/crates/d/cbadv?style=for-the-badge&logoColor=89dceb&labelColor=11111b&color=89dceb"
             alt="crates.io downloads"></a>
-    <a href="https://github.com/ohkthx/cbadv-rs" title="Size of the repo!">
+    <a href="https://github.com/Ohkthx/cbadv-rs" title="Repository size">
         <img src="https://img.shields.io/github/repo-size/Ohkthx/cbadv-rs?style=for-the-badge&logoColor=a6e3a1&labelColor=11111b&color=a6e3a1"
+            alt="GitHub repo size"></a>
 </p>
 
-# Examples
+# cbadv-rs: Coinbase Advanced Trading API Wrapper
 
-The following examples are for testing and demonstrating the use of the crate. Please review the examples before running them to fully understand what is happening and how they are used. If you have any suggestions, feel free to let me know!
+Welcome to **cbadv-rs**, a Rust crate for interacting with the Coinbase Advanced Trading API. This library provides easy-to-use interfaces for various Coinbase APIs such as Account, Product, Fee, Order, Portfolio, Public, Sandbox, and WebSocket.
 
-## Account API
+## Table of Contents
 
-Demonstrates how to use the Account API, accessbile at: [account_api.rs](https://github.com/Ohkthx/cbadv-rs/tree/main/examples/account_api.rs)
+- [Examples](#examples)
+  - [Account API](#account-api)
+  - [Product API](#product-api)
+  - [Fee API](#fee-api)
+  - [Order API](#order-api)
+  - [Portfolio API](#portfolio-api)
+  - [Payment API](#payment-api)
+  - [Convert API](#convert-api)
+  - [Data API](#data-api)
+  - [Public API](#public-api)
+  - [Sandbox API](#sandbox-api)
+  - [WebSocket API](#websocket-api)
+    - [User Orders (WebSocket API)](#user-orders-websocket-api)
+    - [Watch Candles (WebSocket API)](#watch-candles-websocket-api)
+  - [Custom Configurations](#custom-configurations)
+- [Contributing](#contributing)
+- [License](#license)
 
-**Command**:
+---
 
-- `cargo run --example account_api --features="config"`
+## Examples
 
-## Product API
+This section showcases example usage of the crate. Each example demonstrates a different API or functionality. Before running these examples, review the corresponding source code to understand how they work. If you have any suggestions, feel free to open an issue or submit a pull request!
 
-Demonstrates how to use the Product API, accessbile at: [product_api.rs](https://github.com/Ohkthx/cbadv-rs/tree/main/examples/product_api.rs)
+### Account API
 
-**Command**:
+Learn how to use the Account API. Example source: [account_api.rs](https://github.com/Ohkthx/cbadv-rs/tree/main/examples/account_api.rs)
 
-- `cargo run --example product_api --features="config"`
+**Run the example**:
 
-## Fee API
+```bash
+cargo run --example account_api --features="config"
+```
 
-Demonstrates how to use the Fee API, accessbile at: [fee_api.rs](https://github.com/Ohkthx/cbadv-rs/tree/main/examples/fee_api.rs)
+---
 
-**Command**:
+### Product API
 
-- `cargo run --example fee_api --features="config"`
+Learn how to use the Product API. Example source: [product_api.rs](https://github.com/Ohkthx/cbadv-rs/tree/main/examples/product_api.rs)
 
-## Order API
+**Run the example**:
 
-Demonstrates how to use the Order API, accessbile at: [order_api.rs](https://github.com/Ohkthx/cbadv-rs/tree/main/examples/order_api.rs)
+```bash
+cargo run --example product_api --features="config"
+```
 
-**Command**:
+---
 
-- `cargo run --example order_api --features="config"`
+### Fee API
 
-## WebSocket API
+Learn how to use the Fee API. Example source: [fee_api.rs](https://github.com/Ohkthx/cbadv-rs/tree/main/examples/fee_api.rs)
 
-Demonstrates how to use the WebSocket API, accessbile at: [websocket.rs](https://github.com/Ohkthx/cbadv-rs/tree/main/examples/websocket.rs)
+**Run the example**:
 
-**Command**:
+```bash
+cargo run --example fee_api --features="config"
+```
 
-- `cargo run --example websocket --features="config"`
+---
 
-### WebSocket API - Watch Candles
+### Order API
 
-Demonstrates how to use the Watch Candles via the WebSocket API, accessbile at: [watch_candles.rs](https://github.com/Ohkthx/cbadv-rs/tree/main/examples/watch_candles.rs) These candles are limited to 5 minute granularity and cannot be currently changed (as of 20231019).
+Learn how to use the Order API. Example source: [order_api.rs](https://github.com/Ohkthx/cbadv-rs/tree/main/examples/order_api.rs)
 
-**Command**:
+**Run the example**:
 
-- `cargo run --example watch_candles --features="config"`
+```bash
+cargo run --example order_api --features="config"
+```
 
-## Custom Configurations
+---
 
-Demonstrates how to create a custom configuration file to meet your needs in integration, accessbile at: [custom_config.rs](https://github.com/Ohkthx/cbadv-rs/tree/main/examples/custom_config.rs)
+### Portfolio API
 
-**Command**:
+Learn how to use the Portfolio API. Example source: [portfolio_api.rs](https://github.com/Ohkthx/cbadv-rs/tree/main/examples/portfolio_api.rs)
 
-- `cargo run --example custom_config --features="config"`
+**Run the example**:
+
+```bash
+cargo run --example portfolio_api --features="config"
+```
+
+---
+
+### Convert API
+
+Learn how to use the Convert API. Example source: [convert_api.rs](https://github.com/Ohkthx/cbadv-rs/tree/main/examples/convert_api.rs)
+
+**Run the example**:
+
+```bash
+cargo run --example convert_api --features="config"
+```
+
+---
+
+### Payment API
+
+Learn how to use the Payment API. Example source: [payment_api.rs](https://github.com/Ohkthx/cbadv-rs/tree/main/examples/payment_api.rs)
+
+**Run the example**:
+
+```bash
+cargo run --example payment_api --features="config"
+```
+
+---
+
+### Data API
+
+Learn how to use the Data API. Example source: [data_api.rs](https://github.com/Ohkthx/cbadv-rs/tree/main/examples/data_api.rs)
+
+**Run the example**:
+
+```bash
+cargo run --example data_api --features="config"
+```
+
+---
+
+### Public API
+
+Learn how to use the Public API. Example source: [public_api.rs](https://github.com/Ohkthx/cbadv-rs/tree/main/examples/public_api.rs)
+
+**Run the example**:
+
+```bash
+cargo run --example public_api --features="config"
+```
+
+---
+
+### Sandbox API
+
+Learn how to use the Sandbox API for testing without affecting real accounts. Example source: [sandbox_api.rs](https://github.com/Ohkthx/cbadv-rs/tree/main/examples/sandbox_api.rs)
+
+**Run the example**:
+
+```bash
+cargo run --example sandbox_api --features="config"
+```
+
+---
+
+### WebSocket API
+
+Learn how to use the WebSocket API for real-time data. Example source: [websocket.rs](https://github.com/Ohkthx/cbadv-rs/tree/main/examples/websocket.rs)
+
+**Run the example**:
+
+```bash
+cargo run --example websocket --features="config"
+```
+
+#### User Orders (WebSocket API)
+
+Learn how to watch user data via the WebSocket API. Example source: [websocket_user.rs](https://github.com/Ohkthx/cbadv-rs/tree/main/examples/websocket_user.rs)
+
+**Run the example**:
+
+```bash
+cargo run --example websocket_user --features="config"
+```
+
+---
+
+#### Watch Candles (WebSocket API)
+
+Learn how to watch candlestick data via the WebSocket API. Currently, only 5-minute granularity is supported (as of 2023-10-19). Example source: [watch_candles.rs](https://github.com/Ohkthx/cbadv-rs/tree/main/examples/watch_candles.rs)
+
+**Run the example**:
+
+```bash
+cargo run --example watch_candles --features="config"
+```
+
+---
+
+### Custom Configurations
+
+Learn how to create custom configuration files tailored to your integration needs. Example source: [custom_config.rs](https://github.com/Ohkthx/cbadv-rs/tree/main/examples/custom_config.rs)
+
+**Run the example**:
+
+```bash
+cargo run --example custom_config --features="config"
+```
+
+---
+
+## Contributing
+
+Contributions are welcome! Feel free to open issues or submit pull requests to improve this crate. For major changes, please open an issue first to discuss what you would like to change.
+
+## License
+
+This project is licensed under the [MIT License](https://opensource.org/licenses/MIT). See the [LICENSE](LICENSE) file for details.
