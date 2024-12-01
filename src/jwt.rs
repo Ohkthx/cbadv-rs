@@ -10,7 +10,7 @@ use ring::rand::SystemRandom;
 use ring::signature::{self};
 use serde::Serialize;
 
-use crate::errors::CbAdvError;
+use crate::errors::CbError;
 use crate::time;
 use crate::types::CbResult;
 
@@ -95,7 +95,7 @@ impl Jwt {
     /// Encodes a serializable type.
     fn base64_encode<T: Serialize>(input: &T) -> CbResult<String> {
         let raw =
-            serde_json::to_vec(input).map_err(|why| CbAdvError::BadSignature(why.to_string()))?;
+            serde_json::to_vec(input).map_err(|why| CbError::BadSignature(why.to_string()))?;
         Ok(Self::to_base64(&raw))
     }
 
@@ -130,13 +130,13 @@ impl Jwt {
 
         // Not in pkcs8 format, attempt conversion.
         let ec_key = EcKey::private_key_from_pem(key)
-            .map_err(|why| CbAdvError::BadPrivateKey(why.to_string()))?;
+            .map_err(|why| CbError::BadPrivateKey(why.to_string()))?;
         let pkey =
-            PKey::from_ec_key(ec_key).map_err(|why| CbAdvError::BadPrivateKey(why.to_string()))?;
+            PKey::from_ec_key(ec_key).map_err(|why| CbError::BadPrivateKey(why.to_string()))?;
 
         let new_key = pkey
             .private_key_to_pem_pkcs8()
-            .map_err(|why| CbAdvError::BadPrivateKey(why.to_string()))?;
+            .map_err(|why| CbError::BadPrivateKey(why.to_string()))?;
 
         Self::parse_key(&new_key)
     }
@@ -154,22 +154,22 @@ impl Jwt {
     /// # Returns
     ///
     /// A `CbResult<Vec<u8>>` which is Ok containing the decoded binary key data if successful,
-    /// or an Err with a `CbAdvError::BadPrivateKey` containing the error message if any error occurs.
+    /// or an Err with a `CbError::BadPrivateKey` containing the error message if any error occurs.
     fn parse_key(api_secret: &[u8]) -> CbResult<Vec<u8>> {
         let pem_str =
-            str::from_utf8(api_secret).map_err(|why| CbAdvError::BadPrivateKey(why.to_string()))?;
+            str::from_utf8(api_secret).map_err(|why| CbError::BadPrivateKey(why.to_string()))?;
 
         // Checks for the headers and footers to remove it.
         let base64_encoded = if pem_str.starts_with("-----BEGIN") && pem_str.contains("-----END") {
             let start = pem_str
                 .find("-----BEGIN")
                 .and_then(|s| pem_str[s..].find('\n'))
-                .ok_or_else(|| CbAdvError::BadPrivateKey("No BEGIN delimiter".to_string()))?
+                .ok_or_else(|| CbError::BadPrivateKey("No BEGIN delimiter".to_string()))?
                 + 1;
 
             let end = pem_str
                 .find("-----END")
-                .ok_or_else(|| CbAdvError::BadPrivateKey("No END delimiter".to_string()))?;
+                .ok_or_else(|| CbError::BadPrivateKey("No END delimiter".to_string()))?;
 
             // Get the data between the header and footer.
             pem_str[start..end]
@@ -183,7 +183,7 @@ impl Jwt {
         // Decode the key.
         STANDARD_NO_PAD
             .decode(base64_encoded)
-            .map_err(|why| CbAdvError::BadPrivateKey(why.to_string()))
+            .map_err(|why| CbError::BadPrivateKey(why.to_string()))
     }
 
     /// Signs a message using ECDSA with the specified private key.
@@ -199,10 +199,10 @@ impl Jwt {
     fn sign_message(&self, message: &[u8]) -> CbResult<String> {
         let signing_key =
             signature::EcdsaKeyPair::from_pkcs8(Self::get_alg(), &self.api_secret, &self.rng)
-                .map_err(|why| CbAdvError::BadSignature(why.to_string()))?;
+                .map_err(|why| CbError::BadSignature(why.to_string()))?;
         let signature = signing_key
             .sign(&self.rng, message)
-            .map_err(|why| CbAdvError::BadSignature(why.to_string()))?;
+            .map_err(|why| CbError::BadSignature(why.to_string()))?;
 
         Ok(Self::to_base64(signature.as_ref()))
     }
@@ -225,12 +225,12 @@ impl Jwt {
         // Create the message w/ header and payload.
         let mut message = String::with_capacity(header.len() + payload.len() + 128);
         write!(message, "{}.{}", header, payload)
-            .map_err(|why| CbAdvError::BadSignature(why.to_string()))?;
+            .map_err(|why| CbError::BadSignature(why.to_string()))?;
 
         // Sign the message.
         let signature = self.sign_message(message.as_bytes())?;
         write!(message, ".{}", signature)
-            .map_err(|why| CbAdvError::BadSignature(why.to_string()))?;
+            .map_err(|why| CbError::BadSignature(why.to_string()))?;
 
         Ok(message)
     }

@@ -9,33 +9,16 @@
 
 use std::process::exit;
 
-use cbadv::config::{self, BaseConfig};
-use cbadv::product::{ListProductsQuery, TickerQuery};
-use cbadv::{time, PublicRestClient};
+use cbadv::product::{ProductCandleQuery, ProductListQuery, ProductTickerQuery};
+use cbadv::time::Granularity;
+use cbadv::{time, RestClientBuilder};
 
 #[tokio::main]
 async fn main() {
     let product_pair: &str = "BTC-USD";
 
-    // Load the configuration file.
-    let config: BaseConfig = match config::load("config.toml") {
-        Ok(c) => c,
-        Err(err) => {
-            println!("Could not load configuration file.");
-            if config::exists("config.toml") {
-                println!("File exists, {}", err);
-                exit(1);
-            }
-
-            // Create a new configuration file.
-            config::create_base_config("config.toml").unwrap();
-            println!("Empty configuration file created, please update it.");
-            exit(1);
-        }
-    };
-
     // Create a client to interact with the API.
-    let mut client = match PublicRestClient::from_config(&config) {
+    let mut client = match RestClientBuilder::new().build() {
         Ok(c) => c,
         Err(why) => {
             eprintln!("!ERROR! {}", why);
@@ -45,7 +28,7 @@ async fn main() {
 
     // Get API Unix time.
     println!("Obtaining API Unix time");
-    match client.public.server_time().await {
+    match client.public.time().await {
         Ok(time) => println!("{:#?}", time),
         Err(error) => println!("Unable to get the Unix time: {}", error),
     }
@@ -59,7 +42,7 @@ async fn main() {
     // }
 
     println!("\n\nGetting multiple products.");
-    let query = ListProductsQuery {
+    let query = ProductListQuery {
         // limit: Some(500),
         // product_ids: Some(vec!["BTC-USD".to_string(), "ETH-USD".to_string()]),
         // get_all_products: Some(true),
@@ -73,14 +56,16 @@ async fn main() {
     }
 
     // Pull candles.
-    println!("\n\nGetting candles for: {}.", product_pair);
-    let granularity = time::Granularity::OneDay;
-    let interval = time::Granularity::to_secs(&granularity) as u64;
     let end = time::now();
-    let start = time::before(end, interval * 730);
-    let time_span = time::Span::new(start, end, &granularity);
-    println!("Intervals collecting: {}", time_span.count());
-    match client.public.candles_ext(product_pair, &time_span).await {
+    let interval = Granularity::to_secs(&Granularity::OneDay) as u64;
+    println!("\n\nGetting candles for: {}.", product_pair);
+    let query = ProductCandleQuery::new(
+        time::before(end, interval * 365),
+        end,
+        time::Granularity::OneDay,
+    );
+
+    match client.public.candles_ext(product_pair, &query).await {
         Ok(candles) => {
             println!("Obtained {} candles.", candles.len());
             match candles.first() {
@@ -93,7 +78,7 @@ async fn main() {
 
     // Pull ticker.
     println!("\n\nGetting ticker for: {}.", product_pair);
-    let query = TickerQuery { limit: 200 };
+    let query = ProductTickerQuery::new(200);
     match client.public.ticker(product_pair, &query).await {
         Ok(ticker) => {
             println!(

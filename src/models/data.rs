@@ -7,7 +7,7 @@ use core::fmt;
 use serde::{Deserialize, Serialize};
 
 /// Various types of portfolios.
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum PortfolioType {
     /// Undefined portfolio type.
@@ -38,7 +38,7 @@ impl AsRef<str> for PortfolioType {
 }
 
 /// KeyPermissions represents the permissions associated with an API key.
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct KeyPermissions {
     ///Indicates whether the API key has view permissions.
     pub can_view: bool,

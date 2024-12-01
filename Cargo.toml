@@ -1,6 +1,6 @@
 [package]
 name = "cbadv"
-version = "1.4.5"
+version = "2.0.0"
 edition = "2021"
 description = "Asynchronous Coinbase Advanced REST and WebSocket API"
 license = "MIT"
@@ -30,6 +30,7 @@ hex = "0.4.3"
 # Serialization and configuration
 serde = { version = "1.0.215", features = ["derive"] }
 serde_json = "1.0.133"
+serde_with = "3.11.0"
 toml = { version = "0.8.19", optional = true }
 
 # WebSocket support
@@ -55,6 +56,16 @@ path = "examples/account_api.rs"
 required-features = ["config"]
 
 [[example]]
+name = "convert_api"
+path = "examples/convert_api.rs"
+required-features = ["config"]
+
+[[example]]
+name = "payment_api"
+path = "examples/payment_api.rs"
+required-features = ["config"]
+
+[[example]]
 name = "product_api"
 path = "examples/product_api.rs"
 required-features = ["config"]
@@ -72,7 +83,6 @@ required-features = ["config"]
 [[example]]
 name = "public_api"
 path = "examples/public_api.rs"
-required-features = ["config"]
 
 [[example]]
 name = "sandbox_api"
@@ -85,11 +95,6 @@ path = "examples/portfolio_api.rs"
 required-features = ["config"]
 
 [[example]]
-name = "payment_api"
-path = "examples/payment_api.rs"
-required-features = ["config"]
-
-[[example]]
 name = "data_api"
 path = "examples/data_api.rs"
 required-features = ["config"]
@@ -99,11 +104,14 @@ name = "websocket"
 path = "examples/websocket.rs"
 required-features = ["config"]
 
+[[example]]
+name = "websocket_user"
+path = "examples/websocket_user.rs"
+required-features = ["config"]
 
 [[example]]
 name = "watch_candles"
 path = "examples/watch_candles.rs"
-required-features = ["config"]
 
 [[example]]
 name = "custom_config"

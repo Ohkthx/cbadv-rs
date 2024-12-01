@@ -23,10 +23,12 @@ Welcome to **cbadv-rs**, a Rust crate for interacting with the Coinbase Advanced
   - [Order API](#order-api)
   - [Portfolio API](#portfolio-api)
   - [Payment API](#payment-api)
+  - [Convert API](#convert-api)
   - [Data API](#data-api)
   - [Public API](#public-api)
   - [Sandbox API](#sandbox-api)
   - [WebSocket API](#websocket-api)
+    - [User Orders (WebSocket API)](#user-orders-websocket-api)
     - [Watch Candles (WebSocket API)](#watch-candles-websocket-api)
   - [Custom Configurations](#custom-configurations)
 - [Contributing](#contributing)
@@ -98,6 +100,18 @@ cargo run --example portfolio_api --features="config"
 
 ---
 
+### Convert API
+
+Learn how to use the Convert API. Example source: [convert_api.rs](https://github.com/Ohkthx/cbadv-rs/tree/main/examples/convert_api.rs)
+
+**Run the example**:
+
+```bash
+cargo run --example convert_api --features="config"
+```
+
+---
+
 ### Payment API
 
 Learn how to use the Payment API. Example source: [payment_api.rs](https://github.com/Ohkthx/cbadv-rs/tree/main/examples/payment_api.rs)
@@ -155,6 +169,18 @@ Learn how to use the WebSocket API for real-time data. Example source: [websocke
 ```bash
 cargo run --example websocket --features="config"
 ```
+
+#### User Orders (WebSocket API)
+
+Learn how to watch user data via the WebSocket API. Example source: [websocket_user.rs](https://github.com/Ohkthx/cbadv-rs/tree/main/examples/websocket_user.rs)
+
+**Run the example**:
+
+```bash
+cargo run --example websocket_user --features="config"
+```
+
+---
 
 #### Watch Candles (WebSocket API)
 

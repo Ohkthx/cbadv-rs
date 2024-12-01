@@ -8,7 +8,7 @@ use std::process::exit;
 use serde::{Deserialize, Serialize};
 
 use cbadv::config::{self, ApiConfig, ConfigFile};
-use cbadv::RestClient;
+use cbadv::RestClientBuilder;
 
 /// `[general]` section in the configuration file.
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -66,7 +66,7 @@ async fn main() {
     };
 
     // Create a client to interact with the API.
-    let mut client = match RestClient::from_config(&config) {
+    let mut client = match RestClientBuilder::new().with_config(&config).build() {
         Ok(c) => c,
         Err(why) => {
             eprintln!("!ERROR! {}", why);

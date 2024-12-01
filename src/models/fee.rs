@@ -4,42 +4,50 @@
 //! Currently the only endpoint available is the Transaction Summary endpoint.
 
 use serde::{Deserialize, Serialize};
+use serde_with::{serde_as, DisplayFromStr};
 
+use crate::errors::CbError;
 use crate::traits::Query;
-use crate::utils::{deserialize_numeric, QueryBuilder};
+use crate::types::CbResult;
+use crate::utils::QueryBuilder;
+
+use super::product::ProductType;
 
 /// Pricing tier for user, determined by notional (USD) volume.
+#[serde_as]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct FeeTier {
     /// Current fee teir for the user.
     pub pricing_tier: String,
     /// Lower bound (inclusive) of pricing tier in notional volume.
-    #[serde(deserialize_with = "deserialize_numeric")]
+    #[serde_as(as = "DisplayFromStr")]
     pub usd_from: u32,
     /// Upper bound (exclusive) of pricing tier in notional volume.
-    #[serde(deserialize_with = "deserialize_numeric")]
+    #[serde_as(as = "DisplayFromStr")]
     pub usd_to: u32,
     /// Taker fee rate, applied if the order takes liquidity.
-    #[serde(deserialize_with = "deserialize_numeric")]
+    #[serde_as(as = "DisplayFromStr")]
     pub taker_fee_rate: f64,
     /// Maker fee rate, applied if the order creates liquidity.
-    #[serde(deserialize_with = "deserialize_numeric")]
+    #[serde_as(as = "DisplayFromStr")]
     pub maker_fee_rate: f64,
 }
 
 /// Represents a decimal number with precision.
+#[serde_as]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct MarginRate {
     /// Value of the margin rate.
-    #[serde(deserialize_with = "deserialize_numeric")]
+    #[serde_as(as = "DisplayFromStr")]
     pub value: f64,
 }
 
 /// Represents a tax amount.
+#[serde_as]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Tax {
     /// Amount of tax.
-    #[serde(deserialize_with = "deserialize_numeric")]
+    #[serde_as(as = "DisplayFromStr")]
     pub value: f64,
     /// Type of tax. Possible values: [INCLUSIVE, EXCLUSIVE]
     pub r#type: String,
@@ -70,25 +78,39 @@ pub struct TransactionSummary {
 
 /// Represents parameters that are optional for transaction summary API request.
 #[derive(Serialize, Default, Debug)]
-pub struct TransactionSummaryQuery {
-    /// Start date for the summary.
-    pub start_date: Option<String>,
-    /// End date for the summary.
-    pub end_date: Option<String>,
-    /// String of the users native currency, default is USD.
-    pub user_native_currency: Option<String>,
+pub struct FeeTransactionSummaryQuery {
     /// Type of products to return. Valid options: SPOT or FUTURE
-    pub product_type: Option<String>,
+    pub product_type: Option<ProductType>,
 }
 
-impl Query for TransactionSummaryQuery {
-    /// Converts the object into HTTP request parameters.
+impl Query for FeeTransactionSummaryQuery {
+    fn check(&self) -> CbResult<()> {
+        if let Some(product_type) = &self.product_type {
+            if *product_type == ProductType::Unknown {
+                return Err(CbError::BadQuery(
+                    "product_type cannot be unknown".to_string(),
+                ));
+            }
+        }
+        Ok(())
+    }
+
     fn to_query(&self) -> String {
         QueryBuilder::new()
-            .push_optional("start_date", &self.start_date)
-            .push_optional("end_date", &self.end_date)
-            .push_optional("user_native_currency", &self.user_native_currency)
             .push_optional("product_type", &self.product_type)
             .build()
+    }
+}
+
+impl FeeTransactionSummaryQuery {
+    /// Creates a new instance of the query.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Sets the product type for the query.
+    pub fn product_type(mut self, product_type: ProductType) -> Self {
+        self.product_type = Some(product_type);
+        self
     }
 }

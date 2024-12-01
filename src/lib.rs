@@ -14,9 +14,12 @@
 #[cfg(feature = "config")]
 pub mod config;
 
+#[macro_use]
+pub(crate) mod macros;
+
+mod candle_watcher;
 pub(crate) mod http_agent;
 pub(crate) mod jwt;
-mod task_tracker;
 mod token_bucket;
 
 pub(crate) mod constants;
@@ -34,5 +37,5 @@ pub use models::{
 
 mod rest;
 mod websocket;
-pub use rest::{PublicRestClient, RestClient};
+pub use rest::{RestClient, RestClientBuilder};
 pub use websocket::{WebSocketClient, WebSocketClientBuilder};

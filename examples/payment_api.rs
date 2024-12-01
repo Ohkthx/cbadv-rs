@@ -7,7 +7,7 @@
 use std::process::exit;
 
 use cbadv::config::{self, BaseConfig};
-use cbadv::RestClient;
+use cbadv::RestClientBuilder;
 
 #[tokio::main]
 async fn main() {
@@ -29,7 +29,7 @@ async fn main() {
     };
 
     // Create a client to interact with the API.
-    let mut client = match RestClient::from_config(&config) {
+    let mut client = match RestClientBuilder::new().with_config(&config).build() {
         Ok(c) => c,
         Err(why) => {
             eprintln!("!ERROR! {}", why);
@@ -54,7 +54,7 @@ async fn main() {
     // Obtain a single payment method.
     if let Some(payment_method_id) = payment_method_id {
         // Get a single payment method.
-        println!("Obtaining a single payment method.");
+        println!("\n\nObtaining a single payment method.");
         match client.payment.get(&payment_method_id).await {
             Ok(method) => println!("{:#?}", method),
             Err(error) => println!("Unable to get the Payment Method: {}", error),

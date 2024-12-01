@@ -39,9 +39,21 @@ pub(crate) struct PaymentMethodsWrapper {
     pub(crate) payment_methods: Vec<PaymentMethod>,
 }
 
+impl From<PaymentMethodsWrapper> for Vec<PaymentMethod> {
+    fn from(wrapper: PaymentMethodsWrapper) -> Self {
+        wrapper.payment_methods
+    }
+}
+
 /// Response from the API that wraps a single payment method.
 #[derive(Deserialize, Debug, Clone)]
 pub(crate) struct PaymentMethodWrapper {
     /// A payment method requested by the user.
     pub(crate) payment_method: PaymentMethod,
+}
+
+impl From<PaymentMethodWrapper> for PaymentMethod {
+    fn from(wrapper: PaymentMethodWrapper) -> Self {
+        wrapper.payment_method
+    }
 }

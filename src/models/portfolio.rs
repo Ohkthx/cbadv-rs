@@ -6,18 +6,23 @@
 use core::fmt;
 
 use serde::{Deserialize, Serialize};
+use serde_with::{serde_as, DefaultOnError, DisplayFromStr};
 
 use super::shared::Balance;
-use crate::{traits::Query, utils::QueryBuilder};
+use crate::errors::CbError;
+use crate::traits::{Query, Request};
+use crate::types::CbResult;
+use crate::utils::QueryBuilder;
 
 /// Portfolio type for a user's portfolio.
-#[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[serde(rename_all = "UPPERCASE")]
 pub enum PortfolioType {
     /// Portfolio type for a user's default portfolio.
     Default,
     /// Portfolios created by the user.
     Consumer,
+    /// /// International Exchange portfolios.
     Intx,
     /// Fallback for undefined or unrecognized values.
     Undefined,
@@ -40,6 +45,29 @@ impl fmt::Display for PortfolioType {
     }
 }
 
+/// Enum for `PositionSide` values.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub enum PositionSide {
+    #[serde(rename = "FUTURES_POSITION_SIDE_UNSPECIFIED")]
+    Unspecified,
+    #[serde(rename = "FUTURES_POSITION_SIDE_LONG")]
+    Long,
+    #[serde(rename = "FUTURES_POSITION_SIDE_SHORT")]
+    Short,
+}
+
+/// Enum for `MarginType` values.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum MarginType {
+    #[serde(rename = "MARGIN_TYPE_UNSPECIFIED")]
+    Unspecified,
+    #[serde(rename = "MARGIN_TYPE_CROSS")]
+    Cross,
+    #[serde(rename = "MARGIN_TYPE_ISOLATED")]
+    Isolated,
+}
+
 /// Portfolio information.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Portfolio {
@@ -51,87 +79,6 @@ pub struct Portfolio {
     pub r#type: PortfolioType,
     /// Indicates if the portfolio is deleted.
     pub deleted: bool,
-}
-
-/// Portfolio information returned from the API.
-#[derive(Deserialize, Debug)]
-pub(crate) struct PortfoliosWrapper {
-    pub portfolios: Vec<Portfolio>,
-}
-
-/// Response for creating or editing a  portfolio.
-#[derive(Deserialize, Debug)]
-pub(crate) struct PortfolioWrapper {
-    /// Updated portfolio from the API.
-    pub(crate) portfolio: Portfolio,
-}
-
-/// Create or Edit an existing portfolio.
-#[derive(Serialize, Default, Debug)]
-pub(crate) struct PortfolioQuery {
-    /// New name of the portfolio.
-    pub(crate) name: String,
-}
-
-/// Query parameters for listing portfolios.
-#[derive(Serialize, Default, Debug)]
-pub struct ListPortfoliosQuery {
-    /// Type of portfolios to list.
-    pub portfolio_type: Option<PortfolioType>,
-}
-
-impl Query for ListPortfoliosQuery {
-    /// Converts the object into HTTP request parameters.
-    fn to_query(&self) -> String {
-        QueryBuilder::new()
-            .push_optional("portfolio_type", &self.portfolio_type)
-            .build()
-    }
-}
-
-/// Parameters for moving funds between portfolios.
-#[derive(Serialize, Debug)]
-pub(crate) struct MoveFunds {
-    /// Funds to move between portfolios.
-    pub(crate) funds: Balance,
-    /// Portfolio funds to be removed from.
-    pub(crate) source_portfolio_uuid: String,
-    /// Portfolio funds to be added to.
-    pub(crate) target_portfolio_uuid: String,
-}
-
-/// Query parameters for a portfolio breakdown.
-#[derive(Serialize, Default, Debug)]
-pub(crate) struct PortfolioBreakdownQuery {
-    /// Currency to use for the breakdown.
-    pub(crate) currency: Option<String>,
-}
-
-impl Query for PortfolioBreakdownQuery {
-    /// Converts the object into HTTP request parameters.
-    fn to_query(&self) -> String {
-        QueryBuilder::new()
-            .push_optional("currency", &self.currency)
-            .build()
-    }
-}
-
-/// Enum for `PositionSide` values.
-#[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum PositionSide {
-    FuturesPositionSideUnspecified,
-    FuturesPositionSideLong,
-    FuturesPositionSideShort,
-}
-
-/// Enum for `MarginType` values.
-#[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum MarginType {
-    MarginTypeUnspecified,
-    MarginTypeCross,
-    MarginTypeIsolated,
 }
 
 /// Portfolio balances for different categories.
@@ -152,6 +99,7 @@ pub struct PortfolioBalances {
 }
 
 /// Spot position details.
+#[serde_as]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SpotPosition {
     /// The asset symbol (e.g., BTC, ETH).
@@ -168,7 +116,9 @@ pub struct SpotPosition {
     pub allocation: f64,
     /// Change in value of the asset over one day.
     /// NOTE: This field currently is not returned by the API.
-    pub one_day_change: Option<f64>,
+    #[serde_as(as = "DefaultOnError<DisplayFromStr>")]
+    #[serde(default)]
+    pub one_day_change: f64,
     /// Cost basis of the asset.
     pub cost_basis: Balance,
     /// URL of the asset's image.
@@ -204,11 +154,11 @@ pub struct PerpPosition {
     /// The side of the position (e.g., long, short).
     pub position_side: PositionSide,
     /// The net size of the position.
-    pub net_size: String,
+    pub net_size: f64,
     /// Size of buy orders in the position.
-    pub buy_order_size: String,
+    pub buy_order_size: f64,
     /// Size of sell orders in the position.
-    pub sell_order_size: String,
+    pub sell_order_size: f64,
     /// Initial margin contribution for the position.
     pub im_contribution: String,
     /// Unrealized profit and loss for the position.
@@ -230,7 +180,7 @@ pub struct PerpPosition {
     /// The liquidation buffer for the position.
     pub liquidation_buffer: String,
     /// The liquidation percentage for the position.
-    pub liquidation_percentage: String,
+    pub liquidation_percentage: f64,
 }
 
 /// Futures position details.
@@ -243,11 +193,11 @@ pub struct FuturesPosition {
     /// The side of the futures position (e.g., long, short).
     pub side: PositionSide,
     /// The amount of the futures position.
-    pub amount: String,
+    pub amount: f64,
     /// The average entry price for the position.
-    pub avg_entry_price: String,
+    pub avg_entry_price: f64,
     /// The current price of the futures position.
-    pub current_price: String,
+    pub current_price: f64,
     /// Unrealized profit and loss for the futures position.
     pub unrealized_pnl: String,
     /// Expiry date of the futures contract.
@@ -279,9 +229,189 @@ pub struct PortfolioBreakdown {
     pub futures_positions: Vec<FuturesPosition>,
 }
 
+/// Create or Edit an existing portfolio.
+#[derive(Serialize, Default, Debug)]
+pub struct PortfolioModifyRequest {
+    /// New name of the portfolio.
+    pub name: String,
+}
+
+impl Request for PortfolioModifyRequest {
+    fn check(&self) -> CbResult<()> {
+        if self.name.is_empty() {
+            return Err(CbError::BadRequest(
+                "portfolio name cannot be empty".to_string(),
+            ));
+        }
+        Ok(())
+    }
+}
+
+impl PortfolioModifyRequest {
+    /// Creates a new instance with the default values.
+    pub fn new(name: &str) -> Self {
+        Self {
+            name: name.to_string(),
+        }
+    }
+}
+
+/// Parameters for moving funds between portfolios.
+#[derive(Serialize, Debug)]
+pub struct PortfolioMoveFundsRequest {
+    /// Funds to move between portfolios.
+    pub funds: Balance,
+    /// Portfolio funds to be removed from.
+    pub source_portfolio_uuid: String,
+    /// Portfolio funds to be added to.
+    pub target_portfolio_uuid: String,
+}
+
+impl Request for PortfolioMoveFundsRequest {
+    fn check(&self) -> CbResult<()> {
+        if self.funds.value <= 0.0 {
+            return Err(CbError::BadRequest(
+                "funds to move must be greater than zero".to_string(),
+            ));
+        } else if self.funds.currency.is_empty() {
+            return Err(CbError::BadRequest(
+                "funds currency cannot be empty".to_string(),
+            ));
+        } else if self.source_portfolio_uuid.is_empty() {
+            return Err(CbError::BadRequest(
+                "source portfolio UUID cannot be empty".to_string(),
+            ));
+        } else if self.target_portfolio_uuid.is_empty() {
+            return Err(CbError::BadRequest(
+                "target portfolio UUID cannot be empty".to_string(),
+            ));
+        }
+        Ok(())
+    }
+}
+
+impl PortfolioMoveFundsRequest {
+    /// Creates a new instance of a request to move funds.
+    ///
+    /// # Arguements
+    ///
+    /// * `funds` - The amount of funds to move.
+    /// * `source_portfolio_uuid` - The UUID of the source portfolio.
+    //// * `target_portfolio_uuid` - The UUID of the target portfolio.
+    pub fn new(funds: &Balance, source_portfolio_uuid: &str, target_portfolio_uuid: &str) -> Self {
+        Self {
+            funds: funds.clone(),
+            source_portfolio_uuid: source_portfolio_uuid.to_string(),
+            target_portfolio_uuid: target_portfolio_uuid.to_string(),
+        }
+    }
+}
+
+/// Query parameters for listing portfolios.
+#[derive(Serialize, Default, Debug)]
+pub struct PortfolioListQuery {
+    /// Type of portfolios to list.
+    pub portfolio_type: Option<PortfolioType>,
+}
+
+impl Query for PortfolioListQuery {
+    fn check(&self) -> CbResult<()> {
+        if let Some(portfolio_type) = &self.portfolio_type {
+            if *portfolio_type == PortfolioType::Undefined {
+                return Err(CbError::BadQuery(
+                    "portfolio type cannot be undefined".to_string(),
+                ));
+            }
+        }
+        Ok(())
+    }
+
+    fn to_query(&self) -> String {
+        QueryBuilder::new()
+            .push_optional("portfolio_type", &self.portfolio_type)
+            .build()
+    }
+}
+
+impl PortfolioListQuery {
+    /// Creates a new instance with the default values.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Sets the type of portfolios to list.
+    pub fn portfolio_type(mut self, portfolio_type: PortfolioType) -> Self {
+        self.portfolio_type = Some(portfolio_type);
+        self
+    }
+}
+
+/// Query parameters for a portfolio breakdown.
+#[derive(Serialize, Default, Debug)]
+pub struct PortfolioBreakdownQuery {
+    /// Currency to use for the breakdown.
+    pub currency: Option<String>,
+}
+
+impl Query for PortfolioBreakdownQuery {
+    fn check(&self) -> CbResult<()> {
+        Ok(())
+    }
+
+    fn to_query(&self) -> String {
+        QueryBuilder::new()
+            .push_optional("currency", &self.currency)
+            .build()
+    }
+}
+
+impl PortfolioBreakdownQuery {
+    /// Creates a new instance with the default values.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Sets the currency to use for the breakdown.
+    pub fn currency(mut self, currency: &str) -> Self {
+        self.currency = Some(currency.to_string());
+        self
+    }
+}
+
+/// Response for creating or editing a  portfolio.
+#[derive(Deserialize, Debug)]
+pub(crate) struct PortfolioWrapper {
+    /// Updated portfolio from the API.
+    pub(crate) portfolio: Portfolio,
+}
+
+impl From<PortfolioWrapper> for Portfolio {
+    fn from(wrapper: PortfolioWrapper) -> Self {
+        wrapper.portfolio
+    }
+}
+
+/// Portfolio information returned from the API.
+#[derive(Deserialize, Debug)]
+pub(crate) struct PortfoliosWrapper {
+    pub(crate) portfolios: Vec<Portfolio>,
+}
+
+impl From<PortfoliosWrapper> for Vec<Portfolio> {
+    fn from(wrapper: PortfoliosWrapper) -> Self {
+        wrapper.portfolios
+    }
+}
+
 /// Represents a response for a portfolio breakdown.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub(crate) struct PortfolioBreakdownWrapper {
     /// The portfolio breakdown details.
     pub(crate) breakdown: PortfolioBreakdown,
+}
+
+impl From<PortfolioBreakdownWrapper> for PortfolioBreakdown {
+    fn from(wrapper: PortfolioBreakdownWrapper) -> Self {
+        wrapper.breakdown
+    }
 }

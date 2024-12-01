@@ -3,17 +3,17 @@
 //! `account` gives access to the Account API and the various endpoints associated with it.
 //! This allows you to obtain account information either by account UUID or in bulk (all accounts).
 
-use crate::account::{Account, AccountWrapper, ListAccountsQuery, PaginatedAccounts};
-use crate::constants::accounts::RESOURCE_ENDPOINT;
-use crate::errors::CbAdvError;
-use crate::http_agent::{HttpAgent, SecureHttpAgent};
-use crate::traits::NoQuery;
+use crate::account::{Account, AccountListQuery, AccountWrapper, PaginatedAccounts};
+use crate::constants::accounts::{LIST_ACCOUNT_MAXIMUM, RESOURCE_ENDPOINT};
+use crate::errors::CbError;
+use crate::http_agent::SecureHttpAgent;
+use crate::traits::{HttpAgent, NoQuery};
 use crate::types::CbResult;
 
 /// Provides access to the Account API for the service.
 pub struct AccountApi {
     /// Object used to sign requests made to the API.
-    agent: SecureHttpAgent,
+    agent: Option<SecureHttpAgent>,
 }
 
 impl AccountApi {
@@ -22,7 +22,7 @@ impl AccountApi {
     /// # Arguments
     ///
     /// * `signer` - A Signer that include the API Key & Secret along with a client to make requests.
-    pub(crate) fn new(agent: SecureHttpAgent) -> Self {
+    pub(crate) fn new(agent: Option<SecureHttpAgent>) -> Self {
         Self { agent }
     }
 
@@ -40,13 +40,14 @@ impl AccountApi {
     ///
     /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getaccount>
     pub async fn get(&mut self, account_uuid: &str) -> CbResult<Account> {
+        let agent = get_auth!(self.agent, "get account");
         let resource = format!("{}/{}", RESOURCE_ENDPOINT, account_uuid);
-        let response = self.agent.get(&resource, &NoQuery).await?;
+        let response = agent.get(&resource, &NoQuery).await?;
         let data: AccountWrapper = response
             .json()
             .await
-            .map_err(|e| CbAdvError::JsonError(e.to_string()))?;
-        Ok(data.account)
+            .map_err(|e| CbError::JsonError(e.to_string()))?;
+        Ok(data.into())
     }
 
     /// Obtains a single account based on the Account ID (ex. "BTC").
@@ -60,13 +61,11 @@ impl AccountApi {
     /// # Arguments
     ///
     /// * `id` - Identifier for the account, such as BTC or ETH.
-    /// * `query` - Optional parameters, should default to None unless you want additional control.
-    pub async fn get_by_id(
-        &mut self,
-        id: &str,
-        query: Option<ListAccountsQuery>,
-    ) -> CbResult<Account> {
-        let mut query = query.unwrap_or_default();
+    /// * `query` - Parameters to control the query, such as limit.
+    pub async fn get_by_id(&mut self, id: &str, query: &AccountListQuery) -> CbResult<Account> {
+        is_auth!(self.agent, "get account by ID");
+
+        let mut query = query.clone().limit(LIST_ACCOUNT_MAXIMUM);
 
         loop {
             // Fetch accounts with the current query, propagating any errors.
@@ -79,7 +78,7 @@ impl AccountApi {
 
             // If no more pages to fetch, return a "not found" error with context.
             if !listed.has_next {
-                return Err(CbAdvError::NotFound(format!(
+                return Err(CbError::NotFound(format!(
                     "No account found with ID '{}'.",
                     id
                 )));
@@ -98,9 +97,11 @@ impl AccountApi {
     ///
     /// # Arguments
     ///
-    /// * `query` - Optional parameters, should default to None unless you want additional control.
-    pub async fn get_all(&mut self, query: Option<ListAccountsQuery>) -> CbResult<Vec<Account>> {
-        let mut query = query.unwrap_or_default();
+    /// * `query` - Parameters to control the query, such as limit.
+    pub async fn get_all(&mut self, query: &AccountListQuery) -> CbResult<Vec<Account>> {
+        is_auth!(self.agent, "get all accounts");
+
+        let mut query = query.clone().limit(LIST_ACCOUNT_MAXIMUM);
         let mut all_accounts = Vec::new();
 
         loop {
@@ -131,12 +132,13 @@ impl AccountApi {
     /// https://api.coinbase.com/api/v3/brokerage/accounts
     ///
     /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getaccounts>
-    pub async fn get_bulk(&mut self, query: &ListAccountsQuery) -> CbResult<PaginatedAccounts> {
-        let response = self.agent.get(RESOURCE_ENDPOINT, query).await?;
+    pub async fn get_bulk(&mut self, query: &AccountListQuery) -> CbResult<PaginatedAccounts> {
+        let agent = get_auth!(self.agent, "get bulk accounts");
+        let response = agent.get(RESOURCE_ENDPOINT, query).await?;
         let data: PaginatedAccounts = response
             .json()
             .await
-            .map_err(|e| CbAdvError::JsonError(e.to_string()))?;
+            .map_err(|e| CbError::JsonError(e.to_string()))?;
         Ok(data)
     }
 }

@@ -10,8 +10,8 @@
 use std::process::exit;
 
 use cbadv::config::{self, BaseConfig};
-use cbadv::portfolio::ListPortfoliosQuery;
-use cbadv::RestClient;
+use cbadv::portfolio::{PortfolioBreakdownQuery, PortfolioListQuery, PortfolioModifyRequest};
+use cbadv::RestClientBuilder;
 
 #[tokio::main]
 async fn main() {
@@ -46,7 +46,7 @@ async fn main() {
     };
 
     // Create a client to interact with the API.
-    let mut client = match RestClient::from_config(&config) {
+    let mut client = match RestClientBuilder::new().with_config(&config).build() {
         Ok(c) => c,
         Err(why) => {
             eprintln!("!ERROR! {}", why);
@@ -66,7 +66,8 @@ async fn main() {
     // Edit an existing portfolio.
     if let Some(uuid) = edit_portfolio_uuid {
         println!("Editing Portfolio.");
-        match client.portfolio.edit(uuid, edit_portfolio_name).await {
+        let request = PortfolioModifyRequest::new(edit_portfolio_name);
+        match client.portfolio.edit(uuid, &request).await {
             Ok(portfolio) => println!("{:#?}", portfolio),
             Err(error) => println!("Unable to edit the portfolio: {}", error),
         }
@@ -82,14 +83,11 @@ async fn main() {
     }
 
     // Parameters to send to the API.
-    let params = ListPortfoliosQuery {
-        // portfolio_type: Some(PortfolioType::Default),
-        ..Default::default()
-    };
+    let query = PortfolioListQuery::new();
 
     // Get listed portfolios..
     println!("Obtaining Portfolios");
-    let breakdown_uuid = match client.portfolio.get_all(&params).await {
+    let breakdown_uuid = match client.portfolio.get_all(&query).await {
         Ok(portfolios) => {
             println!("{:#?}", portfolios);
             Some(portfolios.first().unwrap().uuid.clone())
@@ -103,7 +101,11 @@ async fn main() {
     // Get the breakdown for the first portfolio.
     if let Some(uuid) = breakdown_uuid {
         println!("Obtaining Portfolio Breakdown for {}.", uuid);
-        match client.portfolio.get(&uuid, None).await {
+        match client
+            .portfolio
+            .get(&uuid, &PortfolioBreakdownQuery::new())
+            .await
+        {
             Ok(breakdown) => println!("{:#?}", breakdown),
             Err(error) => println!("Unable to get the breakdown: {}", error),
         }

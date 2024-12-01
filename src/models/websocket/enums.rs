@@ -1,7 +1,11 @@
 use serde::{Deserialize as SerdeDeserialize, Serialize};
 
+use crate::types::WebSocketReader;
+
+use super::{SecureSubscription, UnsignedSubscription};
+
 /// WebSocket Channels that can be subscribed to.
-#[derive(Serialize, SerdeDeserialize, PartialEq, Debug)]
+#[derive(Serialize, SerdeDeserialize, PartialEq, Debug, Eq, Hash, Clone)]
 #[serde(rename_all = "snake_case")]
 pub enum Channel {
     /// Sends all products and currencies on a preset interval.
@@ -40,9 +44,23 @@ pub enum Level2Side {
     Ask,
 }
 
-/// WebSocket Channel Access.
-#[derive(PartialEq, Debug)]
-pub(crate) enum ChannelAccess {
+/// Types for the endpoints.
+#[derive(PartialEq, Debug, Eq, Clone, Hash)]
+pub enum EndpointType {
     Public,
-    Secure,
+    User,
+}
+
+/// WebSocket Reader Endpoints.
+#[derive(Debug)]
+pub enum Endpoint {
+    Public((EndpointType, WebSocketReader)),
+    User((EndpointType, WebSocketReader)),
+}
+
+#[derive(Serialize, Debug)]
+#[serde(untagged)]
+pub(crate) enum Subscription {
+    Secure(SecureSubscription),
+    Unsigned(UnsignedSubscription),
 }

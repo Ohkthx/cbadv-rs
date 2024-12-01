@@ -8,9 +8,9 @@
 
 use std::process::exit;
 
-use cbadv::product::{Candle, ListProductsQuery};
+use cbadv::product::{Candle, ProductListQuery};
 use cbadv::traits::CandleCallback;
-use cbadv::{PublicRestClient, WebSocketClientBuilder};
+use cbadv::{RestClient, RestClientBuilder, WebSocketClientBuilder};
 
 /// Example of user-defined struct to pass to the candle watcher.
 pub struct UserStruct {
@@ -36,14 +36,12 @@ impl CandleCallback for UserStruct {
 }
 
 /// Obtain product names of candles to be obtained.
-async fn get_products(client: &mut PublicRestClient) -> Vec<String> {
+async fn get_products(client: &mut RestClient) -> Vec<String> {
     println!("Getting '*-USDC' products.");
-    let query = ListProductsQuery {
-        ..Default::default()
-    };
 
     // Holds all of the product names.
     let mut product_names: Vec<String> = vec![];
+    let query = ProductListQuery::new();
 
     // Pull multiple products from the Product API.
     match client.public.products(&query).await {
@@ -66,7 +64,7 @@ async fn get_products(client: &mut PublicRestClient) -> Vec<String> {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + 'static>> {
     // Create a client to interact with the API.
-    let mut rclient = match PublicRestClient::new(false) {
+    let mut rclient = match RestClientBuilder::new().build() {
         Ok(c) => c,
         Err(why) => {
             eprintln!("!ERROR! {}", why);
@@ -75,7 +73,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error + 'static>> {
     };
 
     // Create a client to interact with the API.
-    let mut wsclient = match WebSocketClientBuilder::new().build() {
+    let wsclient = match WebSocketClientBuilder::new()
+        .auto_reconnect(true)
+        .max_retries(20)
+        .build()
+    {
         Ok(c) => c,
         Err(why) => {
             eprintln!("!ERROR! {}", why);

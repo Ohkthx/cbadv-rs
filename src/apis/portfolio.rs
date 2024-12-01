@@ -4,21 +4,20 @@
 //! This allows for the management of individual portfolios.
 
 use crate::constants::portfolios::{MOVE_FUNDS_ENDPOINT, RESOURCE_ENDPOINT};
-use crate::errors::CbAdvError;
-use crate::http_agent::{HttpAgent, SecureHttpAgent};
-use crate::models::portfolio::{ListPortfoliosQuery, Portfolio, PortfoliosWrapper};
+use crate::errors::CbError;
+use crate::http_agent::SecureHttpAgent;
+use crate::models::portfolio::{Portfolio, PortfolioListQuery, PortfoliosWrapper};
 use crate::portfolio::{
-    MoveFunds, PortfolioBreakdown, PortfolioBreakdownQuery, PortfolioBreakdownWrapper,
-    PortfolioQuery, PortfolioWrapper,
+    PortfolioBreakdown, PortfolioBreakdownQuery, PortfolioBreakdownWrapper, PortfolioModifyRequest,
+    PortfolioMoveFundsRequest, PortfolioWrapper,
 };
-use crate::shared::Balance;
-use crate::traits::NoQuery;
+use crate::traits::{HttpAgent, NoQuery};
 use crate::types::CbResult;
 
 /// Provides access to the Portfolio API for the service.
 pub struct PortfolioApi {
     /// Object used to sign requests made to the API.
-    agent: SecureHttpAgent,
+    agent: Option<SecureHttpAgent>,
 }
 
 impl PortfolioApi {
@@ -27,7 +26,7 @@ impl PortfolioApi {
     /// # Arguments
     ///
     /// * `agent` - A agent that include the API Key & Secret along with a client to make requests.
-    pub(crate) fn new(agent: SecureHttpAgent) -> Self {
+    pub(crate) fn new(agent: Option<SecureHttpAgent>) -> Self {
         Self { agent }
     }
 
@@ -43,20 +42,21 @@ impl PortfolioApi {
     /// https://api.coinbase.com/api/v3/brokerage/portfolios
     ///
     /// <https://docs.cdp.coinbase.com/advanced-trade/reference/retailbrokerageapi_getportfolios>
-    pub async fn get_all(&mut self, query: &ListPortfoliosQuery) -> CbResult<Vec<Portfolio>> {
-        let response = self.agent.get(RESOURCE_ENDPOINT, query).await?;
+    pub async fn get_all(&mut self, query: &PortfolioListQuery) -> CbResult<Vec<Portfolio>> {
+        let agent = get_auth!(self.agent, "get all portfolios");
+        let response = agent.get(RESOURCE_ENDPOINT, query).await?;
         let data: PortfoliosWrapper = response
             .json()
             .await
-            .map_err(|e| CbAdvError::JsonError(e.to_string()))?;
-        Ok(data.portfolios)
+            .map_err(|e| CbError::JsonError(e.to_string()))?;
+        Ok(data.into())
     }
 
     /// Creates a new portfolio.
     ///
     /// # Arguments
     ///
-    /// * `portfolio_name` - The name of the portfolio to create.
+    /// * `request` - The request to create a new portfolio.
     ///
     /// # Endpoint / Reference
     ///
@@ -64,17 +64,14 @@ impl PortfolioApi {
     /// https://api.coinbase.com/api/v3/brokerage/portfolios
     ///
     /// <https://docs.cdp.coinbase.com/advanced-trade/reference/retailbrokerageapi_createportfolio>
-    pub async fn create(&mut self, portfolio_name: &str) -> CbResult<Portfolio> {
-        let body = PortfolioQuery {
-            name: portfolio_name.to_string(),
-        };
-
-        let response = self.agent.post(RESOURCE_ENDPOINT, &NoQuery, body).await?;
+    pub async fn create(&mut self, request: &PortfolioModifyRequest) -> CbResult<Portfolio> {
+        let agent = get_auth!(self.agent, "create portfolio");
+        let response = agent.post(RESOURCE_ENDPOINT, &NoQuery, request).await?;
         let data: PortfolioWrapper = response
             .json()
             .await
-            .map_err(|e| CbAdvError::JsonError(e.to_string()))?;
-        Ok(data.portfolio)
+            .map_err(|e| CbError::JsonError(e.to_string()))?;
+        Ok(data.into())
     }
 
     /// Edits an existing portfolio.
@@ -82,7 +79,7 @@ impl PortfolioApi {
     /// # Arguments
     ///
     /// * `portfolio_uuid` - The UUID of the portfolio to edit.
-    /// * `new_name` - The new name of the portfolio.
+    /// * `request` - The request to edit the portfolio.
     ///
     /// # Endpoint / Reference
     ///
@@ -90,18 +87,19 @@ impl PortfolioApi {
     /// https://api.coinbase.com/api/v3/brokerage/portfolios
     ///
     /// <https://docs.cdp.coinbase.com/advanced-trade/reference/retailbrokerageapi_editportfolio>
-    pub async fn edit(&mut self, portfolio_uuid: &str, new_name: &str) -> CbResult<Portfolio> {
-        let body = PortfolioQuery {
-            name: new_name.to_string(),
-        };
-
+    pub async fn edit(
+        &mut self,
+        portfolio_uuid: &str,
+        request: &PortfolioModifyRequest,
+    ) -> CbResult<Portfolio> {
+        let agent = get_auth!(self.agent, "edit portfolio");
         let resource = format!("{}/{}", RESOURCE_ENDPOINT, portfolio_uuid);
-        let response = self.agent.put(&resource, &NoQuery, body).await?;
+        let response = agent.put(&resource, &NoQuery, request).await?;
         let data: PortfolioWrapper = response
             .json()
             .await
-            .map_err(|e| CbAdvError::JsonError(e.to_string()))?;
-        Ok(data.portfolio)
+            .map_err(|e| CbError::JsonError(e.to_string()))?;
+        Ok(data.into())
     }
 
     /// Edits an existing portfolio.
@@ -117,8 +115,9 @@ impl PortfolioApi {
     ///
     /// <https://docs.cdp.coinbase.com/advanced-trade/reference/retailbrokerageapi_editportfolio>
     pub async fn delete(&mut self, portfolio_uuid: &str) -> CbResult<()> {
+        let agent = get_auth!(self.agent, "delete portfolio");
         let resource = format!("{}/{}", RESOURCE_ENDPOINT, portfolio_uuid);
-        self.agent.delete(&resource, &NoQuery).await?;
+        agent.delete(&resource, &NoQuery).await?;
         Ok(())
     }
 
@@ -126,9 +125,7 @@ impl PortfolioApi {
     ///
     /// # Arguments
     ///
-    /// * `funds` - The amount of funds to move.
-    /// * `source_portfolio_uuid` - The UUID of the source portfolio.
-    /// * `target_portfolio_uuid` - The UUID of the target portfolio.
+    /// * `request` - The request to move funds.
     ///
     /// # Endpoint / Reference
     ///
@@ -136,19 +133,9 @@ impl PortfolioApi {
     /// https://api.coinbase.com/api/v3/brokerage/portfolios/move_funds
     ///
     /// <https://docs.cdp.coinbase.com/advanced-trade/reference/retailbrokerageapi_moveportfoliofunds>
-    pub async fn move_funds(
-        &mut self,
-        funds: &Balance,
-        source_portfolio_uuid: &str,
-        target_portfolio_uuid: &str,
-    ) -> CbResult<()> {
-        let body = MoveFunds {
-            funds: funds.clone(),
-            source_portfolio_uuid: source_portfolio_uuid.to_string(),
-            target_portfolio_uuid: target_portfolio_uuid.to_string(),
-        };
-
-        self.agent.post(MOVE_FUNDS_ENDPOINT, &NoQuery, body).await?;
+    pub async fn move_funds(&mut self, request: &PortfolioMoveFundsRequest) -> CbResult<()> {
+        let agent = get_auth!(self.agent, "move funds");
+        agent.post(MOVE_FUNDS_ENDPOINT, &NoQuery, request).await?;
         Ok(())
     }
 
@@ -157,7 +144,7 @@ impl PortfolioApi {
     /// # Arguments
     ///
     /// * `portfolio_uuid` - The UUID of the portfolio to obtain a breakdown for.
-    /// * `currency` - The currency to obtain the breakdown in.
+    /// * `query` - The query parameters to filter the results.
     ///
     /// # Endpoint / Reference
     ///
@@ -168,15 +155,15 @@ impl PortfolioApi {
     pub async fn get(
         &mut self,
         portfolio_uuid: &str,
-        currency: Option<String>,
+        query: &PortfolioBreakdownQuery,
     ) -> CbResult<PortfolioBreakdown> {
-        let query = PortfolioBreakdownQuery { currency };
+        let agent = get_auth!(self.agent, "get portfolio breakdown");
         let resource = format!("{}/{}", RESOURCE_ENDPOINT, portfolio_uuid);
-        let response = self.agent.get(&resource, &query).await?;
+        let response = agent.get(&resource, query).await?;
         let data: PortfolioBreakdownWrapper = response
             .json()
             .await
-            .map_err(|e| CbAdvError::JsonError(e.to_string()))?;
-        Ok(data.breakdown)
+            .map_err(|e| CbError::JsonError(e.to_string()))?;
+        Ok(data.into())
     }
 }

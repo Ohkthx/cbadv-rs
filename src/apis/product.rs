@@ -7,21 +7,21 @@
 use crate::constants::products::{
     BID_ASK_ENDPOINT, CANDLE_MAXIMUM, PRODUCT_BOOK_ENDPOINT, RESOURCE_ENDPOINT,
 };
-use crate::errors::CbAdvError;
-use crate::http_agent::{HttpAgent, SecureHttpAgent};
+use crate::errors::CbError;
+use crate::http_agent::SecureHttpAgent;
 use crate::models::product::{
-    Candle, CandlesWrapper, ListProductsQuery, Product, ProductBook, ProductBookWrapper,
-    ProductBooksWrapper, ProductsWrapper, Ticker, TickerQuery,
+    Candle, CandlesWrapper, Product, ProductBook, ProductBookWrapper, ProductBooksWrapper,
+    ProductListQuery, ProductTickerQuery, ProductsWrapper, Ticker,
 };
-use crate::product::{BidAskQuery, ProductBookQuery};
-use crate::time;
-use crate::traits::NoQuery;
+use crate::product::{ProductBidAskQuery, ProductBookQuery, ProductCandleQuery};
+use crate::time::{self, Granularity};
+use crate::traits::{HttpAgent, NoQuery, Query};
 use crate::types::CbResult;
 
 /// Provides access to the Product API for the service.
 pub struct ProductApi {
     /// Object used to sign requests made to the API.
-    agent: SecureHttpAgent,
+    agent: Option<SecureHttpAgent>,
 }
 
 impl ProductApi {
@@ -30,7 +30,7 @@ impl ProductApi {
     /// # Arguments
     ///
     /// * `agent` - A agent that include the API Key & Secret along with a client to make requests.
-    pub(crate) fn new(agent: SecureHttpAgent) -> Self {
+    pub(crate) fn new(agent: Option<SecureHttpAgent>) -> Self {
         Self { agent }
     }
 
@@ -38,7 +38,7 @@ impl ProductApi {
     ///
     /// # Arguments
     ///
-    /// * `product_ids` - A vector of strings the represents the product IDs of product books to obtain.
+    /// * `query` - A query to obtain the best bid/ask for multiple products.
     ///
     /// # Endpoint / Reference
     ///
@@ -46,22 +46,21 @@ impl ProductApi {
     /// https://api.coinbase.com/api/v3/brokerage/best_bid_ask
     ///
     /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getbestbidask>
-    pub async fn best_bid_ask(&mut self, product_ids: Vec<String>) -> CbResult<Vec<ProductBook>> {
-        let query = BidAskQuery { product_ids };
-        let response = self.agent.get(BID_ASK_ENDPOINT, &query).await?;
+    pub async fn best_bid_ask(&mut self, query: &ProductBidAskQuery) -> CbResult<Vec<ProductBook>> {
+        let agent = get_auth!(self.agent, "get best bid/ask");
+        let response = agent.get(BID_ASK_ENDPOINT, query).await?;
         let data: ProductBooksWrapper = response
             .json()
             .await
-            .map_err(|e| CbAdvError::JsonError(e.to_string()))?;
-        Ok(data.pricebooks)
+            .map_err(|e| CbError::JsonError(e.to_string()))?;
+        Ok(data.into())
     }
 
     /// Obtains the product book (bids and asks) for the product ID provided.
     ///
     /// # Arguments
     ///
-    /// * `product_id` - A string the represents the product's ID.
-    /// * `limit` - An integer the represents the amount to obtain, defaults to 250.
+    /// * `query` - A query to obtain the product book.
     ///
     /// # Endpoint / Reference
     ///
@@ -69,22 +68,14 @@ impl ProductApi {
     /// https://api.coinbase.com/api/v3/brokerage/product_book
     ///
     /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getproductbook>
-    pub async fn product_book(
-        &mut self,
-        product_id: &str,
-        limit: Option<u32>,
-    ) -> CbResult<ProductBook> {
-        let query = ProductBookQuery {
-            product_id: product_id.to_string(),
-            limit,
-        };
-
-        let response = self.agent.get(PRODUCT_BOOK_ENDPOINT, &query).await?;
+    pub async fn product_book(&mut self, query: &ProductBookQuery) -> CbResult<ProductBook> {
+        let agent = get_auth!(self.agent, "get product book");
+        let response = agent.get(PRODUCT_BOOK_ENDPOINT, query).await?;
         let data: ProductBookWrapper = response
             .json()
             .await
-            .map_err(|e| CbAdvError::JsonError(e.to_string()))?;
-        Ok(data.pricebook)
+            .map_err(|e| CbError::JsonError(e.to_string()))?;
+        Ok(data.into())
     }
 
     /// Obtains a single product based on the Product ID (ex. "BTC-USD").
@@ -100,12 +91,13 @@ impl ProductApi {
     ///
     /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getproduct>
     pub async fn get(&mut self, product_id: &str) -> CbResult<Product> {
+        let agent = get_auth!(self.agent, "get product");
         let resource = format!("{}/{}", RESOURCE_ENDPOINT, product_id);
-        let response = self.agent.get(&resource, &NoQuery).await?;
+        let response = agent.get(&resource, &NoQuery).await?;
         let data: Product = response
             .json()
             .await
-            .map_err(|e| CbAdvError::JsonError(e.to_string()))?;
+            .map_err(|e| CbError::JsonError(e.to_string()))?;
         Ok(data)
     }
 
@@ -121,13 +113,14 @@ impl ProductApi {
     /// https://api.coinbase.com/api/v3/brokerage/products
     ///
     /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getproducts>
-    pub async fn get_bulk(&mut self, query: &ListProductsQuery) -> CbResult<Vec<Product>> {
-        let response = self.agent.get(RESOURCE_ENDPOINT, query).await?;
+    pub async fn get_bulk(&mut self, query: &ProductListQuery) -> CbResult<Vec<Product>> {
+        let agent = get_auth!(self.agent, "get bulk products");
+        let response = agent.get(RESOURCE_ENDPOINT, query).await?;
         let data: ProductsWrapper = response
             .json()
             .await
-            .map_err(|e| CbAdvError::JsonError(e.to_string()))?;
-        Ok(data.products)
+            .map_err(|e| CbError::JsonError(e.to_string()))?;
+        Ok(data.into())
     }
 
     /// Obtains candles for a specific product.
@@ -135,7 +128,7 @@ impl ProductApi {
     /// # Arguments
     ///
     /// * `product_id` - A string the represents the product's ID.
-    /// * `query` - Span of time to obtain.
+    /// * `query` - A query to obtain candles within a span of time.
     ///
     /// # Endpoint / Reference
     ///
@@ -143,14 +136,19 @@ impl ProductApi {
     /// https://api.coinbase.com/api/v3/brokerage/products/{product_id}/candles
     ///
     /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getcandles>
-    pub async fn candles(&mut self, product_id: &str, query: &time::Span) -> CbResult<Vec<Candle>> {
+    pub async fn candles(
+        &mut self,
+        product_id: &str,
+        query: &ProductCandleQuery,
+    ) -> CbResult<Vec<Candle>> {
+        let agent = get_auth!(self.agent, "get candles");
         let resource = format!("{}/{}/candles", RESOURCE_ENDPOINT, product_id);
-        let response = self.agent.get(&resource, query).await?;
+        let response = agent.get(&resource, query).await?;
         let data: CandlesWrapper = response
             .json()
             .await
-            .map_err(|e| CbAdvError::JsonError(e.to_string()))?;
-        Ok(data.candles)
+            .map_err(|e| CbError::JsonError(e.to_string()))?;
+        Ok(data.into())
     }
 
     /// Obtains candles for a specific product extended. This will exceed the 300 limit threshold
@@ -166,13 +164,16 @@ impl ProductApi {
     pub async fn candles_ext(
         &mut self,
         product_id: &str,
-        query: &time::Span,
+        query: &ProductCandleQuery,
     ) -> CbResult<Vec<Candle>> {
+        is_auth!(self.agent, "get candles extended");
+        query.check()?;
+
         // Extract query parameters.
         let end_time = query.end;
-        let interval_seconds = query.granularity as u64;
-        let maximum_candles = CANDLE_MAXIMUM;
-        let granularity = time::Granularity::from_secs(query.granularity);
+        let granularity = query.granularity.clone();
+        let interval_seconds = Granularity::to_secs(&granularity) as u64;
+        let maximum_candles = CANDLE_MAXIMUM as u64;
 
         // Initialize the span.
         let mut current_start = query.start;
@@ -186,8 +187,14 @@ impl ProductApi {
             );
 
             // Create a new span for the current batch and fetch candles.
-            let current_span = time::Span::new(current_start, current_end, &granularity);
-            let mut candles = self.candles(product_id, &current_span).await?;
+            let query = ProductCandleQuery {
+                start: current_start,
+                end: current_end,
+                granularity: granularity.clone(),
+                limit: CANDLE_MAXIMUM,
+            };
+
+            let mut candles = self.candles(product_id, &query).await?;
             all_candles.append(&mut candles);
 
             // Update the start time for the next batch.
@@ -210,13 +217,18 @@ impl ProductApi {
     /// https://api.coinbase.com/api/v3/brokerage/products/{product_id}/ticker
     ///
     /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getmarkettrades>
-    pub async fn ticker(&mut self, product_id: &str, query: &TickerQuery) -> CbResult<Ticker> {
+    pub async fn ticker(
+        &mut self,
+        product_id: &str,
+        query: &ProductTickerQuery,
+    ) -> CbResult<Ticker> {
+        let agent = get_auth!(self.agent, "get ticker");
         let resource = format!("{}/{}/ticker", RESOURCE_ENDPOINT, product_id);
-        let response = self.agent.get(&resource, query).await?;
+        let response = agent.get(&resource, query).await?;
         let data: Ticker = response
             .json()
             .await
-            .map_err(|e| CbAdvError::JsonError(e.to_string()))?;
+            .map_err(|e| CbError::JsonError(e.to_string()))?;
         Ok(data)
     }
 }

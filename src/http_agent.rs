@@ -12,58 +12,11 @@ use reqwest::{Method, Response, Url};
 use serde::Serialize;
 
 use crate::constants::{API_ROOT_URI, API_SANDBOX_ROOT_URI, CRATE_USER_AGENT};
-use crate::errors::CbAdvError;
+use crate::errors::CbError;
 use crate::jwt::Jwt;
 use crate::token_bucket::TokenBucket;
-use crate::traits::Query;
+use crate::traits::{HttpAgent, Query, Request};
 use crate::types::CbResult;
-
-/// Trait for the HttpAgent that is responsible for making HTTP requests and managing the token bucket.
-pub(crate) trait HttpAgent {
-    /// Performs a HTTP GET Request.
-    ///
-    /// # Arguments
-    ///
-    /// * `resource` - A string representing the resource that is being accessed.
-    /// * `query` - A string containing options / parameters for the URL.
-    async fn get(&mut self, resource: &str, query: &impl Query) -> CbResult<Response>;
-
-    /// Performs a HTTP POST Request.
-    ///
-    /// # Arguments
-    ///
-    /// * `resource` - A string representing the resource that is being accessed.
-    /// * `query` - A string containing options / parameters for the URL.
-    /// * `body` - An object to send to the URL via POST request.
-    async fn post<T: Serialize>(
-        &mut self,
-        resource: &str,
-        query: &impl Query,
-        body: T,
-    ) -> CbResult<Response>;
-
-    /// Performs a HTTP PUT Request.
-    ///
-    /// # Arguments
-    ///
-    /// * `resource` - A string representing the resource that is being accessed.
-    /// * `query` - A string containing options / parameters for the URL.
-    /// * `body` - An object to send to the URL via POST request.
-    async fn put<T: Serialize>(
-        &mut self,
-        resource: &str,
-        query: &impl Query,
-        body: T,
-    ) -> CbResult<Response>;
-
-    /// Performs a HTTP DELETE Request.
-    ///
-    /// # Arguments
-    ///
-    /// * `resource` - A string representing the resource that is being accessed.
-    /// * `query` - A string containing options / parameters for the URL.
-    async fn delete(&mut self, resource: &str, query: &impl Query) -> CbResult<Response>;
-}
 
 /// Base HTTP Agent that is responsible for making requests and token bucket.
 #[derive(Debug, Clone)]
@@ -93,7 +46,7 @@ impl HttpAgentBase {
         let client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(10))
             .build()
-            .map_err(|e| CbAdvError::RequestError(e.to_string()))?;
+            .map_err(|e| CbError::RequestError(e.to_string()))?;
 
         Ok(Self {
             client,
@@ -109,13 +62,31 @@ impl HttpAgentBase {
     /// * `resource` - A string representing the resource that is being accessed.
     /// * `query` - A string containing options / parameters for the URL.
     fn build_url(&self, resource: &str, query: &impl Query) -> CbResult<Url> {
+        // Ensure the query is valid.
+        query.check()?;
+
         let base_url = Url::parse(&format!("https://{}", self.root_uri))
-            .map_err(|e| CbAdvError::UrlParseError(e.to_string()))?;
+            .map_err(|e| CbError::UrlParseError(e.to_string()))?;
         let mut url = base_url
             .join(resource)
-            .map_err(|e| CbAdvError::UrlParseError(e.to_string()))?;
+            .map_err(|e| CbError::UrlParseError(e.to_string()))?;
         url.set_query(Some(&query.to_query()));
         Ok(url)
+    }
+
+    /// Converts the request to a JSON string.
+    ///
+    /// # Arguments
+    ///
+    /// * `request` - The request to convert to a JSON string.
+    fn convert_request<'a, T>(&self, request: &'a T) -> CbResult<String>
+    where
+        T: Request + Serialize + 'a,
+    {
+        request.check()?;
+        let data = serde_json::to_string(&request)
+            .map_err(|e| CbError::BadSerialization(e.to_string()))?;
+        Ok(data)
     }
 
     /// Handles the response from the API.
@@ -132,7 +103,7 @@ impl HttpAgentBase {
                 .text()
                 .await
                 .unwrap_or_else(|_| "Could not parse error message".to_string());
-            Err(CbAdvError::BadStatus { code: status, body })
+            Err(CbError::BadStatus { code: status, body })
         }
     }
 
@@ -173,7 +144,7 @@ impl HttpAgentBase {
         let response = request
             .send()
             .await
-            .map_err(|e| CbAdvError::RequestError(e.to_string()))?;
+            .map_err(|e| CbError::RequestError(e.to_string()))?;
 
         self.handle_response(response).await
     }
@@ -208,31 +179,35 @@ impl HttpAgent for PublicHttpAgent {
             .await
     }
 
-    async fn post<T: Serialize>(
+    async fn post<'a, T>(
         &mut self,
         resource: &str,
         query: &impl Query,
-        body: T,
-    ) -> CbResult<Response> {
+        body: &'a T,
+    ) -> CbResult<Response>
+    where
+        T: Request + Serialize + 'a,
+    {
         let url = self.base.build_url(resource, query)?;
-        let body_str = serde_json::to_string(&body)
-            .map_err(|e| CbAdvError::BadSerialization(e.to_string()))?;
+        let data = self.base.convert_request(body)?;
         self.base
-            .execute_request(Method::POST, url, Some(body_str), None)
+            .execute_request(Method::POST, url, Some(data), None)
             .await
     }
 
-    async fn put<T: Serialize>(
+    async fn put<'a, T>(
         &mut self,
         resource: &str,
         query: &impl Query,
-        body: T,
-    ) -> CbResult<Response> {
+        body: &'a T,
+    ) -> CbResult<Response>
+    where
+        T: Request + Serialize + 'a,
+    {
         let url = self.base.build_url(resource, query)?;
-        let body_str = serde_json::to_string(&body)
-            .map_err(|e| CbAdvError::BadSerialization(e.to_string()))?;
+        let data = self.base.convert_request(body)?;
         self.base
-            .execute_request(Method::PUT, url, Some(body_str), None)
+            .execute_request(Method::PUT, url, Some(data), None)
             .await
     }
 
@@ -275,7 +250,7 @@ impl SecureHttpAgent {
         } else {
             Some(
                 Jwt::new(api_key, api_secret)
-                    .map_err(|e| CbAdvError::Unknown(format!("Error creating JWT: {}", e)))?,
+                    .map_err(|e| CbError::Unknown(format!("Error creating JWT: {}", e)))?,
             )
         };
 
@@ -310,33 +285,37 @@ impl HttpAgent for SecureHttpAgent {
             .await
     }
 
-    async fn post<T: Serialize>(
+    async fn post<'a, T>(
         &mut self,
         resource: &str,
         query: &impl Query,
-        body: T,
-    ) -> CbResult<Response> {
+        body: &'a T,
+    ) -> CbResult<Response>
+    where
+        T: Request + Serialize + 'a,
+    {
         let url = self.base.build_url(resource, query)?;
-        let body_str = serde_json::to_string(&body)
-            .map_err(|e| CbAdvError::BadSerialization(e.to_string()))?;
+        let data = self.base.convert_request(body)?;
         let token = self.build_token(Method::POST, resource)?;
         self.base
-            .execute_request(Method::POST, url, Some(body_str), token)
+            .execute_request(Method::POST, url, Some(data), token)
             .await
     }
 
-    async fn put<T: Serialize>(
+    async fn put<'a, T>(
         &mut self,
         resource: &str,
         query: &impl Query,
-        body: T,
-    ) -> CbResult<Response> {
+        body: &'a T,
+    ) -> CbResult<Response>
+    where
+        T: Request + Serialize + 'a,
+    {
         let url = self.base.build_url(resource, query)?;
-        let body_str = serde_json::to_string(&body)
-            .map_err(|e| CbAdvError::BadSerialization(e.to_string()))?;
+        let data = self.base.convert_request(body)?;
         let token = self.build_token(Method::PUT, resource)?;
         self.base
-            .execute_request(Method::PUT, url, Some(body_str), token)
+            .execute_request(Method::PUT, url, Some(data), token)
             .await
     }
 

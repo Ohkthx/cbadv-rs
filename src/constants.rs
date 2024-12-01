@@ -2,12 +2,13 @@
 
 /// Root resource for the API
 pub(crate) const API_ROOT_URI: &str = "api.coinbase.com";
-pub(crate) const API_SANDBOX_ROOT_URI: &str = "api-public.sandbox.exchange.coinbase.com";
+pub(crate) const API_SANDBOX_ROOT_URI: &str = "api-sandbox.coinbase.com";
 pub(crate) const CRATE_USER_AGENT: &str = "cbadv/Rust";
 
 /// Accounts API constants
 pub(crate) mod accounts {
     pub(crate) const RESOURCE_ENDPOINT: &str = "/api/v3/brokerage/accounts";
+    pub(crate) const LIST_ACCOUNT_MAXIMUM: u32 = 250;
 }
 
 /// Convert API constants
@@ -41,7 +42,7 @@ pub(crate) mod portfolios {
 
 /// Products API constants
 pub(crate) mod products {
-    pub(crate) const CANDLE_MAXIMUM: u64 = 350;
+    pub(crate) const CANDLE_MAXIMUM: u32 = 350;
     pub(crate) const RESOURCE_ENDPOINT: &str = "/api/v3/brokerage/products";
     pub(crate) const BID_ASK_ENDPOINT: &str = "/api/v3/brokerage/best_bid_ask";
     pub(crate) const PRODUCT_BOOK_ENDPOINT: &str = "/api/v3/brokerage/product_book";

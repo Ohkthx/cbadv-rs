@@ -1,21 +1,20 @@
-//! Task Tracker is the underlying object used to track candle updates.
+//! Candle Watcher is the underlying object used to track candle updates.
 
 use std::cmp::Ord;
 use std::collections::HashMap;
-use std::sync::Arc;
 
 use chrono::Utc;
-use futures::lock::Mutex;
 
 use crate::constants::websocket::GRANULARITY;
 use crate::models::product::Candle;
 use crate::models::websocket::{CandleUpdate, Channel, Event, Message};
 use crate::traits::{CandleCallback, MessageCallback};
-use crate::types::{CbResult, WebSocketReader};
+use crate::types::CbResult;
+use crate::ws::Endpoint;
 use crate::WebSocketClient;
 
 /// Tracks the candle watcher task.
-pub(crate) struct TaskTracker<T>
+pub(crate) struct CandleWatcher<T>
 where
     T: CandleCallback,
 {
@@ -25,7 +24,7 @@ where
     user_watcher: T,
 }
 
-impl<T> TaskTracker<T>
+impl<T> CandleWatcher<T>
 where
     T: CandleCallback,
 {
@@ -35,17 +34,17 @@ where
     ///
     /// * `reader` - WebSocket reader to receive updates.
     /// * `user_obj` - User object that implements `CandleCallback` to receive completed candles.
-    pub(crate) async fn start(reader: WebSocketReader, user_obj: T)
+    pub(crate) async fn start(mut client: WebSocketClient, endpoint: Endpoint, user_obj: T)
     where
         T: CandleCallback + Send + Sync + 'static,
     {
-        let tracker = Arc::new(Mutex::new(Self {
+        let tracker = Self {
             candles: HashMap::new(),
             user_watcher: user_obj,
-        }));
+        };
 
         // Start the listener.
-        WebSocketClient::listen_reader_trait(reader, tracker).await;
+        client.listen_trait(endpoint, tracker).await;
     }
 
     /// Returns a completed candle if a newer candle is received.
@@ -136,7 +135,7 @@ where
     }
 }
 
-impl<T> MessageCallback for TaskTracker<T>
+impl<T> MessageCallback for CandleWatcher<T>
 where
     T: CandleCallback + Send + Sync,
 {

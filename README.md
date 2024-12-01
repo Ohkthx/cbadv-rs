@@ -46,7 +46,6 @@ cbadv = { git = "https://github.com/ohkthx/cbadv-rs", branch = "main" }
 - [API Coverage](#api-coverage)
   - [WebSocket API](#websocket-api)
   - [REST API](#rest-api)
-  - [Extended Features](#extended-features)
 - [TODO](#todo)
 - [Contributing](#contributing)
 - [Tips Appreciated!](#tips-appreciated)
@@ -56,7 +55,8 @@ cbadv = { git = "https://github.com/ohkthx/cbadv-rs", branch = "main" }
 ## Features
 
 - Asynchronous API access with support for REST and WebSocket protocols.
-- Authenticated and Public REST Clients.
+- Authenticated and Public REST Endpoints.
+- Builders to create REST and WebSocket Clients.
 - Convenient configuration file support for API keys (`features = ["config"]`).
 - Comprehensive coverage of all accessible REST and WebSocket endpoints (as of **20231206**).
 - Numerous examples for seamless integration and testing.
@@ -73,7 +73,7 @@ Full API documentation is available at [docs.rs](https://docs.rs/cbadv/latest/cb
 
 ### WebSocket API
 
-Client: `use cbadv::WebSocketClient`
+Client: `use cbadv::{WebSocketClient, WebSocketClientBuilder}`
 
 - **Authentication**: `client.connect`
 - **Subscribe**: `client.subscribe` or `client.sub`
@@ -86,10 +86,12 @@ Client: `use cbadv::WebSocketClient`
   - `Channel::LEVEL2`: Level 2 Market Data
   - `Channel::USER`: User-Specific Updates
   - `Channel::MARKET_TRADES`: Market Trades
+  - `Channel::HEARTBEATS`: Hearbeat (maintains connection.)
+  - `Channel::FUTURES_BALANCE_SUMMARY`: Balance Summary for Futures.
 
 ### REST API
 
-Clients: `use cbadv::RestClient` and `use cbadv::PublicRestClient`
+Client: `use cbadv::{RestClient, RestClientBuilder}`
 
 - **Accounts (`client.account`)**:
   - List Accounts: `client.account.get_bulk`
@@ -108,14 +110,14 @@ Clients: `use cbadv::RestClient` and `use cbadv::PublicRestClient`
   - Preview Order Create: `client.order.preview_create`
   - Cancel Order: `client.order.cancel`
   - List Orders: `client.order.get_bulk`
-  - List Fills (untested): `client.order.fills`
+  - List Fills: `client.order.fills`
   - Get Order: `client.order.get`
   - Close Position (untested): `client.order.close_position`
 - **Fees (`client.fee`)**:
   - Get Transaction Summary: `client.fee.get`
 - **Converts (`client.convert`)**:
-  - Create Quote (untested): `client.convert.create_quote`
-  - Get Convert (untested): `client.convert.get`
+  - Create Quote: `client.convert.create_quote`
+  - Get Convert: `client.convert.get`
   - Commit Convert (untested): `client.convert.commit`
 - **Portfolios (`client.portfolio`)**:
   - Create Portfolio: `client.portfolio.create`
@@ -124,13 +126,13 @@ Clients: `use cbadv::RestClient` and `use cbadv::PublicRestClient`
   - Edit Portfolio: `client.portfolio.edit`
   - Delete Portfolio: `client.portfolio.delete`
   - Move Funds (untested): `client.portfolio.move_funds`
-- **Payments** (`client.payment`)
+- **Payments (`client.payment`)**
   - List Payments: `client.payment.get_all`
   - Get Payment: `client.payment.get`
-- **Data** (`client.data`)
+- **Data (`client.data`)**
   - API Key Permissions: `client.data.key_permissions`
 - **Public (`client.public`)**:
-  - Get API Unix Server Time: `client.public.server_time`
+  - Get API Unix Server Time: `client.public.time`
   - Get Product Book: `client.public.product_book`
   - List Products: `client.public.products`
   - Get Product: `client.public.product`
@@ -171,7 +173,7 @@ Contributions are welcome! Fork the repository, create a feature branch, and sub
 
 ---
 
-## Tips Appreciated!
+## Tips Appreciated
 
 Support this project via cryptocurrency donations:
 

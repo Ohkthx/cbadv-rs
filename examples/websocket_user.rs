@@ -1,4 +1,4 @@
-//! # WebSocket API Example, check out the WebSocket API for all functionality.
+//! # WebSocket User API Example, check out the WebSocket API for all functionality.
 //!
 //! Shows how to:
 //! - Connect WebSocket Client.
@@ -73,32 +73,23 @@ async fn main() {
     let mut readers = client
         .connect()
         .await
-        .expect("Could not connect to WebSocket");
+        .expect("Could not connect to WebSocket.");
 
-    let public = readers
-        .take_endpoint(&EndpointType::Public)
-        .expect("Could not get public reader");
+    let user = readers
+        .take_endpoint(&EndpointType::User)
+        .expect("Could not get secure user reader.");
 
     let listened_client = client.clone();
     let listener = tokio::spawn(async move {
         let mut listened_client = listened_client;
-        listened_client.listen_trait(public, cb_obj).await;
+        listened_client.listen_trait(user, cb_obj).await;
     });
-
-    // Products of interest.
-    let products = vec!["BTC-USD".to_string(), "ETH-USD".to_string()];
 
     // Heartbeats is a great way to keep a connection alive and not timeout.
     client.sub(&Channel::Heartbeats, &[]).await.unwrap();
 
     // Subscribe to user orders.
-    client.sub(&Channel::User, &products).await.unwrap();
-
-    // Get updates (subscribe) on products and currencies.
-    client.sub(&Channel::Candles, &products).await.unwrap();
-
-    // Stop obtaining (unsubscribe) updates on products and currencies.
-    client.unsub(&Channel::Status, &products).await.unwrap();
+    client.sub(&Channel::User, &[]).await.unwrap();
 
     // Passes the parser callback and listens for messages.
     listener.await.unwrap();
