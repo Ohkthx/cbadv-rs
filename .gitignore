@@ -1,6 +1,7 @@
 config.toml
 commit_msg
-.DS_STORE
+.DS_Store
+**/.DS_Store
 
 target/
 configs/

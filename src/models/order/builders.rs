@@ -44,6 +44,7 @@ impl OrderCreateBuilder {
     /// # Example
     ///
     /// ```rust
+    /// use cbadv::order::{OrderCreateBuilder, OrderSide};
     /// let builder = OrderCreateBuilder::new("BTC-USD", &OrderSide::Buy);
     /// ```
     pub fn new(product_id: &str, side: &OrderSide) -> Self {
@@ -77,6 +78,8 @@ impl OrderCreateBuilder {
     /// # Example
     ///
     /// ```rust
+    /// use cbadv::order::{OrderCreateBuilder, OrderSide, OrderType};
+    /// let builder = OrderCreateBuilder::new("BTC-USD", &OrderSide::Buy);
     /// builder.order_type(OrderType::Limit);
     /// ```
     pub fn order_type(mut self, order_type: OrderType) -> Self {
@@ -89,10 +92,10 @@ impl OrderCreateBuilder {
     /// Time-in-force specifies how long an order remains active before it is executed or expires.
     /// Common values include:
     ///
-    /// - `GTC` (Good 'til Cancelled): The order remains active until it is filled or canceled.
-    /// - `GTD` (Good 'til Date): The order remains active until a specified date and time.
-    /// - `IOC` (Immediate or Cancel): The order must be executed immediately; otherwise, any unfilled portion is canceled.
-    /// - `FOK` (Fill or Kill): The order must be filled entirely immediately; otherwise, it is canceled.
+    /// - `GoodUntilCancelled`: The order remains active until it is filled or canceled.
+    /// - `GoodUntilDateTime`: The order remains active until a specified date and time.
+    /// - `ImmediateOrCancel`: The order must be executed immediately; otherwise, any unfilled portion is canceled.
+    /// - `FillOrKill`: The order must be filled entirely immediately; otherwise, it is canceled.
     ///
     /// # Arguments
     ///
@@ -101,7 +104,9 @@ impl OrderCreateBuilder {
     /// # Example
     ///
     /// ```rust
-    /// builder.time_in_force(TimeInForce::GTC);
+    /// use cbadv::order::{OrderCreateBuilder, OrderSide, TimeInForce};
+    /// let builder = OrderCreateBuilder::new("BTC-USD", &OrderSide::Buy);
+    /// builder.time_in_force(TimeInForce::GoodUntilCancelled);
     /// ```
     pub fn time_in_force(mut self, tif: TimeInForce) -> Self {
         self.time_in_force = Some(tif);
@@ -124,6 +129,8 @@ impl OrderCreateBuilder {
     /// # Example
     ///
     /// ```rust
+    /// use cbadv::order::{OrderCreateBuilder, OrderSide};
+    /// let builder = OrderCreateBuilder::new("BTC-USD", &OrderSide::Buy);
     /// builder.base_size(0.5); // Buying or selling 0.5 BTC
     /// ```
     pub fn base_size(mut self, base_size: f64) -> Self {
@@ -148,6 +155,8 @@ impl OrderCreateBuilder {
     /// # Example
     ///
     /// ```rust
+    /// use cbadv::order::{OrderCreateBuilder, OrderSide};
+    /// let builder = OrderCreateBuilder::new("BTC-USD", &OrderSide::Buy);
     /// builder.quote_size(1000.0); // Spending $1000 USD to buy BTC
     /// ```
     pub fn quote_size(mut self, quote_size: f64) -> Self {
@@ -173,6 +182,8 @@ impl OrderCreateBuilder {
     /// # Example
     ///
     /// ```rust
+    /// use cbadv::order::{OrderCreateBuilder, OrderSide};
+    /// let builder = OrderCreateBuilder::new("BTC-USD", &OrderSide::Buy);
     /// builder.limit_price(50000.0); // Limit price of $50,000 per BTC
     /// ```
     pub fn limit_price(mut self, limit_price: f64) -> Self {
@@ -197,6 +208,8 @@ impl OrderCreateBuilder {
     /// # Example
     ///
     /// ```rust
+    /// use cbadv::order::{OrderCreateBuilder, OrderSide};
+    /// let builder = OrderCreateBuilder::new("BTC-USD", &OrderSide::Buy);
     /// builder.stop_price(48000.0); // Trigger the order when the price reaches $48,000
     /// ```
     pub fn stop_price(mut self, stop_price: f64) -> Self {
@@ -221,6 +234,8 @@ impl OrderCreateBuilder {
     /// # Example
     ///
     /// ```rust
+    /// use cbadv::order::{OrderCreateBuilder, OrderSide};
+    /// let builder = OrderCreateBuilder::new("BTC-USD", &OrderSide::Buy);
     /// builder.stop_trigger_price(47000.0); // Exit the position when the price reaches $47,000
     /// ```
     pub fn stop_trigger_price(mut self, stop_trigger_price: f64) -> Self {
@@ -244,6 +259,8 @@ impl OrderCreateBuilder {
     /// # Example
     ///
     /// ```rust
+    /// use cbadv::order::{OrderCreateBuilder, OrderSide};
+    /// let builder = OrderCreateBuilder::new("BTC-USD", &OrderSide::Buy);
     /// builder.end_time("2024-12-31T23:59:59Z");
     /// ```
     pub fn end_time(mut self, end_time: &str) -> Self {
@@ -268,6 +285,8 @@ impl OrderCreateBuilder {
     /// # Example
     ///
     /// ```rust
+    /// use cbadv::order::{OrderCreateBuilder, OrderSide};
+    /// let builder = OrderCreateBuilder::new("BTC-USD", &OrderSide::Buy);
     /// builder.post_only(true);
     /// ```
     pub fn post_only(mut self, post_only: bool) -> Self {
@@ -293,6 +312,8 @@ impl OrderCreateBuilder {
     /// # Example
     ///
     /// ```rust
+    /// use cbadv::order::{OrderCreateBuilder, OrderSide, StopDirection};
+    /// let builder = OrderCreateBuilder::new("BTC-USD", &OrderSide::Buy);
     /// builder.stop_direction(StopDirection::StopUp);
     /// ```
     pub fn stop_direction(mut self, stop_direction: StopDirection) -> Self {
@@ -317,6 +338,8 @@ impl OrderCreateBuilder {
     /// # Example
     ///
     /// ```rust
+    /// use cbadv::order::{OrderCreateBuilder, OrderSide};
+    /// let builder = OrderCreateBuilder::new("BTC-USD", &OrderSide::Buy);
     /// builder.client_order_id("my-custom-order-id-123");
     /// ```
     pub fn client_order_id(mut self, client_order_id: &str) -> Self {
@@ -337,6 +360,8 @@ impl OrderCreateBuilder {
     /// # Example
     ///
     /// ```rust
+    /// use cbadv::order::{OrderCreateBuilder, OrderSide};
+    /// let builder = OrderCreateBuilder::new("BTC-USD", &OrderSide::Buy);
     /// builder.preview(true);
     /// ```
     pub fn preview(mut self, is_preview: bool) -> Self {
@@ -363,7 +388,9 @@ impl OrderCreateBuilder {
     /// # Example
     ///
     /// ```rust
-    /// let create_order = builder.build()?;
+    /// use cbadv::order::{OrderCreateBuilder, OrderSide};
+    /// let builder = OrderCreateBuilder::new("BTC-USD", &OrderSide::Buy);
+    /// let create_order = builder.build();
     /// ```
     pub fn build(self) -> CbResult<OrderCreateRequest> {
         if self.side == OrderSide::Unknown {

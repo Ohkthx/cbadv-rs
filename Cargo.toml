@@ -8,7 +8,7 @@ readme = "README.md"
 homepage = "https://github.com/Ohkthx/cbadv-rs"
 repository = "https://github.com/Ohkthx/cbadv-rs"
 keywords = ["trading", "coinbase", "coinbasepro", "coinbaseadvanced", "crypto"]
-categories = ["api-bindings", "cryptocurrency"]
+categories = ["api-bindings", "cryptography::cryptocurrencies"]
 include = ["src/**", "Cargo.toml", "README.md", "LICENSE", "examples/**"]
 
 [features]
