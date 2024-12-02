@@ -11,8 +11,8 @@ use crate::models::product::{
     Candle, CandlesWrapper, Product, ProductBook, ProductBookWrapper, ProductListQuery,
     ProductTickerQuery, ProductsWrapper, Ticker,
 };
+use crate::models::product::{ProductBookQuery, ProductCandleQuery};
 use crate::models::public::ServerTime;
-use crate::product::{ProductBookQuery, ProductCandleQuery};
 use crate::time::{self, Granularity};
 use crate::traits::{HttpAgent, NoQuery, Query};
 use crate::types::CbResult;

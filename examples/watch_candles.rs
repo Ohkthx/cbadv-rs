@@ -8,7 +8,7 @@
 
 use std::process::exit;
 
-use cbadv::product::{Candle, ProductListQuery};
+use cbadv::models::product::{Candle, ProductListQuery};
 use cbadv::traits::CandleCallback;
 use cbadv::{RestClient, RestClientBuilder, WebSocketClientBuilder};
 

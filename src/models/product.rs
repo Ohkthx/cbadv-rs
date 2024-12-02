@@ -11,11 +11,11 @@ use serde_with::{serde_as, DefaultOnError, DisplayFromStr};
 
 use crate::constants::products::CANDLE_MAXIMUM;
 use crate::errors::CbError;
+use crate::models::websocket::CandleUpdate;
 use crate::time::{self, Granularity};
 use crate::traits::Query;
 use crate::types::CbResult;
 use crate::utils::QueryBuilder;
-use crate::ws::CandleUpdate;
 
 use super::order::OrderSide;
 

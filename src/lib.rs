@@ -30,11 +30,8 @@ pub mod types;
 pub(crate) mod utils;
 pub use utils::FunctionCallback;
 
-pub(crate) mod apis;
-pub(crate) mod models;
-pub use models::{
-    account, convert, fee, order, portfolio, product, public, shared, websocket as ws,
-};
+pub mod apis;
+pub mod models;
 
 mod rest;
 mod websocket;

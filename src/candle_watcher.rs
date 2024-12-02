@@ -1,6 +1,5 @@
 //! Candle Watcher is the underlying object used to track candle updates.
 
-use std::cmp::Ord;
 use std::collections::HashMap;
 
 use async_trait::async_trait;
@@ -8,10 +7,9 @@ use chrono::Utc;
 
 use crate::constants::websocket::GRANULARITY;
 use crate::models::product::Candle;
-use crate::models::websocket::{CandleUpdate, Channel, Event, Message};
+use crate::models::websocket::{CandleUpdate, Channel, Endpoint, Event, Message};
 use crate::traits::{CandleCallback, MessageCallback};
 use crate::types::CbResult;
-use crate::ws::Endpoint;
 use crate::WebSocketClient;
 
 /// Tracks the candle watcher task.

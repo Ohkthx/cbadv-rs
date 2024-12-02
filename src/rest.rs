@@ -19,7 +19,7 @@ use crate::config::ConfigFile;
 use crate::token_bucket::{RateLimits, TokenBucket};
 use crate::types::CbResult;
 
-/// Used to create a new RestClient.
+/// Builds a new REST Client (RestClient) that directly interacts with the Coinbase Advanced API.
 #[derive(Default)]
 pub struct RestClientBuilder {
     api_key: Option<String>,
@@ -121,7 +121,7 @@ impl RestClientBuilder {
     }
 }
 
-/// Represents a Client for the API.
+/// Represents a REST Client for interacting with the Coinbase Advanced API.
 pub struct RestClient {
     /// Gives access to the Account API.
     pub account: AccountApi,

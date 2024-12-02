@@ -5,7 +5,7 @@
 use serde::Serialize;
 
 use crate::errors::CbError;
-use crate::product::ProductType;
+use crate::models::product::ProductType;
 use crate::utils::QueryBuilder;
 use crate::{traits::Query, types::CbResult};
 

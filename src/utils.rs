@@ -9,7 +9,9 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 
-use crate::{traits::MessageCallback, types::CbResult, ws::Message};
+use crate::models::websocket::Message;
+use crate::traits::MessageCallback;
+use crate::types::CbResult;
 
 /// Builds the URL Query to be sent to the API.
 pub(crate) struct QueryBuilder {
@@ -72,7 +74,7 @@ impl QueryBuilder {
 type BoxCallback =
     Box<dyn Fn(CbResult<Message>) -> Pin<Box<dyn Future<Output = ()> + Send>> + Send + Sync>;
 
-/// A callback function that can be used to handle messages.
+/// Used to wrap callback functions for the WebSocket Client's `listen()` function..
 pub struct FunctionCallback {
     callback: Arc<BoxCallback>,
 }

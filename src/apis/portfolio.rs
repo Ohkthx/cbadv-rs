@@ -6,10 +6,10 @@
 use crate::constants::portfolios::{MOVE_FUNDS_ENDPOINT, RESOURCE_ENDPOINT};
 use crate::errors::CbError;
 use crate::http_agent::SecureHttpAgent;
-use crate::models::portfolio::{Portfolio, PortfolioListQuery, PortfoliosWrapper};
-use crate::portfolio::{
-    PortfolioBreakdown, PortfolioBreakdownQuery, PortfolioBreakdownWrapper, PortfolioModifyRequest,
-    PortfolioMoveFundsRequest, PortfolioWrapper,
+use crate::models::portfolio::{
+    Portfolio, PortfolioBreakdown, PortfolioBreakdownQuery, PortfolioBreakdownWrapper,
+    PortfolioListQuery, PortfolioModifyRequest, PortfolioMoveFundsRequest, PortfolioWrapper,
+    PortfoliosWrapper,
 };
 use crate::traits::{HttpAgent, NoQuery};
 use crate::types::CbResult;

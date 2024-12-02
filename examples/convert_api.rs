@@ -7,7 +7,7 @@
 use std::process::exit;
 
 use cbadv::config::{self, BaseConfig};
-use cbadv::convert::{ConvertQuery, ConvertQuoteRequest};
+use cbadv::models::convert::{ConvertQuery, ConvertQuoteRequest};
 use cbadv::RestClientBuilder;
 
 #[tokio::main]

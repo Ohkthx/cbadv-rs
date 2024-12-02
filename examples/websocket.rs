@@ -8,8 +8,8 @@
 
 use std::process::exit;
 
+use cbadv::models::websocket::{Channel, EndpointType, Message};
 use cbadv::types::CbResult;
-use cbadv::ws::{Channel, EndpointType, Message};
 use cbadv::{FunctionCallback, WebSocketClientBuilder};
 
 /// This is used to parse messages. It is passed to the `listen` function to pull Messages out of

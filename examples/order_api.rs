@@ -12,7 +12,7 @@ use std::process::exit;
 use std::thread;
 
 use cbadv::config::{self, BaseConfig};
-use cbadv::order::{
+use cbadv::models::order::{
     OrderCancelRequest, OrderCreateBuilder, OrderEditRequest, OrderListQuery, OrderSide,
     OrderStatus, OrderType, TimeInForce,
 };

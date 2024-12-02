@@ -10,7 +10,7 @@
 use std::process::exit;
 
 use cbadv::config::{self, BaseConfig};
-use cbadv::product::{
+use cbadv::models::product::{
     ProductBidAskQuery, ProductCandleQuery, ProductListQuery, ProductTickerQuery,
 };
 use cbadv::time::Granularity;

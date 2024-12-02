@@ -10,7 +10,9 @@
 use std::process::exit;
 
 use cbadv::config::{self, BaseConfig};
-use cbadv::portfolio::{PortfolioBreakdownQuery, PortfolioListQuery, PortfolioModifyRequest};
+use cbadv::models::portfolio::{
+    PortfolioBreakdownQuery, PortfolioListQuery, PortfolioModifyRequest,
+};
 use cbadv::RestClientBuilder;
 
 #[tokio::main]

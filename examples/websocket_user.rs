@@ -9,9 +9,9 @@
 use std::process::exit;
 
 use cbadv::config::{self, BaseConfig};
+use cbadv::models::websocket::{Channel, EndpointType, Message};
 use cbadv::traits::MessageCallback;
 use cbadv::types::CbResult;
-use cbadv::ws::{Channel, EndpointType, Message};
 use cbadv::{async_trait, WebSocketClientBuilder};
 
 /// Example of an object with an attached callback function for messages.

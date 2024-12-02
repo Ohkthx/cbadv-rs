@@ -10,10 +10,10 @@ use crate::constants::products::{
 use crate::errors::CbError;
 use crate::http_agent::SecureHttpAgent;
 use crate::models::product::{
-    Candle, CandlesWrapper, Product, ProductBook, ProductBookWrapper, ProductBooksWrapper,
-    ProductListQuery, ProductTickerQuery, ProductsWrapper, Ticker,
+    Candle, CandlesWrapper, Product, ProductBidAskQuery, ProductBook, ProductBookQuery,
+    ProductBookWrapper, ProductBooksWrapper, ProductCandleQuery, ProductListQuery,
+    ProductTickerQuery, ProductsWrapper, Ticker,
 };
-use crate::product::{ProductBidAskQuery, ProductBookQuery, ProductCandleQuery};
 use crate::time::{self, Granularity};
 use crate::traits::{HttpAgent, NoQuery, Query};
 use crate::types::CbResult;

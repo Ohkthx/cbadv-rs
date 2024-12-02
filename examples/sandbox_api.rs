@@ -11,7 +11,9 @@
 use std::process::exit;
 
 use cbadv::config::{self, BaseConfig};
-use cbadv::order::{OrderCreateBuilder, OrderEditRequest, OrderSide, OrderType, TimeInForce};
+use cbadv::models::order::{
+    OrderCreateBuilder, OrderEditRequest, OrderSide, OrderType, TimeInForce,
+};
 use cbadv::RestClientBuilder;
 
 #[tokio::main]

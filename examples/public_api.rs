@@ -9,7 +9,7 @@
 
 use std::process::exit;
 
-use cbadv::product::{ProductCandleQuery, ProductListQuery, ProductTickerQuery};
+use cbadv::models::product::{ProductCandleQuery, ProductListQuery, ProductTickerQuery};
 use cbadv::time::Granularity;
 use cbadv::{time, RestClientBuilder};
 

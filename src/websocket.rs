@@ -19,14 +19,13 @@ use crate::constants::websocket::{PUBLIC_ENDPOINT, SECURE_ENDPOINT};
 use crate::errors::CbError;
 use crate::jwt::Jwt;
 use crate::models::websocket::{
-    Channel, EndpointType, SecureSubscription, Subscription, UnsignedSubscription,
-    WebSocketEndpoints,
+    Channel, Endpoint, EndpointStream, EndpointType, Message, SecureSubscription, Subscription,
+    UnsignedSubscription, WebSocketEndpoints, WebSocketSubscriptions,
 };
 use crate::time;
 use crate::token_bucket::{RateLimits, TokenBucket};
 use crate::traits::{CandleCallback, MessageCallback};
 use crate::types::CbResult;
-use crate::ws::{Endpoint, EndpointStream, Message, WebSocketSubscriptions};
 
 #[cfg(feature = "config")]
 use crate::config::ConfigFile;
@@ -49,7 +48,7 @@ fn get_channel_endpoint(channel: &Channel) -> EndpointType {
     }
 }
 
-/// Builder to create a WebSocketClient.
+/// Builds a new WebSocket Client (WebSocketClient) that directly interacts with the Coinbase Advanced API.
 pub struct WebSocketClientBuilder {
     api_key: Option<String>,
     api_secret: Option<String>,
@@ -195,8 +194,7 @@ impl WebSocketClientBuilder {
     }
 }
 
-/// Represents a Client for the Websocket API. Provides easy-access to subscribing and listening to
-/// the WebSocket.
+/// A WebSocket Client used to interactive with the Coinbase Advanced API. Provides easy-access to subscribing and listening to the WebSocket.
 pub struct WebSocketClient {
     /// Signs the messages sent.
     pub(crate) jwt: Option<Jwt>,

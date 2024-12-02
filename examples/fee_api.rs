@@ -6,8 +6,8 @@
 use std::process::exit;
 
 use cbadv::config::{self, BaseConfig};
-use cbadv::fee::FeeTransactionSummaryQuery;
-use cbadv::product::ProductType;
+use cbadv::models::fee::FeeTransactionSummaryQuery;
+use cbadv::models::product::ProductType;
 use cbadv::RestClientBuilder;
 
 #[tokio::main]

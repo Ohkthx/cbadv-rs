@@ -5,7 +5,7 @@
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, DefaultOnError, DisplayFromStr};
 
-use crate::product::ProductType;
+use crate::models::product::ProductType;
 
 use super::{
     OrderSide, OrderStatus, OrderType, RejectReason, StopDirection, TimeInForce, TriggerStatus,

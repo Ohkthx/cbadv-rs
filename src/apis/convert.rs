@@ -4,9 +4,9 @@
 //! This allows for the conversion between two currencies.
 
 use crate::constants::convert::{QUOTE_ENDPOINT, TRADE_ENDPOINT};
-use crate::convert::{ConvertQuery, ConvertQuoteRequest, Trade, TradeWrapper};
 use crate::errors::CbError;
 use crate::http_agent::SecureHttpAgent;
+use crate::models::convert::{ConvertQuery, ConvertQuoteRequest, Trade, TradeWrapper};
 use crate::traits::{HttpAgent, NoQuery};
 use crate::types::CbResult;
 

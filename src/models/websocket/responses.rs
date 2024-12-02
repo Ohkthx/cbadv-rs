@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, DefaultOnError, DisplayFromStr};
 
-use crate::order::{OrderSide, OrderStatus, OrderType, TimeInForce, TriggerStatus};
-use crate::product::{Candle, ProductType};
+use crate::models::order::{OrderSide, OrderStatus, OrderType, TimeInForce, TriggerStatus};
+use crate::models::product::{Candle, ProductType};
 
 use super::Level2Side;
 

@@ -7,8 +7,8 @@
 
 use std::process::exit;
 
-use cbadv::account::AccountListQuery;
 use cbadv::config::{self, BaseConfig};
+use cbadv::models::account::AccountListQuery;
 use cbadv::RestClientBuilder;
 
 #[tokio::main]
