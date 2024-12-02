@@ -12,7 +12,7 @@ use cbadv::config::{self, BaseConfig};
 use cbadv::traits::MessageCallback;
 use cbadv::types::CbResult;
 use cbadv::ws::{Channel, EndpointType, Message};
-use cbadv::WebSocketClientBuilder;
+use cbadv::{async_trait, WebSocketClientBuilder};
 
 /// Example of an object with an attached callback function for messages.
 struct CallbackObject {
@@ -20,10 +20,11 @@ struct CallbackObject {
     total_processed: usize,
 }
 
+#[async_trait]
 impl MessageCallback for CallbackObject {
     /// This is used to parse messages. It is passed to the `listen` function to pull Messages out of
     /// the stream.
-    fn message_callback(&mut self, msg: CbResult<Message>) {
+    async fn message_callback(&mut self, msg: CbResult<Message>) {
         let rcvd = match msg {
             Ok(message) => format!("{:?}", message), // Leverage Debug for all Message variants
             Err(error) => format!("Error: {}", error), // Handle WebSocket errors
@@ -66,7 +67,7 @@ async fn main() {
         .unwrap();
 
     // Callback Object.
-    let cb_obj = CallbackObject { total_processed: 0 };
+    let callback = CallbackObject { total_processed: 0 };
 
     // Connect to the websocket, a subscription needs to be sent within 5 seconds.
     // If a subscription is not sent, Coinbase will close the connection.
@@ -82,7 +83,7 @@ async fn main() {
     let listened_client = client.clone();
     let listener = tokio::spawn(async move {
         let mut listened_client = listened_client;
-        listened_client.listen_trait(user, cb_obj).await;
+        listened_client.listen(user, callback).await;
     });
 
     // Heartbeats is a great way to keep a connection alive and not timeout.

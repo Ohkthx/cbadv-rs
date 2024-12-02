@@ -3,6 +3,7 @@
 use std::cmp::Ord;
 use std::collections::HashMap;
 
+use async_trait::async_trait;
 use chrono::Utc;
 
 use crate::constants::websocket::GRANULARITY;
@@ -44,7 +45,7 @@ where
         };
 
         // Start the listener.
-        client.listen_trait(endpoint, tracker).await;
+        client.listen(endpoint, tracker).await;
     }
 
     /// Returns a completed candle if a newer candle is received.
@@ -135,12 +136,13 @@ where
     }
 }
 
+#[async_trait]
 impl<T> MessageCallback for CandleWatcher<T>
 where
     T: CandleCallback + Send + Sync,
 {
     /// Handles incoming messages and processes candle updates.
-    fn message_callback(&mut self, msg: CbResult<Message>) {
+    async fn message_callback(&mut self, msg: CbResult<Message>) {
         match msg {
             Ok(message) => {
                 if message.channel != Channel::Candles {

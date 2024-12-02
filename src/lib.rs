@@ -28,6 +28,7 @@ pub mod time;
 pub mod traits;
 pub mod types;
 pub(crate) mod utils;
+pub use utils::FunctionCallback;
 
 pub(crate) mod apis;
 pub(crate) mod models;
@@ -39,3 +40,6 @@ mod rest;
 mod websocket;
 pub use rest::{RestClient, RestClientBuilder};
 pub use websocket::{WebSocketClient, WebSocketClientBuilder};
+
+// Re-export async_trait for the end-user.
+pub use async_trait::async_trait;

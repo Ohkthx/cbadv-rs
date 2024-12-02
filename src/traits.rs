@@ -1,5 +1,6 @@
 //! Traits used to allow interfacing with advanced functionality for end-users.
 
+use async_trait::async_trait;
 use reqwest::Response;
 use serde::Serialize;
 
@@ -19,13 +20,14 @@ pub trait CandleCallback {
 }
 
 /// Used to pass objects to the listener for greater control over message processing.
+#[async_trait]
 pub trait MessageCallback {
     /// This is called when processing a message from the WebSocket.
     ///
     /// # Arguments
     ///
     /// * `msg` - Message or Error received from the WebSocket.
-    fn message_callback(&mut self, msg: CbResult<Message>);
+    async fn message_callback(&mut self, msg: CbResult<Message>);
 }
 
 /// Used to pass query/paramters for a URL.

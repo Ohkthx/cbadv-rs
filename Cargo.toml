@@ -1,6 +1,6 @@
 [package]
 name = "cbadv"
-version = "2.0.0"
+version = "2.0.1"
 edition = "2021"
 description = "Asynchronous Coinbase Advanced REST and WebSocket API"
 license = "MIT"
@@ -36,6 +36,7 @@ toml = { version = "0.8.19", optional = true }
 # WebSocket support
 tokio-tungstenite = { version = "0.24.0", features = ["native-tls"] }
 futures-util = "0.3.31"
+async-trait = "0.1.83"
 
 # Utilities
 uuid = { version = "1.11.0", features = [

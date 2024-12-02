@@ -15,6 +15,7 @@ use crate::time::{self, Granularity};
 use crate::traits::Query;
 use crate::types::CbResult;
 use crate::utils::QueryBuilder;
+use crate::ws::CandleUpdate;
 
 use super::order::OrderSide;
 
@@ -300,6 +301,12 @@ pub struct Candle {
     /// Volume of trading activity during the bucket interval.
     #[serde_as(as = "DisplayFromStr")]
     pub volume: f64,
+}
+
+impl From<CandleUpdate> for Candle {
+    fn from(candle_update: CandleUpdate) -> Self {
+        candle_update.data
+    }
 }
 
 /// Represents a trade for a product.

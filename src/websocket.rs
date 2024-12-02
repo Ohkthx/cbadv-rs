@@ -25,8 +25,8 @@ use crate::models::websocket::{
 use crate::time;
 use crate::token_bucket::{RateLimits, TokenBucket};
 use crate::traits::{CandleCallback, MessageCallback};
-use crate::types::{CbResult, MessageCallbackFn};
-use crate::ws::{Endpoint, Message, WebSocketSubscriptions};
+use crate::types::CbResult;
+use crate::ws::{Endpoint, EndpointStream, Message, WebSocketSubscriptions};
 
 #[cfg(feature = "config")]
 use crate::config::ConfigFile;
@@ -315,6 +315,7 @@ impl WebSocketClient {
         let mut retries = 0;
         let mut retry_delay = 2;
 
+        // Rety until max retries hit.
         while retries < self.max_retries {
             match self.reconnect(endpoint_type).await {
                 Ok(endpoint) => return Ok(endpoint),
@@ -334,6 +335,85 @@ impl WebSocketClient {
             "Failed to reconnect WebSocket after {} attempts.",
             retries,
         )))
+    }
+
+    /// Handles reconnection logic for endpoints.
+    async fn handle_reconnection(&mut self, stream: EndpointStream) -> Option<EndpointStream> {
+        match stream {
+            EndpointStream::Single(route, _) => {
+                // Reconnect and return a new Single EndpointStream.
+                self.wait_on_reconnect(&route).await.ok().map(Into::into)
+            }
+            EndpointStream::Multiple(_) => {
+                // Obtain all the endpoints that need to be reconnected.
+                let keys = {
+                    let subs = self.subscriptions.lock().await;
+                    subs.get_keys().await
+                };
+
+                // Iterate over each endpoint and attempt to reconnect.
+                let mut new_endpoints = WebSocketEndpoints::default();
+                for endpoint_type in keys {
+                    if let Ok(new_endpoint) = self.wait_on_reconnect(&endpoint_type).await {
+                        new_endpoints.add(endpoint_type.clone(), new_endpoint);
+                    } else {
+                        eprintln!("Failed to reconnect: {:?}", endpoint_type);
+                        return None;
+                    }
+                }
+
+                // Extract the readers (streams) from the new endpoints.
+                let streams = new_endpoints
+                    .extract_to_vec()
+                    .into_iter()
+                    .map(|endpoint| match endpoint {
+                        Endpoint::Public((_, reader)) | Endpoint::User((_, reader)) => reader,
+                    })
+                    .collect::<Vec<_>>();
+
+                // Create a new Multiple EndpointStream.
+                let mut select_all = stream::SelectAll::new();
+                for stream in streams {
+                    select_all.push(stream);
+                }
+
+                Some(EndpointStream::Multiple(select_all))
+            }
+        }
+    }
+
+    /// Listens to WebSocket readers, supporting both single and multiple endpoints.
+    ///
+    /// # Arguments
+    ///
+    /// * `endpoints` - A single `Endpoint` or multiple `WebSocketEndpoints`.
+    /// * `callback` - A callback object that implements the `MessageCallback` trait.
+    pub async fn listen<T, E>(&mut self, endpoints: E, mut callback: T)
+    where
+        T: MessageCallback + Send + 'static,
+        E: Into<EndpointStream>,
+    {
+        let mut stream = endpoints.into();
+
+        loop {
+            while let Some(message) = stream.next().await {
+                if let Some(result) = Self::process_message(message).await {
+                    if let Err(CbError::BadConnection(_)) = &result {
+                        // Handle reconnection logic.
+                        if let Some(new_stream) = self.handle_reconnection(stream).await {
+                            // Restart the loop with the new streams.
+                            stream = new_stream;
+                            break;
+                        } else {
+                            // Reconnection failed, exit.
+                            return;
+                        }
+                    } else {
+                        callback.message_callback(result).await;
+                    }
+                }
+            }
+        }
     }
 
     /// Waits for a token to be consumable for the correct bucket.
@@ -382,189 +462,6 @@ impl WebSocketClient {
                 "WebSocket error: {}",
                 err
             )))),
-        }
-    }
-
-    /// Listens to a single WebSocket reader using a function callback.
-    ///
-    /// # Arguments
-    ///
-    /// * `endpoint` - WebSocket reader for a single channel (e.g., public or user).
-    /// * `callback` - A function callback that processes WebSocket messages.
-    pub async fn listen_fn(&mut self, mut endpoint: Endpoint, callback: MessageCallbackFn) {
-        loop {
-            let (route, reader) = match &mut endpoint {
-                Endpoint::Public((route, reader)) => (route, reader),
-                Endpoint::User((route, reader)) => (route, reader),
-            };
-
-            while let Some(message) = reader.next().await {
-                if let Some(result) = Self::process_message(message).await {
-                    if let Err(CbError::BadConnection(_)) = &result {
-                        // Attempt to reconnect.
-                        match self.wait_on_reconnect(route).await {
-                            Ok(new_endpoint) => {
-                                endpoint = new_endpoint;
-                                // Exit the inner loop to restart with the new endpoint.
-                                break;
-                            }
-                            Err(e) => {
-                                eprintln!("{}", e);
-                                return;
-                            }
-                        }
-                    } else {
-                        callback(result);
-                    }
-                }
-            }
-        }
-    }
-
-    /// Listens to a single WebSocket reader using a callback object that implements `MessageCallback`.
-    ///
-    /// # Arguments
-    ///
-    /// * `endpoint` - WebSocket reader for a single channel (e.g., public or user).
-    /// * `callback_obj` - A callback object that implements the `MessageCallback` trait.
-    pub async fn listen_trait<T>(&mut self, mut endpoint: Endpoint, mut callback_obj: T)
-    where
-        T: MessageCallback + Send + 'static,
-    {
-        loop {
-            let (route, reader) = match &mut endpoint {
-                Endpoint::Public((route, reader)) => (route, reader),
-                Endpoint::User((route, reader)) => (route, reader),
-            };
-
-            while let Some(message) = reader.next().await {
-                if let Some(result) = Self::process_message(message).await {
-                    if let Err(CbError::BadConnection(_)) = &result {
-                        // Attempt to reconnect.
-                        match self.wait_on_reconnect(route).await {
-                            Ok(new_endpoint) => {
-                                endpoint = new_endpoint;
-                                // Exit the inner loop to restart with the new endpoint.
-                                break;
-                            }
-                            Err(e) => {
-                                eprintln!("{}", e);
-                                return;
-                            }
-                        }
-                    } else {
-                        callback_obj.message_callback(result);
-                    }
-                }
-            }
-        }
-    }
-
-    /// Listens to WebSocket readers using a function callback.
-    ///
-    /// # Arguments
-    ///
-    /// * `endpoints` - WebSocket readers for the public and user.
-    /// * `callback` - A function callback that processes WebSocket messages.
-    pub async fn multi_listen_fn(
-        &mut self,
-        mut endpoints: WebSocketEndpoints,
-        callback: MessageCallbackFn,
-    ) {
-        loop {
-            let streams = endpoints.extract_to_vec();
-            if streams.is_empty() {
-                // No streams to listen to, exit the loop.
-                return;
-            }
-
-            let mut stream = stream::select_all(streams);
-            while let Some(message) = stream.next().await {
-                if let Some(result) = Self::process_message(message).await {
-                    if let Err(CbError::BadConnection(_)) = &result {
-                        // Obtain the endpoints to reconnect.
-                        let keys = {
-                            let subs = self.subscriptions.lock().await;
-                            subs.get_keys().await
-                        };
-
-                        // Attempt to reconnect all endpoints.
-                        let mut new_endpoints = WebSocketEndpoints::default();
-                        for endpoint_type in keys {
-                            match self.wait_on_reconnect(&endpoint_type).await {
-                                Ok(new_endpoint) => {
-                                    new_endpoints.add(endpoint_type.clone(), new_endpoint);
-                                }
-                                Err(e) => {
-                                    eprintln!("Failed to reconnect: {}", e);
-                                    return;
-                                }
-                            }
-                        }
-
-                        // Break to restart the loop with new endpoints.
-                        endpoints = new_endpoints;
-                        break;
-                    } else {
-                        callback(result);
-                    }
-                }
-            }
-        }
-    }
-
-    /// Listens to WebSocket readers using a callback object that implements `MessageCallback`.
-    ///
-    /// # Arguments
-    ///
-    /// * `endpoints` - WebSocket readers for the public and user.
-    /// * `callback_obj` - A callback object that implements the `MessageCallback` trait.
-    pub async fn multi_listen_trait<T>(
-        &mut self,
-        mut endpoints: WebSocketEndpoints,
-        mut callback_obj: T,
-    ) where
-        T: MessageCallback + Send + 'static,
-    {
-        loop {
-            let streams = endpoints.extract_to_vec();
-            if streams.is_empty() {
-                // No streams to listen to, exit the loop.
-                return;
-            }
-
-            let mut stream = stream::select_all(streams);
-            while let Some(message) = stream.next().await {
-                if let Some(result) = Self::process_message(message).await {
-                    if let Err(CbError::BadConnection(_)) = &result {
-                        // Obtain the endpoints to reconnect.
-                        let keys = {
-                            let subs = self.subscriptions.lock().await;
-                            subs.get_keys().await
-                        };
-
-                        // Attempt to reconnect all endpoints.
-                        let mut new_endpoints = WebSocketEndpoints::default();
-                        for endpoint_type in keys {
-                            match self.wait_on_reconnect(&endpoint_type).await {
-                                Ok(new_endpoint) => {
-                                    new_endpoints.add(endpoint_type.clone(), new_endpoint);
-                                }
-                                Err(e) => {
-                                    eprintln!("Failed to reconnect: {}", e);
-                                    return;
-                                }
-                            }
-                        }
-
-                        // Break to restart the loop with new endpoints.
-                        endpoints = new_endpoints;
-                        break;
-                    } else {
-                        callback_obj.message_callback(result);
-                    }
-                }
-            }
         }
     }
 
