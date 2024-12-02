@@ -37,7 +37,7 @@ impl AsRef<str> for PortfolioType {
     }
 }
 
-/// KeyPermissions represents the permissions associated with an API key.
+/// `KeyPermissions` represents the permissions associated with an API key.
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct KeyPermissions {
     ///Indicates whether the API key has view permissions.

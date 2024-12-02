@@ -5,8 +5,8 @@
 
 use crate::constants::fees::RESOURCE_ENDPOINT;
 use crate::errors::CbError;
-use crate::fee::{FeeTransactionSummaryQuery, TransactionSummary};
 use crate::http_agent::SecureHttpAgent;
+use crate::models::fee::{FeeTransactionSummaryQuery, TransactionSummary};
 use crate::traits::HttpAgent;
 use crate::types::CbResult;
 
@@ -32,12 +32,20 @@ impl FeeApi {
     ///
     /// * `query` - Paramaters used to modify the resulting scope of the summary.
     ///
+    /// # Errors
+    ///
+    /// * `CbError::AuthenticationError` - If the agent is not authenticated.
+    /// * `CbError::JsonError` - If there was an issue parsing the JSON response.
+    /// * `CbError::RequestError` - If there was an issue making the request.
+    /// * `CbError::UrlParseError` - If there was an issue parsing the URL.
+    /// * `CbError::BadSerialization` - If there was an issue serializing the request.
+    /// * `CbError::BadStatus` - If the status code was not 200.
+    /// * `CbError::BadJwt` - If there was an issue creating the JWT.
+    ///
     /// # Endpoint / Reference
     ///
-    #[allow(rustdoc::bare_urls)]
-    /// https://api.coinbase.com/api/v3/brokerage/transaction_summary
-    ///
-    /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_gettransactionsummary>
+    /// * <https://api.coinbase.com/api/v3/brokerage/transaction_summary>
+    /// * <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_gettransactionsummary>
     pub async fn get(
         &mut self,
         query: &FeeTransactionSummaryQuery,

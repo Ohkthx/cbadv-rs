@@ -37,7 +37,7 @@ pub enum TradeStatus {
 pub struct Trade {
     /// The trade id, used to get and commit the trade
     pub id: String,
-    /// Possible values: [TRADE_STATUS_UNSPECIFIED, TRADE_STATUS_CREATED, TRADE_STATUS_STARTED, TRADE_STATUS_COMPLETED, TRADE_STATUS_CANCELED]
+    /// Possible values: [`TRADE_STATUS_UNSPECIFIED`, `TRADE_STATUS_CREATED`, `TRADE_STATUS_STARTED`, `TRADE_STATUS_COMPLETED`, `TRADE_STATUS_CANCELED`]
     pub status: TradeStatus,
     pub user_entered_amount: Balance,
     pub amount: Balance,
@@ -201,13 +201,13 @@ impl Request for ConvertQuoteRequest {
 }
 
 impl ConvertQuoteRequest {
-    /// Creates a new instance of the ConvertQuoteRequest.
+    /// Creates a new instance of the `ConvertQuoteRequest`.
     ///
     /// # Arguments
     ///
     /// * `from_account` - The currency of the account to convert from, e.g. USD
     /// * `to_account` - The currency of the account to convert to, e.g. USDC
-    /// * `amount` - The amount to convert in the currency of the from_account.
+    /// * `amount` - The amount to convert in the currency of the `from_account`.
     pub fn new(from_account: &str, to_account: &str, amount: f64) -> Self {
         Self {
             from_account: from_account.to_string(),
@@ -267,7 +267,7 @@ impl Query for ConvertQuery {
 }
 
 impl ConvertQuery {
-    /// Creates a new instance of the ConvertQuery.
+    /// Creates a new instance of the `ConvertQuery`.
     ///
     /// # Arguments
     ///

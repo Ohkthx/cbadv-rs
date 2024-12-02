@@ -11,6 +11,7 @@ use serde_with::{serde_as, DefaultOnError, DisplayFromStr};
 
 use crate::constants::products::CANDLE_MAXIMUM;
 use crate::errors::CbError;
+use crate::models::websocket::CandleUpdate;
 use crate::time::{self, Granularity};
 use crate::traits::Query;
 use crate::types::CbResult;
@@ -137,11 +138,11 @@ pub struct FutureDetails {
     /// Descriptive name for the product series, eg "Nano Bitcoin Futures".
     pub group_description: String,
     pub contract_expiry_timezone: String,
-    /// Short version of the group_description, eg "Nano BTC".
+    /// Short version of the `group_description`, eg "Nano BTC".
     pub group_short_description: String,
-    /// Possible values: [UNKNOWN_RISK_MANAGEMENT_TYPE, MANAGED_BY_FCM, MANAGED_BY_VENUE]
+    /// Possible values: [`UNKNOWN_RISK_MANAGEMENT_TYPE`, `MANAGED_BY_FCM`, `MANAGED_BY_VENUE`]
     pub risk_managed_by: String,
-    /// Possible values: [UNKNOWN_CONTRACT_EXPIRY_TYPE, EXPIRING]
+    /// Possible values: [`UNKNOWN_CONTRACT_EXPIRY_TYPE`, EXPIRING]
     pub contract_expiry_type: String,
     pub perpetual_details: Option<PerpetualDetails>,
     /// Name of the contract.
@@ -302,6 +303,12 @@ pub struct Candle {
     pub volume: f64,
 }
 
+impl From<CandleUpdate> for Candle {
+    fn from(candle_update: CandleUpdate) -> Self {
+        candle_update.data
+    }
+}
+
 /// Represents a trade for a product.
 #[serde_as]
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -351,7 +358,7 @@ pub struct ProductListQuery {
     pub product_ids: Option<Vec<String>>,
     /// If true, return all products of all product types (including expired futures contracts).
     pub get_all_products: Option<bool>,
-    /// Whether or not to populate view_only with the tradability status of the product. This is only enabled for SPOT products.
+    /// Whether or not to populate `view_only` with the tradability status of the product. This is only enabled for SPOT products.
     pub get_tradability_status: Option<bool>,
 }
 
@@ -392,7 +399,7 @@ impl Query for ProductListQuery {
 }
 
 impl ProductListQuery {
-    /// Creates a new ProductListQuery object with default values.
+    /// Creates a new `ProductListQuery` object with default values.
     pub fn new() -> Self {
         Self::default()
     }
@@ -427,7 +434,7 @@ impl ProductListQuery {
         self
     }
 
-    /// Whether or not to populate view_only with the tradability status of the product. This is only enabled for SPOT products.
+    /// Whether or not to populate `view_only` with the tradability status of the product. This is only enabled for SPOT products.
     pub fn get_tradability_status(mut self, get_tradability_status: bool) -> Self {
         self.get_tradability_status = Some(get_tradability_status);
         self
@@ -480,7 +487,7 @@ impl Default for ProductTickerQuery {
 }
 
 impl ProductTickerQuery {
-    /// Creates a new ProductTickerQuery object with default values.
+    /// Creates a new `ProductTickerQuery` object with default values.
     ///
     /// # Arguments
     ///
@@ -531,7 +538,7 @@ impl Query for ProductBidAskQuery {
 }
 
 impl ProductBidAskQuery {
-    /// Creates a new ProductBidAskQuery object with default values.
+    /// Creates a new `ProductBidAskQuery` object with default values.
     pub fn new() -> Self {
         Self::default()
     }
@@ -587,7 +594,7 @@ impl Query for ProductBookQuery {
 }
 
 impl ProductBookQuery {
-    /// Creates a new ProductBookQuery object with default values.
+    /// Creates a new `ProductBookQuery` object with default values.
     ///
     /// # Arguments
     ///
@@ -666,7 +673,7 @@ impl Query for ProductCandleQuery {
 impl Default for ProductCandleQuery {
     fn default() -> Self {
         Self {
-            start: time::now() - Granularity::to_secs(&Granularity::OneDay) as u64,
+            start: time::now() - u64::from(Granularity::to_secs(&Granularity::OneDay)),
             end: time::now(),
             granularity: Granularity::FiveMinute,
             limit: CANDLE_MAXIMUM,
@@ -675,7 +682,7 @@ impl Default for ProductCandleQuery {
 }
 
 impl ProductCandleQuery {
-    /// Creates a new ProductCandleQuery object with default values.
+    /// Creates a new `ProductCandleQuery` object with default values.
     ///
     /// # Arguments
     ///

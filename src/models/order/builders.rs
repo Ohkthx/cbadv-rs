@@ -9,6 +9,7 @@ use super::{
     LimitGtc, LimitGtd, MarketIoc, OrderConfiguration, OrderCreateRequest, OrderSide, OrderType,
     StopDirection, StopLimitGtc, StopLimitGtd, TimeInForce,
 };
+use uuid::Uuid;
 
 /// A builder for creating `OrderCreateRequest` instances.
 ///
@@ -38,19 +39,18 @@ impl OrderCreateBuilder {
     /// # Arguments
     ///
     /// * `product_id` - The trading pair (e.g., "BTC-USD") for which the order will be created.
-    ///   This must be a valid product ID supported by the exchange.
     /// * `side` - The side of the order, either `BUY` or `SELL`.
     ///
     /// # Example
     ///
     /// ```rust
-    /// use cbadv::order::{OrderCreateBuilder, OrderSide};
-    /// let builder = OrderCreateBuilder::new("BTC-USD", &OrderSide::Buy);
+    /// use cbadv::models::order::{OrderCreateBuilder, OrderSide};
+    /// let builder = OrderCreateBuilder::new("BTC-USD", OrderSide::Buy);
     /// ```
-    pub fn new(product_id: &str, side: &OrderSide) -> Self {
+    pub fn new(product_id: &str, side: OrderSide) -> Self {
         Self {
             product_id: product_id.to_string(),
-            side: side.clone(),
+            side,
             is_preview: false,
             order_type: None,
             time_in_force: None,
@@ -68,9 +68,6 @@ impl OrderCreateBuilder {
 
     /// Sets the order type for the order.
     ///
-    /// The order type determines the kind of order to be placed, such as `Market`, `Limit`,
-    /// `StopLimit`, or `Trigger`. This setting affects which additional parameters are required.
-    ///
     /// # Arguments
     ///
     /// * `order_type` - An `OrderType` enum variant specifying the type of order.
@@ -78,9 +75,9 @@ impl OrderCreateBuilder {
     /// # Example
     ///
     /// ```rust
-    /// use cbadv::order::{OrderCreateBuilder, OrderSide, OrderType};
-    /// let builder = OrderCreateBuilder::new("BTC-USD", &OrderSide::Buy);
-    /// builder.order_type(OrderType::Limit);
+    /// use cbadv::models::order::{OrderCreateBuilder, OrderType, OrderSide};
+    /// let builder = OrderCreateBuilder::new("BTC-USD", OrderSide::Buy)
+    ///     .order_type(OrderType::Limit);
     /// ```
     pub fn order_type(mut self, order_type: OrderType) -> Self {
         self.order_type = Some(order_type);
@@ -89,14 +86,6 @@ impl OrderCreateBuilder {
 
     /// Sets the time-in-force policy for the order.
     ///
-    /// Time-in-force specifies how long an order remains active before it is executed or expires.
-    /// Common values include:
-    ///
-    /// - `GoodUntilCancelled`: The order remains active until it is filled or canceled.
-    /// - `GoodUntilDateTime`: The order remains active until a specified date and time.
-    /// - `ImmediateOrCancel`: The order must be executed immediately; otherwise, any unfilled portion is canceled.
-    /// - `FillOrKill`: The order must be filled entirely immediately; otherwise, it is canceled.
-    ///
     /// # Arguments
     ///
     /// * `tif` - A `TimeInForce` enum variant specifying the time-in-force policy.
@@ -104,9 +93,9 @@ impl OrderCreateBuilder {
     /// # Example
     ///
     /// ```rust
-    /// use cbadv::order::{OrderCreateBuilder, OrderSide, TimeInForce};
-    /// let builder = OrderCreateBuilder::new("BTC-USD", &OrderSide::Buy);
-    /// builder.time_in_force(TimeInForce::GoodUntilCancelled);
+    /// use cbadv::models::order::{OrderCreateBuilder, TimeInForce, OrderSide};
+    /// let builder = OrderCreateBuilder::new("BTC-USD", OrderSide::Buy)
+    ///     .time_in_force(TimeInForce::GoodUntilCancelled);
     /// ```
     pub fn time_in_force(mut self, tif: TimeInForce) -> Self {
         self.time_in_force = Some(tif);
@@ -115,23 +104,16 @@ impl OrderCreateBuilder {
 
     /// Sets the base size for the order.
     ///
-    /// The base size is the amount of the base currency to buy or sell. For example, in the "BTC-USD"
-    /// trading pair, BTC is the base currency.
-    ///
     /// # Arguments
     ///
     /// * `base_size` - The quantity of the base currency to trade.
     ///
-    /// # Note
-    ///
-    /// This parameter is required for most order types except when specifying `quote_size` for certain market orders.
-    ///
     /// # Example
     ///
     /// ```rust
-    /// use cbadv::order::{OrderCreateBuilder, OrderSide};
-    /// let builder = OrderCreateBuilder::new("BTC-USD", &OrderSide::Buy);
-    /// builder.base_size(0.5); // Buying or selling 0.5 BTC
+    /// use cbadv::models::order::{OrderCreateBuilder, OrderSide};
+    /// let builder = OrderCreateBuilder::new("BTC-USD", OrderSide::Buy)
+    ///     .base_size(0.5);
     /// ```
     pub fn base_size(mut self, base_size: f64) -> Self {
         self.base_size = Some(base_size);
@@ -140,24 +122,16 @@ impl OrderCreateBuilder {
 
     /// Sets the quote size for the order.
     ///
-    /// The quote size is the amount of the quote currency to spend (for buys) or receive (for sells).
-    /// For example, in the "BTC-USD" trading pair, USD is the quote currency.
-    ///
     /// # Arguments
     ///
     /// * `quote_size` - The amount of the quote currency to use in the order.
     ///
-    /// # Note
-    ///
-    /// - For market orders, you can specify either `base_size` or `quote_size`.
-    /// - `quote_size` is not typically used with limit orders.
-    ///
     /// # Example
     ///
     /// ```rust
-    /// use cbadv::order::{OrderCreateBuilder, OrderSide};
-    /// let builder = OrderCreateBuilder::new("BTC-USD", &OrderSide::Buy);
-    /// builder.quote_size(1000.0); // Spending $1000 USD to buy BTC
+    /// use cbadv::models::order::{OrderCreateBuilder, OrderSide};
+    /// let builder = OrderCreateBuilder::new("BTC-USD", OrderSide::Buy)
+    ///     .quote_size(1000.0);
     /// ```
     pub fn quote_size(mut self, quote_size: f64) -> Self {
         self.quote_size = Some(quote_size);
@@ -166,25 +140,16 @@ impl OrderCreateBuilder {
 
     /// Sets the limit price for the order.
     ///
-    /// The limit price is the worst price at which the order will be executed:
-    ///
-    /// - For **buy** orders, it's the maximum price you're willing to pay per unit of the base currency.
-    /// - For **sell** orders, it's the minimum price you're willing to accept per unit of the base currency.
-    ///
     /// # Arguments
     ///
     /// * `limit_price` - The limit price in terms of the quote currency.
     ///
-    /// # Note
-    ///
-    /// This parameter is required for limit orders and stop limit orders.
-    ///
     /// # Example
     ///
     /// ```rust
-    /// use cbadv::order::{OrderCreateBuilder, OrderSide};
-    /// let builder = OrderCreateBuilder::new("BTC-USD", &OrderSide::Buy);
-    /// builder.limit_price(50000.0); // Limit price of $50,000 per BTC
+    /// use cbadv::models::order::{OrderCreateBuilder, OrderSide};
+    /// let builder = OrderCreateBuilder::new("BTC-USD", OrderSide::Buy)
+    ///     .limit_price(50000.0);
     /// ```
     pub fn limit_price(mut self, limit_price: f64) -> Self {
         self.limit_price = Some(limit_price);
@@ -193,24 +158,16 @@ impl OrderCreateBuilder {
 
     /// Sets the stop price for the order.
     ///
-    /// The stop price is the price at which a stop order is triggered and becomes active.
-    /// When the market reaches the stop price, the stop order is converted into a regular order (e.g., a limit order).
-    ///
     /// # Arguments
     ///
     /// * `stop_price` - The price at which the stop order is triggered.
     ///
-    /// # Note
-    ///
-    /// - Required for stop limit orders.
-    /// - The `stop_direction` must also be specified.
-    ///
     /// # Example
     ///
     /// ```rust
-    /// use cbadv::order::{OrderCreateBuilder, OrderSide};
-    /// let builder = OrderCreateBuilder::new("BTC-USD", &OrderSide::Buy);
-    /// builder.stop_price(48000.0); // Trigger the order when the price reaches $48,000
+    /// use cbadv::models::order::{OrderCreateBuilder, OrderSide};
+    /// let builder = OrderCreateBuilder::new("BTC-USD", OrderSide::Buy)
+    ///     .stop_price(48000.0);
     /// ```
     pub fn stop_price(mut self, stop_price: f64) -> Self {
         self.stop_price = Some(stop_price);
@@ -219,24 +176,16 @@ impl OrderCreateBuilder {
 
     /// Sets the stop trigger price for a trigger bracket order.
     ///
-    /// The stop trigger price is the price level at which the position will be exited.
-    /// When the market reaches this price, a stop limit order is automatically placed.
-    ///
     /// # Arguments
     ///
     /// * `stop_trigger_price` - The price level to trigger the exit order.
     ///
-    /// # Note
-    ///
-    /// - Required for trigger bracket orders.
-    /// - The exit order typically has a limit price adjusted based on the side of the original order.
-    ///
     /// # Example
     ///
     /// ```rust
-    /// use cbadv::order::{OrderCreateBuilder, OrderSide};
-    /// let builder = OrderCreateBuilder::new("BTC-USD", &OrderSide::Buy);
-    /// builder.stop_trigger_price(47000.0); // Exit the position when the price reaches $47,000
+    /// use cbadv::models::order::{OrderCreateBuilder, OrderSide};
+    /// let builder = OrderCreateBuilder::new("BTC-USD", OrderSide::Buy)
+    ///     .stop_trigger_price(47000.0);
     /// ```
     pub fn stop_trigger_price(mut self, stop_trigger_price: f64) -> Self {
         self.stop_trigger_price = Some(stop_trigger_price);
@@ -245,23 +194,16 @@ impl OrderCreateBuilder {
 
     /// Sets the end time for the order.
     ///
-    /// The end time is the timestamp at which the order will be automatically canceled if it has not been filled.
-    /// It is used with Good 'til Date (GTD) orders.
-    ///
     /// # Arguments
     ///
-    /// * `end_time` - The end time as an RFC3339 formatted timestamp (e.g., "2024-12-31T23:59:59Z").
-    ///
-    /// # Note
-    ///
-    /// This parameter is required for orders with a time-in-force of `GTD`.
+    /// * `end_time` - The end time as an RFC3339 formatted timestamp.
     ///
     /// # Example
     ///
     /// ```rust
-    /// use cbadv::order::{OrderCreateBuilder, OrderSide};
-    /// let builder = OrderCreateBuilder::new("BTC-USD", &OrderSide::Buy);
-    /// builder.end_time("2024-12-31T23:59:59Z");
+    /// use cbadv::models::order::{OrderCreateBuilder, OrderSide};
+    /// let builder = OrderCreateBuilder::new("BTC-USD", OrderSide::Buy)
+    ///     .end_time("2024-12-31T23:59:59Z");
     /// ```
     pub fn end_time(mut self, end_time: &str) -> Self {
         self.end_time = Some(end_time.to_string());
@@ -270,24 +212,16 @@ impl OrderCreateBuilder {
 
     /// Sets the post-only flag for the order.
     ///
-    /// When `post_only` is set to `true`, the order will only be posted to the order book if it does not
-    /// immediately match with an existing order. This ensures that the order will be a maker order, not a taker.
-    ///
     /// # Arguments
     ///
     /// * `post_only` - A boolean indicating whether to enable post-only mode.
     ///
-    /// # Note
-    ///
-    /// - Applicable to limit orders.
-    /// - If an order would be immediately matched (taking liquidity), it will be rejected if `post_only` is `true`.
-    ///
     /// # Example
     ///
     /// ```rust
-    /// use cbadv::order::{OrderCreateBuilder, OrderSide};
-    /// let builder = OrderCreateBuilder::new("BTC-USD", &OrderSide::Buy);
-    /// builder.post_only(true);
+    /// use cbadv::models::order::{OrderCreateBuilder, OrderSide};
+    /// let builder = OrderCreateBuilder::new("BTC-USD", OrderSide::Buy)
+    ///     .post_only(true);
     /// ```
     pub fn post_only(mut self, post_only: bool) -> Self {
         self.post_only = Some(post_only);
@@ -296,25 +230,16 @@ impl OrderCreateBuilder {
 
     /// Sets the stop direction for a stop order.
     ///
-    /// The stop direction determines whether the stop order is triggered when the market price moves up or down:
-    ///
-    /// - `StopUp`: The order triggers when the last trade price **rises** to or above the stop price.
-    /// - `StopDown`: The order triggers when the last trade price **falls** to or below the stop price.
-    ///
     /// # Arguments
     ///
     /// * `stop_direction` - A `StopDirection` enum variant specifying the trigger direction.
     ///
-    /// # Note
-    ///
-    /// Required for stop limit orders.
-    ///
     /// # Example
     ///
     /// ```rust
-    /// use cbadv::order::{OrderCreateBuilder, OrderSide, StopDirection};
-    /// let builder = OrderCreateBuilder::new("BTC-USD", &OrderSide::Buy);
-    /// builder.stop_direction(StopDirection::StopUp);
+    /// use cbadv::models::order::{OrderCreateBuilder, OrderSide, StopDirection};
+    /// let builder = OrderCreateBuilder::new("BTC-USD", OrderSide::Buy)
+    ///     .stop_direction(StopDirection::StopUp);
     /// ```
     pub fn stop_direction(mut self, stop_direction: StopDirection) -> Self {
         self.stop_direction = Some(stop_direction);
@@ -323,46 +248,34 @@ impl OrderCreateBuilder {
 
     /// Sets the client-defined order ID.
     ///
-    /// The `client_order_id` is a unique identifier supplied by the client to identify the order.
-    /// If not provided, a random UUID will be generated. This can be useful for tracking orders in your system.
-    ///
     /// # Arguments
     ///
     /// * `client_order_id` - A string representing the client-defined order ID.
     ///
-    /// # Note
-    ///
-    /// - Must be unique to prevent conflicts.
-    /// - Useful for idempotency and tracking purposes.
-    ///
     /// # Example
     ///
     /// ```rust
-    /// use cbadv::order::{OrderCreateBuilder, OrderSide};
-    /// let builder = OrderCreateBuilder::new("BTC-USD", &OrderSide::Buy);
-    /// builder.client_order_id("my-custom-order-id-123");
+    /// use cbadv::models::order::{OrderCreateBuilder, OrderSide};
+    /// let builder = OrderCreateBuilder::new("BTC-USD", OrderSide::Buy)
+    ///     .client_order_id("my-custom-order-id-123");
     /// ```
     pub fn client_order_id(mut self, client_order_id: &str) -> Self {
         self.client_order_id = Some(client_order_id.to_string());
         self
     }
 
-    /// Sets whether the order is a preview order. This will skip serializing the `client_order_id`.
+    /// Sets whether the order is a preview order.
     ///
     /// # Arguments
     ///
     /// * `is_preview` - A boolean indicating if it is a preview or not.
     ///
-    /// # Note
-    ///
-    /// - By default, preview is false.
-    ///
     /// # Example
     ///
     /// ```rust
-    /// use cbadv::order::{OrderCreateBuilder, OrderSide};
-    /// let builder = OrderCreateBuilder::new("BTC-USD", &OrderSide::Buy);
-    /// builder.preview(true);
+    /// use cbadv::models::order::{OrderCreateBuilder, OrderSide};
+    /// let builder = OrderCreateBuilder::new("BTC-USD", OrderSide::Buy)
+    ///     .preview(true);
     /// ```
     pub fn preview(mut self, is_preview: bool) -> Self {
         self.is_preview = is_preview;
@@ -388,133 +301,24 @@ impl OrderCreateBuilder {
     /// # Example
     ///
     /// ```rust
-    /// use cbadv::order::{OrderCreateBuilder, OrderSide};
-    /// let builder = OrderCreateBuilder::new("BTC-USD", &OrderSide::Buy);
-    /// let create_order = builder.build();
+    /// use cbadv::models::order::{OrderCreateBuilder, OrderSide, OrderType, TimeInForce};
+    /// let create_order = OrderCreateBuilder::new("BTC-USD", OrderSide::Buy)
+    ///     .order_type(OrderType::Limit)
+    ///     .time_in_force(TimeInForce::GoodUntilCancelled)
+    ///     .base_size(0.5)
+    ///     .limit_price(50000.0)
+    ///     .build();
     /// ```
     pub fn build(self) -> CbResult<OrderCreateRequest> {
-        if self.side == OrderSide::Unknown {
-            return Err(CbError::BadParse(
-                "Order side cannot be unknown.".to_string(),
-            ));
-        }
+        self.validate_common_fields()?;
 
-        // Validate required fields based on order type and time-in-force.
-        let order_configuration = match (self.order_type, self.time_in_force) {
-            (Some(OrderType::Market), Some(TimeInForce::ImmediateOrCancel)) => {
-                // Ensure required parameters are set
-                if self.base_size.is_none() && self.quote_size.is_none() {
-                    return Err(CbError::BadParse(
-                        "Either base_size or quote_size must be provided for Market IOC orders"
-                            .to_string(),
-                    ));
-                }
-
-                Ok(OrderConfiguration::MarketIoc(MarketIoc {
-                    base_size: self.base_size,
-                    quote_size: self.quote_size,
-                }))
-            }
-            (Some(OrderType::Limit), Some(TimeInForce::GoodUntilCancelled)) => {
-                let base_size = self.base_size.ok_or_else(|| {
-                    CbError::BadParse("base_size is required for Limit GTC orders".to_string())
-                })?;
-                let limit_price = self.limit_price.ok_or_else(|| {
-                    CbError::BadParse("limit_price is required for Limit GTC orders".to_string())
-                })?;
-
-                Ok(OrderConfiguration::LimitGtc(LimitGtc {
-                    base_size,
-                    limit_price,
-                    post_only: self.post_only.unwrap_or(false),
-                }))
-            }
-            (Some(OrderType::Limit), Some(TimeInForce::GoodUntilDate)) => {
-                let base_size = self.base_size.ok_or_else(|| {
-                    CbError::BadParse("base_size is required for Limit GTD orders".to_string())
-                })?;
-                let limit_price = self.limit_price.ok_or_else(|| {
-                    CbError::BadParse("limit_price is required for Limit GTD orders".to_string())
-                })?;
-                let end_time = self.end_time.ok_or_else(|| {
-                    CbError::BadParse("end_time is required for Limit GTD orders".to_string())
-                })?;
-
-                Ok(OrderConfiguration::LimitGtd(LimitGtd {
-                    base_size,
-                    limit_price,
-                    end_time,
-                    post_only: self.post_only.unwrap_or(false),
-                }))
-            }
-            (Some(OrderType::StopLimit), Some(TimeInForce::GoodUntilCancelled)) => {
-                let base_size = self.base_size.ok_or_else(|| {
-                    CbError::BadParse("base_size is required for Stop Limit GTC orders".to_string())
-                })?;
-                let limit_price = self.limit_price.ok_or_else(|| {
-                    CbError::BadParse(
-                        "limit_price is required for Stop Limit GTC orders".to_string(),
-                    )
-                })?;
-                let stop_price = self.stop_price.ok_or_else(|| {
-                    CbError::BadParse(
-                        "stop_price is required for Stop Limit GTC orders".to_string(),
-                    )
-                })?;
-                let stop_direction = self.stop_direction.ok_or_else(|| {
-                    CbError::BadParse(
-                        "stop_direction is required for Stop Limit GTC orders".to_string(),
-                    )
-                })?;
-
-                Ok(OrderConfiguration::StopLimitGtc(StopLimitGtc {
-                    base_size,
-                    limit_price,
-                    stop_price,
-                    stop_direction,
-                }))
-            }
-            (Some(OrderType::StopLimit), Some(TimeInForce::GoodUntilDate)) => {
-                let base_size = self.base_size.ok_or_else(|| {
-                    CbError::BadParse("base_size is required for Stop Limit GTD orders".to_string())
-                })?;
-                let limit_price = self.limit_price.ok_or_else(|| {
-                    CbError::BadParse(
-                        "limit_price is required for Stop Limit GTD orders".to_string(),
-                    )
-                })?;
-                let stop_price = self.stop_price.ok_or_else(|| {
-                    CbError::BadParse(
-                        "stop_price is required for Stop Limit GTD orders".to_string(),
-                    )
-                })?;
-                let stop_direction = self.stop_direction.ok_or_else(|| {
-                    CbError::BadParse(
-                        "stop_direction is required for Stop Limit GTD orders".to_string(),
-                    )
-                })?;
-                let end_time = self.end_time.ok_or_else(|| {
-                    CbError::BadParse("end_time is required for Stop Limit GTD orders".to_string())
-                })?;
-
-                Ok(OrderConfiguration::StopLimitGtd(StopLimitGtd {
-                    base_size,
-                    limit_price,
-                    stop_price,
-                    stop_direction,
-                    end_time,
-                }))
-            }
-            _ => Err(CbError::BadParse(
-                "Invalid or unsupported combination of order_type and time_in_force".to_string(),
-            )),
-        }?;
+        let order_configuration = self.determine_order_configuration()?;
 
         let client_order_id = if self.is_preview {
-            "".to_string()
+            String::new()
         } else {
             self.client_order_id
-                .unwrap_or_else(|| uuid::Uuid::new_v4().to_string())
+                .unwrap_or_else(|| Uuid::new_v4().to_string())
         };
 
         Ok(OrderCreateRequest {
@@ -525,4 +329,157 @@ impl OrderCreateBuilder {
             order_configuration,
         })
     }
+
+    /// Validates common fields applicable to all order types.
+    fn validate_common_fields(&self) -> Result<(), CbError> {
+        if self.side == OrderSide::Unknown {
+            return Err(CbError::BadParse(
+                "Order side cannot be unknown.".to_string(),
+            ));
+        }
+
+        if self.product_id.trim().is_empty() {
+            return Err(CbError::BadParse("Product ID cannot be empty.".to_string()));
+        }
+
+        if self.order_type.is_none() || self.order_type == Some(OrderType::Unknown) {
+            return Err(CbError::BadParse(
+                "Order type must be specified.".to_string(),
+            ));
+        }
+
+        if self.time_in_force.is_none() {
+            return Err(CbError::BadParse(
+                "Time in force must be specified.".to_string(),
+            ));
+        }
+
+        Ok(())
+    }
+
+    /// Determines and validates the order configuration based on `order_type` and `time_in_force`.
+    fn determine_order_configuration(&self) -> Result<OrderConfiguration, CbError> {
+        match (self.order_type.as_ref(), self.time_in_force) {
+            (Some(order_type), Some(tif)) => order_type.validate_configuration(tif, self),
+            _ => Err(CbError::BadParse(
+                "Order type and time in force must be specified.".to_string(),
+            )),
+        }
+    }
+}
+
+/// Extension trait for `OrderType` to validate and construct `OrderConfiguration`.
+trait OrderTypeValidator {
+    fn validate_configuration(
+        &self,
+        tif: TimeInForce,
+        builder: &OrderCreateBuilder,
+    ) -> Result<OrderConfiguration, CbError>;
+}
+
+impl OrderTypeValidator for OrderType {
+    fn validate_configuration(
+        &self,
+        tif: TimeInForce,
+        builder: &OrderCreateBuilder,
+    ) -> Result<OrderConfiguration, CbError> {
+        match (self, tif) {
+            (OrderType::Market, TimeInForce::ImmediateOrCancel) => builder.build_market_ioc(),
+            (OrderType::Limit, TimeInForce::GoodUntilCancelled) => builder.build_limit_gtc(),
+            (OrderType::Limit, TimeInForce::GoodUntilDate) => builder.build_limit_gtd(),
+            (OrderType::StopLimit, TimeInForce::GoodUntilCancelled) => {
+                builder.build_stop_limit_gtc()
+            }
+            (OrderType::StopLimit, TimeInForce::GoodUntilDate) => builder.build_stop_limit_gtd(),
+            _ => Err(CbError::BadParse(
+                "Invalid or unsupported combination of order_type and time_in_force".to_string(),
+            )),
+        }
+    }
+}
+
+impl OrderCreateBuilder {
+    /// Validates and constructs `MarketIoc` configuration.
+    fn build_market_ioc(&self) -> Result<OrderConfiguration, CbError> {
+        if self.base_size.is_none() && self.quote_size.is_none() {
+            return Err(CbError::BadParse(
+                "Either base_size or quote_size must be provided for Market IOC orders".to_string(),
+            ));
+        }
+
+        Ok(OrderConfiguration::MarketIoc(MarketIoc {
+            base_size: self.base_size,
+            quote_size: self.quote_size,
+        }))
+    }
+
+    /// Validates and constructs `LimitGtc` configuration.
+    fn build_limit_gtc(&self) -> Result<OrderConfiguration, CbError> {
+        let base_size = require_field(self.base_size, "base_size")?;
+        let limit_price = require_field(self.limit_price, "limit_price")?;
+
+        Ok(OrderConfiguration::LimitGtc(LimitGtc {
+            base_size,
+            limit_price,
+            post_only: self.post_only.unwrap_or(false),
+        }))
+    }
+
+    /// Validates and constructs `LimitGtd` configuration.
+    fn build_limit_gtd(&self) -> Result<OrderConfiguration, CbError> {
+        let base_size = require_field(self.base_size, "base_size")?;
+        let limit_price = require_field(self.limit_price, "limit_price")?;
+        let end_time = require_field_ref(&self.end_time, "end_time")?;
+
+        Ok(OrderConfiguration::LimitGtd(LimitGtd {
+            base_size,
+            limit_price,
+            end_time: end_time.clone(),
+            post_only: self.post_only.unwrap_or(false),
+        }))
+    }
+
+    /// Validates and constructs `StopLimitGtc` configuration.
+    fn build_stop_limit_gtc(&self) -> Result<OrderConfiguration, CbError> {
+        let base_size = require_field(self.base_size, "base_size")?;
+        let limit_price = require_field(self.limit_price, "limit_price")?;
+        let stop_price = require_field(self.stop_price, "stop_price")?;
+        let stop_direction = require_field(self.stop_direction, "stop_direction")?;
+
+        Ok(OrderConfiguration::StopLimitGtc(StopLimitGtc {
+            base_size,
+            limit_price,
+            stop_price,
+            stop_direction,
+        }))
+    }
+
+    /// Validates and constructs `StopLimitGtd` configuration.
+    fn build_stop_limit_gtd(&self) -> Result<OrderConfiguration, CbError> {
+        let base_size = require_field(self.base_size, "base_size")?;
+        let limit_price = require_field(self.limit_price, "limit_price")?;
+        let stop_price = require_field(self.stop_price, "stop_price")?;
+        let stop_direction = require_field(self.stop_direction, "stop_direction")?;
+        let end_time = require_field_ref(&self.end_time, "end_time")?;
+
+        Ok(OrderConfiguration::StopLimitGtd(StopLimitGtd {
+            base_size,
+            limit_price,
+            stop_price,
+            end_time: end_time.clone(),
+            stop_direction,
+        }))
+    }
+}
+
+/// Validates that a required field is present and returns it, or an error if it is missing.
+fn require_field<T>(field: Option<T>, field_name: &str) -> Result<T, CbError> {
+    field.ok_or_else(|| CbError::BadParse(format!("{field_name} is required.")))
+}
+
+/// Validates that a required field reference is present and returns it, or an error if it is missing.
+fn require_field_ref<'a, T>(field: &'a Option<T>, field_name: &str) -> Result<&'a T, CbError> {
+    field
+        .as_ref()
+        .ok_or_else(move || CbError::BadParse(format!("{field_name} is required.")))
 }

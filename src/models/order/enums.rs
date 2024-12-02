@@ -12,7 +12,7 @@ use super::{
 };
 
 /// Various order types.
-#[derive(Serialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Debug, Clone, PartialEq, Copy)]
 pub enum OrderType {
     /// Unknown order type.
     #[serde(rename = "UNKNOWN_ORDER_TYPE")]
@@ -49,7 +49,7 @@ impl AsRef<str> for OrderType {
 }
 
 /// Order side, BUY or SELL.
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Copy)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum OrderSide {
     /// Unknown order side. Only used by remote API.
@@ -78,7 +78,7 @@ impl AsRef<str> for OrderSide {
 }
 
 /// Used to sort results.
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Copy)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum OrderSortBy {
     /// Unknown sort by.
@@ -113,7 +113,7 @@ impl AsRef<str> for OrderSortBy {
 }
 
 /// Order status, OPEN, CANCELLED, and EXPIRED.
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Copy)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum OrderStatus {
     /// Order is pending.
@@ -139,7 +139,7 @@ pub enum OrderStatus {
 
 impl fmt::Display for OrderStatus {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:?}", self)
+        write!(f, "{self:?}")
     }
 }
 
@@ -158,7 +158,7 @@ impl AsRef<str> for OrderStatus {
         }
     }
 }
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Copy)]
 pub enum StopDirection {
     /// Unknown stop direction.
     #[serde(rename = "UNKNOWN_STOP_DIRECTION")]
@@ -173,11 +173,11 @@ pub enum StopDirection {
 
 impl fmt::Display for StopDirection {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:?}", self)
+        write!(f, "{self:?}")
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Copy)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum TimeInForce {
     /// Unknown time in force.
@@ -213,7 +213,7 @@ impl AsRef<str> for TimeInForce {
 }
 
 /// Enum representing the different possible trigger statuses.
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Copy)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum TriggerStatus {
     /// Unknown time in force.
@@ -229,7 +229,7 @@ pub enum TriggerStatus {
 
 impl fmt::Display for TriggerStatus {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:?}", self)
+        write!(f, "{self:?}")
     }
 }
 
@@ -245,7 +245,7 @@ impl AsRef<str> for TriggerStatus {
 }
 
 /// Enum representing reasons for rejecting an order.
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Copy)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum RejectReason {
     /// Unspecified reject reason.
@@ -265,7 +265,7 @@ pub enum RejectReason {
 
 impl fmt::Display for RejectReason {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:?}", self)
+        write!(f, "{self:?}")
     }
 }
 

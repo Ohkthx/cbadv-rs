@@ -5,7 +5,7 @@
 use serde::Serialize;
 
 use crate::errors::CbError;
-use crate::product::ProductType;
+use crate::models::product::ProductType;
 use crate::utils::QueryBuilder;
 use crate::{traits::Query, types::CbResult};
 
@@ -34,7 +34,7 @@ pub struct OrderListQuery {
     pub end_date: Option<String>,
     /// Only returns the orders where the quote, base or underlying asset matches the provided asset filter(s) (e.g. 'BTC').
     pub asset_filters: Option<Vec<String>>,
-    /// A pagination limit with no default set. If has_next is true, additional orders are available to be fetched with pagination; also the cursor value in the response can be passed as cursor parameter in the subsequent request.
+    /// A pagination limit with no default set. If `has_next` is true, additional orders are available to be fetched with pagination; also the cursor value in the response can be passed as cursor parameter in the subsequent request.
     pub limit: Option<u32>,
     /// Cursor used for pagination. When provided, the response returns responses after this cursor.
     pub cursor: Option<String>,
@@ -156,7 +156,7 @@ impl OrderListQuery {
         self
     }
 
-    /// A pagination limit with no default set. If has_next is true, additional orders are available to be fetched with pagination; also the cursor value in the response can be passed as cursor parameter in the subsequent request.
+    /// A pagination limit with no default set. If `has_next` is true, additional orders are available to be fetched with pagination; also the cursor value in the response can be passed as cursor parameter in the subsequent request.
     pub fn limit(mut self, limit: u32) -> Self {
         self.limit = Some(limit);
         self

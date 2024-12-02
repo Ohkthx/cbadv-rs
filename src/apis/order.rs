@@ -9,7 +9,7 @@ use crate::constants::orders::{
 };
 use crate::errors::CbError;
 use crate::http_agent::SecureHttpAgent;
-use crate::order::{
+use crate::models::order::{
     Order, OrderCancelRequest, OrderCancelResponse, OrderCancelWrapper, OrderClosePositionRequest,
     OrderCreatePreview, OrderCreateRequest, OrderCreateResponse, OrderEditPreview,
     OrderEditRequest, OrderEditResponse, OrderListFillsQuery, OrderListQuery, OrderStatus,
@@ -40,12 +40,20 @@ impl OrderApi {
     ///
     /// * `request` - A struct containing what orders to cancel.
     ///
+    /// # Errors
+    ///
+    /// * `CbError::AuthenticationError` - If the agent is not authenticated.
+    /// * `CbError::JsonError` - If there was an issue parsing the JSON response.
+    /// * `CbError::RequestError` - If there was an issue making the request.
+    /// * `CbError::UrlParseError` - If there was an issue parsing the URL.
+    /// * `CbError::BadSerialization` - If there was an issue serializing the request.
+    /// * `CbError::BadStatus` - If the status code was not 200.
+    /// * `CbError::BadJwt` - If there was an issue creating the JWT.
+    ///
     /// # Endpoint / Reference
     ///
-    #[allow(rustdoc::bare_urls)]
-    /// https://api.coinbase.com/api/v3/brokerage/orders/batch_cancel
-    ///
-    /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_cancelorders>
+    /// * <https://api.coinbase.com/api/v3/brokerage/orders/batch_cancel>
+    /// * <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_cancelorders>
     pub async fn cancel(
         &mut self,
         request: &OrderCancelRequest,
@@ -61,12 +69,22 @@ impl OrderApi {
 
     /// Cancel all OPEN orders for a specific product ID.
     ///
-    /// NOTE: NOT A STANDARD API FUNCTION. QoL function that may require additional API requests
+    /// NOTE: NOT A STANDARD API FUNCTION. QOL function that may require additional API requests
     /// than normal.
     ///
     /// # Arguments
     ///
     /// * `product_id` - Product to cancel all OPEN orders for.
+    ///
+    /// # Errors
+    ///
+    /// * `CbError::AuthenticationError` - If the agent is not authenticated.
+    /// * `CbError::JsonError` - If there was an issue parsing the JSON response.
+    /// * `CbError::RequestError` - If there was an issue making the request.
+    /// * `CbError::UrlParseError` - If there was an issue parsing the URL.
+    /// * `CbError::BadSerialization` - If there was an issue serializing the request.
+    /// * `CbError::BadStatus` - If the status code was not 200.
+    /// * `CbError::BadJwt` - If there was an issue creating the JWT.
     pub async fn cancel_all(&mut self, product_id: &str) -> CbResult<Vec<OrderCancelResponse>> {
         is_auth!(self.agent, "cancel all orders");
 
@@ -105,12 +123,20 @@ impl OrderApi {
     ///
     /// * `request` - A struct containing the order ID, new size, and new price.
     ///
+    /// # Errors
+    ///
+    /// * `CbError::AuthenticationError` - If the agent is not authenticated.
+    /// * `CbError::JsonError` - If there was an issue parsing the JSON response.
+    /// * `CbError::RequestError` - If there was an issue making the request.
+    /// * `CbError::UrlParseError` - If there was an issue parsing the URL.
+    /// * `CbError::BadSerialization` - If there was an issue serializing the request.
+    /// * `CbError::BadStatus` - If the status code was not 200.
+    /// * `CbError::BadJwt` - If there was an issue creating the JWT.
+    ///
     /// # Endpoint / Reference
     ///
-    #[allow(rustdoc::bare_urls)]
-    /// https://api.coinbase.com/api/v3/brokerage/orders/edit
-    ///
-    /// https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_editorder
+    /// * <https://api.coinbase.com/api/v3/brokerage/orders/edit>
+    /// * <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_editorder>
     pub async fn edit(&mut self, request: &OrderEditRequest) -> CbResult<OrderEditResponse> {
         let agent = get_auth!(self.agent, "edit order");
         let response = agent.post(EDIT_ENDPOINT, &NoQuery, request).await?;
@@ -127,12 +153,20 @@ impl OrderApi {
     ///
     /// * `request` - A struct containing the order details to preview.
     ///
+    /// # Errors
+    ///
+    /// * `CbError::AuthenticationError` - If the agent is not authenticated.
+    /// * `CbError::JsonError` - If there was an issue parsing the JSON response.
+    /// * `CbError::RequestError` - If there was an issue making the request.
+    /// * `CbError::UrlParseError` - If there was an issue parsing the URL.
+    /// * `CbError::BadSerialization` - If there was an issue serializing the request.
+    /// * `CbError::BadStatus` - If the status code was not 200.
+    /// * `CbError::BadJwt` - If there was an issue creating the JWT.
+    ///
     /// # Endpoint / Reference
     ///
-    #[allow(rustdoc::bare_urls)]
-    /// https://api.coinbase.com/api/v3/brokerage/orders/preview
-    ///
-    /// <https://docs.cdp.coinbase.com/advanced-trade/reference/retailbrokerageapi_previeworder>
+    /// * <https://api.coinbase.com/api/v3/brokerage/orders/preview>
+    /// * <https://docs.cdp.coinbase.com/advanced-trade/reference/retailbrokerageapi_previeworder>
     pub async fn preview_create(
         &mut self,
         request: &OrderCreateRequest,
@@ -155,12 +189,20 @@ impl OrderApi {
     ///
     /// * `request` - A struct containing the order ID, new size, and new price.
     ///
+    /// # Errors
+    ///
+    /// * `CbError::AuthenticationError` - If the agent is not authenticated.
+    /// * `CbError::JsonError` - If there was an issue parsing the JSON response.
+    /// * `CbError::RequestError` - If there was an issue making the request.
+    /// * `CbError::UrlParseError` - If there was an issue parsing the URL.
+    /// * `CbError::BadSerialization` - If there was an issue serializing the request.
+    /// * `CbError::BadStatus` - If the status code was not 200.
+    /// * `CbError::BadJwt` - If there was an issue creating the JWT.
+    ///
     /// # Endpoint / Reference
     ///
-    #[allow(rustdoc::bare_urls)]
-    /// https://api.coinbase.com/api/v3/brokerage/orders/edit_preivew
-    ///
-    /// https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_previeweditorder
+    /// * <https://api.coinbase.com/api/v3/brokerage/orders/edit_preivew>
+    /// * <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_previeweditorder>
     pub async fn preview_edit(&mut self, request: &OrderEditRequest) -> CbResult<OrderEditPreview> {
         let agent = get_auth!(self.agent, "preview edit order");
         let response = agent.post(EDIT_PREVIEW_ENDPOINT, &NoQuery, request).await?;
@@ -177,12 +219,20 @@ impl OrderApi {
     ///
     /// * `request` - A struct containing the order details to create.
     ///
+    /// # Errors
+    ///
+    /// * `CbError::AuthenticationError` - If the agent is not authenticated.
+    /// * `CbError::JsonError` - If there was an issue parsing the JSON response.
+    /// * `CbError::RequestError` - If there was an issue making the request.
+    /// * `CbError::UrlParseError` - If there was an issue parsing the URL.
+    /// * `CbError::BadSerialization` - If there was an issue serializing the request.
+    /// * `CbError::BadStatus` - If the status code was not 200.
+    /// * `CbError::BadJwt` - If there was an issue creating the JWT.
+    ///
     /// # Endpoint / Reference
     ///
-    #[allow(rustdoc::bare_urls)]
-    /// https://api.coinbase.com/api/v3/brokerage/orders
-    ///
-    /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_postorder>
+    /// * <https://api.coinbase.com/api/v3/brokerage/orders>
+    /// * <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_postorder>
     pub async fn create(&mut self, request: &OrderCreateRequest) -> CbResult<OrderCreateResponse> {
         let agent = get_auth!(self.agent, "create order");
         let response = agent.post(RESOURCE_ENDPOINT, &NoQuery, request).await?;
@@ -199,15 +249,23 @@ impl OrderApi {
     ///
     /// * `order_id` - A string that represents the order's ID.
     ///
+    /// # Errors
+    ///
+    /// * `CbError::AuthenticationError` - If the agent is not authenticated.
+    /// * `CbError::JsonError` - If there was an issue parsing the JSON response.
+    /// * `CbError::RequestError` - If there was an issue making the request.
+    /// * `CbError::UrlParseError` - If there was an issue parsing the URL.
+    /// * `CbError::BadSerialization` - If there was an issue serializing the request.
+    /// * `CbError::BadStatus` - If the status code was not 200.
+    /// * `CbError::BadJwt` - If there was an issue creating the JWT.
+    ///
     /// # Endpoint / Reference
     ///
-    #[allow(rustdoc::bare_urls)]
-    /// https://api.coinbase.com/api/v3/brokerage/orders/historical/{order_id}
-    ///
-    /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_gethistoricalorder>
+    /// * <https://api.coinbase.com/api/v3/brokerage/orders/historical/{order_id>}
+    /// * <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_gethistoricalorder>
     pub async fn get(&mut self, order_id: &str) -> CbResult<Order> {
         let agent = get_auth!(self.agent, "get order");
-        let resource = format!("{}/historical/{}", RESOURCE_ENDPOINT, order_id);
+        let resource = format!("{RESOURCE_ENDPOINT}/historical/{order_id}");
         let response = agent.get(&resource, &NoQuery).await?;
         let data: OrderWrapper = response
             .json()
@@ -222,12 +280,20 @@ impl OrderApi {
     ///
     /// * `query` - A Parameters to modify what is returned by the API.
     ///
+    /// # Errors
+    ///
+    /// * `CbError::AuthenticationError` - If the agent is not authenticated.
+    /// * `CbError::JsonError` - If there was an issue parsing the JSON response.
+    /// * `CbError::RequestError` - If there was an issue making the request.
+    /// * `CbError::UrlParseError` - If there was an issue parsing the URL.
+    /// * `CbError::BadSerialization` - If there was an issue serializing the request.
+    /// * `CbError::BadStatus` - If the status code was not 200.
+    /// * `CbError::BadJwt` - If there was an issue creating the JWT.
+    ///
     /// # Endpoint / Reference
     ///
-    #[allow(rustdoc::bare_urls)]
-    /// https://api.coinbase.com/api/v3/brokerage/orders/historical
-    ///
-    /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_gethistoricalorders>
+    /// * <https://api.coinbase.com/api/v3/brokerage/orders/historical>
+    /// * <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_gethistoricalorders>
     pub async fn get_bulk(&mut self, query: &OrderListQuery) -> CbResult<PaginatedOrders> {
         let agent = get_auth!(self.agent, "get bulk orders");
         let response = agent.get(BATCH_ENDPOINT, query).await?;
@@ -242,12 +308,22 @@ impl OrderApi {
     /// This wraps `get_bulk` and makes several additional requests until there are no
     /// additional orders.
     ///
-    /// NOTE: NOT A STANDARD API FUNCTION. QoL function that may require additional API requests than normal.
+    /// NOTE: NOT A STANDARD API FUNCTION. QOL function that may require additional API requests than normal.
     ///
     /// # Arguments
     ///
     /// * `product_id` - Identifier for the account, such as BTC-USD or ETH-USD.
     /// * `query` - A Parameters to modify what is returned by the API.
+    ///
+    /// # Errors
+    ///
+    /// * `CbError::AuthenticationError` - If the agent is not authenticated.
+    /// * `CbError::JsonError` - If there was an issue parsing the JSON response.
+    /// * `CbError::RequestError` - If there was an issue making the request.
+    /// * `CbError::UrlParseError` - If there was an issue parsing the URL.
+    /// * `CbError::BadSerialization` - If there was an issue serializing the request.
+    /// * `CbError::BadStatus` - If the status code was not 200.
+    /// * `CbError::BadJwt` - If there was an issue creating the JWT.
     pub async fn get_all(
         &mut self,
         product_id: &str,
@@ -280,12 +356,20 @@ impl OrderApi {
     ///
     /// * `query` - A Parameters to modify what is returned by the API.
     ///
+    /// # Errors
+    ///
+    /// * `CbError::AuthenticationError` - If the agent is not authenticated.
+    /// * `CbError::JsonError` - If there was an issue parsing the JSON response.
+    /// * `CbError::RequestError` - If there was an issue making the request.
+    /// * `CbError::UrlParseError` - If there was an issue parsing the URL.
+    /// * `CbError::BadSerialization` - If there was an issue serializing the request.
+    /// * `CbError::BadStatus` - If the status code was not 200.
+    /// * `CbError::BadJwt` - If there was an issue creating the JWT.
+    ///
     /// # Endpoint / Reference
     ///
-    #[allow(rustdoc::bare_urls)]
-    /// https://api.coinbase.com/api/v3/brokerage/orders/historical/fills
-    ///
-    /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getfills>
+    /// * <https://api.coinbase.com/api/v3/brokerage/orders/historical/fills>
+    /// * <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getfills>
     pub async fn fills(&mut self, query: &OrderListFillsQuery) -> CbResult<PaginatedFills> {
         let agent = get_auth!(self.agent, "get fills");
         let response = agent.get(FILLS_ENDPOINT, query).await?;
@@ -296,18 +380,26 @@ impl OrderApi {
         Ok(data)
     }
 
-    /// Places an order to close any open positions for a specified product_id.
+    /// Places an order to close any open positions for a specified `product_id`.
     ///
     /// # Arguments
     ///
     /// * `request` - A request as to what position to close.
     ///
+    /// # Errors
+    ///
+    /// * `CbError::AuthenticationError` - If the agent is not authenticated.
+    /// * `CbError::JsonError` - If there was an issue parsing the JSON response.
+    /// * `CbError::RequestError` - If there was an issue making the request.
+    /// * `CbError::UrlParseError` - If there was an issue parsing the URL.
+    /// * `CbError::BadSerialization` - If there was an issue serializing the request.
+    /// * `CbError::BadStatus` - If the status code was not 200.
+    /// * `CbError::BadJwt` - If there was an issue creating the JWT.
+    ///
     /// # Endpoint / Reference
     ///
-    #[allow(rustdoc::bare_urls)]
-    /// https://api.coinbase.com/api/v3/brokerage/orders/close_position
-    ///
-    /// <https://docs.cdp.coinbase.com/advanced-trade/reference/retailbrokerageapi_closeposition>
+    /// * <https://api.coinbase.com/api/v3/brokerage/orders/close_position>
+    /// * <https://docs.cdp.coinbase.com/advanced-trade/reference/retailbrokerageapi_closeposition>
     pub async fn close_position(
         &mut self,
         request: &OrderClosePositionRequest,

@@ -1,12 +1,17 @@
 use std::collections::{HashMap, HashSet};
+use std::pin::Pin;
 use std::sync::Arc;
 
+use futures::Stream;
+use futures_util::stream::{self, SelectAll};
 use serde::Serialize;
 use tokio::sync::Mutex;
+use tokio_tungstenite::tungstenite::{Error as WsError, Message as WsMessage};
 
 use super::{Channel, Endpoint, EndpointType};
-use crate::types::WebSocketReader;
+use crate::types::Socket;
 
+type SplitStream = stream::SplitStream<Socket>;
 type ChannelSubscriptions = HashMap<Channel, Vec<String>>;
 
 /// Secure (authenticated) Subscription is sent to the WebSocket to enable updates for specified Channels.
@@ -45,12 +50,12 @@ pub struct WebSocketEndpoints {
 }
 
 impl WebSocketEndpoints {
-    /// Create a new WebSocketEndpoints.
+    /// Create a new `WebSocketEndpoints`.
     pub fn new() -> Self {
         Self::default()
     }
 
-    /// Add an endpoint to the WebSocketEndpoints.
+    /// Add an endpoint to the `WebSocketEndpoints`.
     ///
     /// # Arguments
     ///
@@ -59,7 +64,7 @@ impl WebSocketEndpoints {
         self.endpoints.insert(endpoint_type, endpoint);
     }
 
-    /// Check if the WebSocketEndpoints contains an endpoint.
+    /// Check if the `WebSocketEndpoints` contains an endpoint.
     ///
     /// # Arguments
     ///
@@ -68,7 +73,7 @@ impl WebSocketEndpoints {
         self.endpoints.get(endpoint_type)
     }
 
-    /// Check if the WebSocketEndpoints contains a mutable reference to an endpoint.
+    /// Check if the `WebSocketEndpoints` contains a mutable reference to an endpoint.
     ///
     /// # Arguments
     ///
@@ -77,7 +82,7 @@ impl WebSocketEndpoints {
         self.endpoints.get_mut(endpoint_type)
     }
 
-    /// Take an endpoint from the WebSocketEndpoints.
+    /// Take an endpoint from the `WebSocketEndpoints`.
     ///
     /// # Arguments
     ///
@@ -96,20 +101,14 @@ impl WebSocketEndpoints {
         self.get(&EndpointType::User)
     }
 
-    /// Converts the WebSocketEndpoints into a vector of WebSocketReaders.
-    pub(crate) fn extract_to_vec(&mut self) -> Vec<WebSocketReader> {
-        let mut readers = Vec::new();
-        let keys: Vec<EndpointType> = self.endpoints.keys().cloned().collect();
-        for key in keys {
-            if let Some(endpoint) = self.endpoints.remove(&key) {
-                match endpoint {
-                    Endpoint::Public((_route, reader)) => readers.push(reader),
-                    Endpoint::User((_route, reader)) => readers.push(reader),
-                }
-            }
+    /// Converts the `WebSocketEndpoints` into a vector of Endpoints.
+    pub(crate) fn extract_to_vec(&mut self) -> Vec<Endpoint> {
+        let mut endpoints = Vec::new();
+        for (_, endpoint) in self.endpoints.drain() {
+            endpoints.push(endpoint);
         }
 
-        readers
+        endpoints
     }
 }
 
@@ -128,7 +127,7 @@ impl Default for WebSocketSubscriptions {
 }
 
 impl WebSocketSubscriptions {
-    /// Create a new WebSocketSubscriptions.
+    /// Create a new `WebSocketSubscriptions`.
     pub(crate) fn new() -> Self {
         Self::default()
     }
@@ -190,8 +189,59 @@ impl WebSocketSubscriptions {
     }
 
     /// Obtains all of the keys (endpoints) that have subscriptions.
-    pub(crate) async fn get_keys(&self) -> Vec<EndpointType> {
+    pub(crate) fn get_keys(&self) -> Vec<EndpointType> {
         let keys: Vec<EndpointType> = self.data.keys().cloned().collect();
         keys
+    }
+}
+
+/// Stream of WebSocket messages from one or more endpoints.
+pub enum EndpointStream {
+    /// A single endpoint stream.
+    Single(EndpointType, SplitStream),
+    /// Multiple endpoint streams.
+    Multiple(SelectAll<SplitStream>),
+}
+
+impl From<Endpoint> for EndpointStream {
+    fn from(endpoint: Endpoint) -> Self {
+        match endpoint {
+            // Convert the endpoint into a single stream.
+            Endpoint::Public((route, reader)) | Endpoint::User((route, reader)) => {
+                EndpointStream::Single(route, reader)
+            }
+        }
+    }
+}
+
+impl From<Vec<Endpoint>> for EndpointStream {
+    fn from(endpoints: Vec<Endpoint>) -> Self {
+        let mut select_all = SelectAll::new();
+
+        // Iterate over each endpoint and convert it into a single stream.
+        for endpoint in endpoints {
+            match endpoint {
+                // Convert the endpoint into a single stream.
+                Endpoint::Public((_, reader)) | Endpoint::User((_, reader)) => {
+                    select_all.push(reader);
+                }
+            }
+        }
+
+        EndpointStream::Multiple(select_all)
+    }
+}
+
+impl Stream for EndpointStream {
+    type Item = Result<WsMessage, WsError>;
+
+    fn poll_next(
+        self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Option<Self::Item>> {
+        match self.get_mut() {
+            EndpointStream::Single(_, stream) => Pin::new(stream).poll_next(cx),
+            EndpointStream::Multiple(stream) => Pin::new(stream).poll_next(cx),
+        }
     }
 }

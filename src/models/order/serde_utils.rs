@@ -1,6 +1,6 @@
 //! # Coinbase Advanced Order API
 //!
-//! `order/serde_utils` is the module containing the serde utility functions for the OrderType enum.
+//! `order/serde_utils` is the module containing the serde utility functions for the `OrderType` enum.
 
 use std::fmt;
 

@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, DefaultOnError, DisplayFromStr};
 
-use crate::order::{OrderSide, OrderStatus, OrderType, TimeInForce, TriggerStatus};
-use crate::product::{Candle, ProductType};
+use crate::models::order::{OrderSide, OrderStatus, OrderType, TimeInForce, TriggerStatus};
+use crate::models::product::{Candle, ProductType};
 
 use super::Level2Side;
 
@@ -172,4 +172,53 @@ pub struct OrderUpdate {
     pub creation_time: String,
     pub end_time: String,
     pub start_time: String,
+}
+
+/// Represents a Futures Balance Summary update received from the Websocket API.
+#[serde_as]
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct FuturesBalanceSummaryUpdate {
+    #[serde_as(as = "DisplayFromStr")]
+    futures_buying_power: f64,
+    #[serde_as(as = "DisplayFromStr")]
+    total_usd_balance: f64,
+    #[serde_as(as = "DisplayFromStr")]
+    cbi_usd_balance: f64,
+    #[serde_as(as = "DisplayFromStr")]
+    cfm_usd_balance: f64,
+    #[serde_as(as = "DisplayFromStr")]
+    total_open_orders_hold_amount: f64,
+    #[serde_as(as = "DisplayFromStr")]
+    unrealized_pnl: f64,
+    #[serde_as(as = "DisplayFromStr")]
+    daily_realized_pnl: f64,
+    #[serde_as(as = "DisplayFromStr")]
+    initial_margin: f64,
+    #[serde_as(as = "DisplayFromStr")]
+    available_margin: f64,
+    #[serde_as(as = "DisplayFromStr")]
+    liquidation_threshold: f64,
+    #[serde_as(as = "DisplayFromStr")]
+    liquidation_buffer_amount: f64,
+    #[serde_as(as = "DisplayFromStr")]
+    liquidation_buffer_percentage: u32,
+    intraday_margin_window_measure: MarginWindowMeasure,
+    overnight_margin_window_measure: MarginWindowMeasure,
+}
+
+#[serde_as]
+#[derive(Debug, Deserialize, Serialize, Clone)]
+struct MarginWindowMeasure {
+    margin_window_type: String,
+    margin_level: String,
+    #[serde_as(as = "DisplayFromStr")]
+    initial_margin: f64,
+    #[serde_as(as = "DisplayFromStr")]
+    maintenance_margin: f64,
+    #[serde_as(as = "DisplayFromStr")]
+    liquidation_buffer_percentage: u32,
+    #[serde_as(as = "DisplayFromStr")]
+    total_hold: f64,
+    #[serde_as(as = "DisplayFromStr")]
+    futures_buying_power: f64,
 }

@@ -19,14 +19,13 @@ use crate::constants::websocket::{PUBLIC_ENDPOINT, SECURE_ENDPOINT};
 use crate::errors::CbError;
 use crate::jwt::Jwt;
 use crate::models::websocket::{
-    Channel, EndpointType, SecureSubscription, Subscription, UnsignedSubscription,
-    WebSocketEndpoints,
+    Channel, Endpoint, EndpointStream, EndpointType, Message, SecureSubscription, Subscription,
+    UnsignedSubscription, WebSocketEndpoints, WebSocketSubscriptions,
 };
 use crate::time;
 use crate::token_bucket::{RateLimits, TokenBucket};
 use crate::traits::{CandleCallback, MessageCallback};
-use crate::types::{CbResult, MessageCallbackFn};
-use crate::ws::{Endpoint, Message, WebSocketSubscriptions};
+use crate::types::CbResult;
 
 #[cfg(feature = "config")]
 use crate::config::ConfigFile;
@@ -36,20 +35,19 @@ type Socket = WebSocketStream<MaybeTlsStream<TcpStream>>;
 /// Obtains the endpoint associated with the channel.
 fn get_channel_endpoint(channel: &Channel) -> EndpointType {
     match channel {
-        Channel::Subscriptions => EndpointType::Public,
-        Channel::Heartbeats => EndpointType::Public,
-        Channel::Status => EndpointType::Public,
-        Channel::Ticker => EndpointType::Public,
-        Channel::TickerBatch => EndpointType::Public,
-        Channel::MarketTrades => EndpointType::Public,
-        Channel::Level2 => EndpointType::Public,
-        Channel::Candles => EndpointType::Public,
-        Channel::User => EndpointType::User,
-        Channel::FuturesBalanceSummary => EndpointType::User,
+        Channel::Subscriptions
+        | Channel::Heartbeats
+        | Channel::Status
+        | Channel::Ticker
+        | Channel::TickerBatch
+        | Channel::MarketTrades
+        | Channel::Level2
+        | Channel::Candles => EndpointType::Public,
+        Channel::User | Channel::FuturesBalanceSummary => EndpointType::User,
     }
 }
 
-/// Builder to create a WebSocketClient.
+/// Builds a new WebSocket Client (`WebSocketClient`) that directly interacts with the Coinbase Advanced API.
 pub struct WebSocketClientBuilder {
     api_key: Option<String>,
     api_secret: Option<String>,
@@ -81,7 +79,7 @@ impl Default for WebSocketClientBuilder {
 }
 
 impl WebSocketClientBuilder {
-    /// Creates a new WebSocketClientBuilder.
+    /// Creates a new `WebSocketClientBuilder`.
     pub fn new() -> Self {
         Self::default()
     }
@@ -90,7 +88,7 @@ impl WebSocketClientBuilder {
     ///
     /// # Arguments
     ///
-    /// * `config` - Configuration that implements ConfigFile trait.
+    /// * `config` - Configuration that implements `ConfigFile` trait.
     #[cfg(feature = "config")]
     pub fn with_config<T>(mut self, config: &T) -> Self
     where
@@ -159,7 +157,11 @@ impl WebSocketClientBuilder {
         self
     }
 
-    /// Builds the WebSocketClient.
+    /// Builds the `WebSocketClient`.
+    ///
+    /// # Errors
+    ///
+    /// Returns a `CbError` if the API key or secret are missing or if both public and secure connections are disabled.
     pub fn build(self) -> CbResult<WebSocketClient> {
         // Ensure at least one connection is enabled.
         if !self.enable_public && !self.enable_user {
@@ -195,8 +197,7 @@ impl WebSocketClientBuilder {
     }
 }
 
-/// Represents a Client for the Websocket API. Provides easy-access to subscribing and listening to
-/// the WebSocket.
+/// A WebSocket Client used to interactive with the Coinbase Advanced API. Provides easy-access to subscribing and listening to the WebSocket.
 pub struct WebSocketClient {
     /// Signs the messages sent.
     pub(crate) jwt: Option<Jwt>,
@@ -236,6 +237,10 @@ impl Clone for WebSocketClient {
 
 impl WebSocketClient {
     /// Connects to the endpoints specified in the builder. This is required before subscribing to any channels.
+    ///
+    /// # Errors
+    ///
+    /// Returns a `CbError` if the WebSocket connection fails.
     pub async fn connect(&mut self) -> CbResult<WebSocketEndpoints> {
         let mut endpoints = WebSocketEndpoints::default();
 
@@ -256,10 +261,9 @@ impl WebSocketClient {
     async fn connect_endpoint(&mut self, endpoint_type: &EndpointType) -> CbResult<Endpoint> {
         match endpoint_type {
             EndpointType::Public => {
-                let (public_socket, _) = connect_async(PUBLIC_ENDPOINT).await.map_err(|e| {
+                let (public_socket, _) = connect_async(PUBLIC_ENDPOINT).await.map_err(|why| {
                     CbError::BadConnection(format!(
-                        "Unable to establish public WebSocket connection: {}",
-                        e
+                        "Unable to establish public WebSocket connection: {why}",
                     ))
                 })?;
                 let (public_sink, stream) = public_socket.split();
@@ -270,10 +274,9 @@ impl WebSocketClient {
                 Ok(Endpoint::Public((EndpointType::Public, stream)))
             }
             EndpointType::User => {
-                let (secure_socket, _) = connect_async(SECURE_ENDPOINT).await.map_err(|e| {
+                let (secure_socket, _) = connect_async(SECURE_ENDPOINT).await.map_err(|why| {
                     CbError::BadConnection(format!(
-                        "Unable to establish secure user WebSocket connection: {}",
-                        e
+                        "Unable to establish secure user WebSocket connection: {why}",
                     ))
                 })?;
                 let (secure_sink, stream) = secure_socket.split();
@@ -287,6 +290,10 @@ impl WebSocketClient {
     }
 
     /// Reconnects to a specific endpoint. Returns the reader of the endpoint.
+    ///
+    /// # Errors
+    ///
+    /// Returns a `CbError` if the WebSocket connection fails.
     async fn reconnect(&mut self, endpoint_type: &EndpointType) -> CbResult<Endpoint> {
         let endpoint = self.connect_endpoint(endpoint_type).await?;
 
@@ -298,13 +305,17 @@ impl WebSocketClient {
 
         // Add the subscriptions back.
         for (channel, product_ids) in subs {
-            self.sub(&channel, &product_ids).await?;
+            self.subscribe(&channel, &product_ids).await?;
         }
 
         Ok(endpoint)
     }
 
     /// Waits for a reconnection to occur. This is used when a WebSocket connection is lost.
+    ///
+    /// # Errors
+    ///
+    /// Returns a `CbError` if the WebSocket connection fails or auto-reconnect is disabled.
     async fn wait_on_reconnect(&mut self, endpoint_type: &EndpointType) -> CbResult<Endpoint> {
         if self.max_retries == 0 {
             return Err(CbError::BadConnection(
@@ -315,13 +326,13 @@ impl WebSocketClient {
         let mut retries = 0;
         let mut retry_delay = 2;
 
+        // Rety until max retries hit.
         while retries < self.max_retries {
             match self.reconnect(endpoint_type).await {
                 Ok(endpoint) => return Ok(endpoint),
-                Err(e) => {
+                Err(why) => {
                     eprintln!(
-                        "Failed to reconnect WebSocket: {}. Retrying in {} seconds...",
-                        e, retry_delay
+                        "Failed to reconnect WebSocket: {why}. Retrying in {retry_delay} seconds..."
                     );
                     tokio::time::sleep(tokio::time::Duration::from_secs(retry_delay)).await;
                     retries += 1;
@@ -331,9 +342,87 @@ impl WebSocketClient {
         }
 
         Err(CbError::BadConnection(format!(
-            "Failed to reconnect WebSocket after {} attempts.",
-            retries,
+            "Failed to reconnect WebSocket after {retries} attempts."
         )))
+    }
+
+    /// Handles reconnection logic for endpoints.
+    async fn handle_reconnection(&mut self, stream: EndpointStream) -> Option<EndpointStream> {
+        match stream {
+            EndpointStream::Single(route, _) => {
+                // Reconnect and return a new Single EndpointStream.
+                self.wait_on_reconnect(&route).await.ok().map(Into::into)
+            }
+            EndpointStream::Multiple(_) => {
+                // Obtain all the endpoints that need to be reconnected.
+                let keys = {
+                    let subs = self.subscriptions.lock().await;
+                    subs.get_keys()
+                };
+
+                // Iterate over each endpoint and attempt to reconnect.
+                let mut new_endpoints = WebSocketEndpoints::default();
+                for endpoint_type in keys {
+                    if let Ok(new_endpoint) = self.wait_on_reconnect(&endpoint_type).await {
+                        new_endpoints.add(endpoint_type.clone(), new_endpoint);
+                    } else {
+                        eprintln!("Failed to reconnect: {endpoint_type:?}");
+                        return None;
+                    }
+                }
+
+                // Extract the readers (streams) from the new endpoints.
+                let streams = new_endpoints
+                    .extract_to_vec()
+                    .into_iter()
+                    .map(|endpoint| match endpoint {
+                        Endpoint::Public((_, reader)) | Endpoint::User((_, reader)) => reader,
+                    })
+                    .collect::<Vec<_>>();
+
+                // Create a new Multiple EndpointStream.
+                let mut select_all = stream::SelectAll::new();
+                for stream in streams {
+                    select_all.push(stream);
+                }
+
+                Some(EndpointStream::Multiple(select_all))
+            }
+        }
+    }
+
+    /// Listens to WebSocket readers, supporting both single and multiple endpoints.
+    ///
+    /// # Arguments
+    ///
+    /// * `endpoints` - A single `Endpoint` or multiple `WebSocketEndpoints`.
+    /// * `callback` - A callback object that implements the `MessageCallback` trait.
+    pub async fn listen<T, E>(&mut self, endpoints: E, mut callback: T)
+    where
+        T: MessageCallback + Send + 'static,
+        E: Into<EndpointStream>,
+    {
+        let mut stream = endpoints.into();
+
+        loop {
+            while let Some(message) = stream.next().await {
+                if let Some(result) = Self::process_message(message) {
+                    if let Err(CbError::BadConnection(_)) = &result {
+                        // Handle reconnection logic.
+                        if let Some(new_stream) = self.handle_reconnection(stream).await {
+                            // Restart the loop with the new streams.
+                            stream = new_stream;
+                            break;
+                        }
+
+                        // Reconnection failed, exit.
+                        return;
+                    }
+
+                    callback.message_callback(result).await;
+                }
+            }
+        }
     }
 
     /// Waits for a token to be consumable for the correct bucket.
@@ -356,215 +445,27 @@ impl WebSocketClient {
     ///
     /// * `message` - A WebSocket message to process.
     /// * `callback` - A closure or function that processes parsed messages or errors.
-    async fn process_message(message: Result<WsMessage, WsError>) -> Option<CbResult<Message>> {
+    fn process_message(message: Result<WsMessage, WsError>) -> Option<CbResult<Message>> {
         match message {
             Ok(msg) => match msg {
                 WsMessage::Text(data) => {
-                    let result = serde_json::from_str::<Message>(&data).map_err(|e| {
-                        CbError::BadParse(format!(
-                            "Unable to parse message: {}. Error: {}",
-                            data, e
-                        ))
+                    let result = serde_json::from_str::<Message>(&data).map_err(|why| {
+                        CbError::BadParse(format!("Unable to parse message: {data}. Error: {why}"))
                     });
                     Some(result)
                 }
-                WsMessage::Ping(_) | WsMessage::Pong(_) | WsMessage::Binary(_) => None, // Ignored.
+                WsMessage::Ping(_)
+                | WsMessage::Pong(_)
+                | WsMessage::Binary(_)
+                | WsMessage::Frame(_) => None, // Ignored.
                 WsMessage::Close(frame) => {
-                    eprintln!("WebSocket closed: {:?}", frame);
+                    eprintln!("WebSocket closed: {frame:?}");
                     Some(Err(CbError::BadConnection("WebSocket closed".to_string())))
                 }
-                _ => {
-                    eprintln!("Received an unrecognized message type: {:?}", msg);
-                    None
-                }
             },
-            Err(err) => Some(Err(CbError::BadConnection(format!(
-                "WebSocket error: {}",
-                err
+            Err(why) => Some(Err(CbError::BadConnection(format!(
+                "WebSocket error: {why}"
             )))),
-        }
-    }
-
-    /// Listens to a single WebSocket reader using a function callback.
-    ///
-    /// # Arguments
-    ///
-    /// * `endpoint` - WebSocket reader for a single channel (e.g., public or user).
-    /// * `callback` - A function callback that processes WebSocket messages.
-    pub async fn listen_fn(&mut self, mut endpoint: Endpoint, callback: MessageCallbackFn) {
-        loop {
-            let (route, reader) = match &mut endpoint {
-                Endpoint::Public((route, reader)) => (route, reader),
-                Endpoint::User((route, reader)) => (route, reader),
-            };
-
-            while let Some(message) = reader.next().await {
-                if let Some(result) = Self::process_message(message).await {
-                    if let Err(CbError::BadConnection(_)) = &result {
-                        // Attempt to reconnect.
-                        match self.wait_on_reconnect(route).await {
-                            Ok(new_endpoint) => {
-                                endpoint = new_endpoint;
-                                // Exit the inner loop to restart with the new endpoint.
-                                break;
-                            }
-                            Err(e) => {
-                                eprintln!("{}", e);
-                                return;
-                            }
-                        }
-                    } else {
-                        callback(result);
-                    }
-                }
-            }
-        }
-    }
-
-    /// Listens to a single WebSocket reader using a callback object that implements `MessageCallback`.
-    ///
-    /// # Arguments
-    ///
-    /// * `endpoint` - WebSocket reader for a single channel (e.g., public or user).
-    /// * `callback_obj` - A callback object that implements the `MessageCallback` trait.
-    pub async fn listen_trait<T>(&mut self, mut endpoint: Endpoint, mut callback_obj: T)
-    where
-        T: MessageCallback + Send + 'static,
-    {
-        loop {
-            let (route, reader) = match &mut endpoint {
-                Endpoint::Public((route, reader)) => (route, reader),
-                Endpoint::User((route, reader)) => (route, reader),
-            };
-
-            while let Some(message) = reader.next().await {
-                if let Some(result) = Self::process_message(message).await {
-                    if let Err(CbError::BadConnection(_)) = &result {
-                        // Attempt to reconnect.
-                        match self.wait_on_reconnect(route).await {
-                            Ok(new_endpoint) => {
-                                endpoint = new_endpoint;
-                                // Exit the inner loop to restart with the new endpoint.
-                                break;
-                            }
-                            Err(e) => {
-                                eprintln!("{}", e);
-                                return;
-                            }
-                        }
-                    } else {
-                        callback_obj.message_callback(result);
-                    }
-                }
-            }
-        }
-    }
-
-    /// Listens to WebSocket readers using a function callback.
-    ///
-    /// # Arguments
-    ///
-    /// * `endpoints` - WebSocket readers for the public and user.
-    /// * `callback` - A function callback that processes WebSocket messages.
-    pub async fn multi_listen_fn(
-        &mut self,
-        mut endpoints: WebSocketEndpoints,
-        callback: MessageCallbackFn,
-    ) {
-        loop {
-            let streams = endpoints.extract_to_vec();
-            if streams.is_empty() {
-                // No streams to listen to, exit the loop.
-                return;
-            }
-
-            let mut stream = stream::select_all(streams);
-            while let Some(message) = stream.next().await {
-                if let Some(result) = Self::process_message(message).await {
-                    if let Err(CbError::BadConnection(_)) = &result {
-                        // Obtain the endpoints to reconnect.
-                        let keys = {
-                            let subs = self.subscriptions.lock().await;
-                            subs.get_keys().await
-                        };
-
-                        // Attempt to reconnect all endpoints.
-                        let mut new_endpoints = WebSocketEndpoints::default();
-                        for endpoint_type in keys {
-                            match self.wait_on_reconnect(&endpoint_type).await {
-                                Ok(new_endpoint) => {
-                                    new_endpoints.add(endpoint_type.clone(), new_endpoint);
-                                }
-                                Err(e) => {
-                                    eprintln!("Failed to reconnect: {}", e);
-                                    return;
-                                }
-                            }
-                        }
-
-                        // Break to restart the loop with new endpoints.
-                        endpoints = new_endpoints;
-                        break;
-                    } else {
-                        callback(result);
-                    }
-                }
-            }
-        }
-    }
-
-    /// Listens to WebSocket readers using a callback object that implements `MessageCallback`.
-    ///
-    /// # Arguments
-    ///
-    /// * `endpoints` - WebSocket readers for the public and user.
-    /// * `callback_obj` - A callback object that implements the `MessageCallback` trait.
-    pub async fn multi_listen_trait<T>(
-        &mut self,
-        mut endpoints: WebSocketEndpoints,
-        mut callback_obj: T,
-    ) where
-        T: MessageCallback + Send + 'static,
-    {
-        loop {
-            let streams = endpoints.extract_to_vec();
-            if streams.is_empty() {
-                // No streams to listen to, exit the loop.
-                return;
-            }
-
-            let mut stream = stream::select_all(streams);
-            while let Some(message) = stream.next().await {
-                if let Some(result) = Self::process_message(message).await {
-                    if let Err(CbError::BadConnection(_)) = &result {
-                        // Obtain the endpoints to reconnect.
-                        let keys = {
-                            let subs = self.subscriptions.lock().await;
-                            subs.get_keys().await
-                        };
-
-                        // Attempt to reconnect all endpoints.
-                        let mut new_endpoints = WebSocketEndpoints::default();
-                        for endpoint_type in keys {
-                            match self.wait_on_reconnect(&endpoint_type).await {
-                                Ok(new_endpoint) => {
-                                    new_endpoints.add(endpoint_type.clone(), new_endpoint);
-                                }
-                                Err(e) => {
-                                    eprintln!("Failed to reconnect: {}", e);
-                                    return;
-                                }
-                            }
-                        }
-
-                        // Break to restart the loop with new endpoints.
-                        endpoints = new_endpoints;
-                        break;
-                    } else {
-                        callback_obj.message_callback(result);
-                    }
-                }
-            }
         }
     }
 
@@ -608,8 +509,8 @@ impl WebSocketClient {
             })
         };
 
-        let body = serde_json::to_string(&sub).map_err(|e| {
-            CbError::BadSerialization(format!("Failed to serialize subscription: {}", e))
+        let body = serde_json::to_string(&sub).map_err(|why| {
+            CbError::BadSerialization(format!("Failed to serialize subscription: {why}"))
         })?;
         let body_message = WsMessage::text(body);
 
@@ -620,10 +521,9 @@ impl WebSocketClient {
             EndpointType::Public => {
                 let mut tx = self.public_tx.lock().await;
                 if let Some(socket) = tx.as_mut() {
-                    socket.send(body_message).await.map_err(|e| {
+                    socket.send(body_message).await.map_err(|why| {
                         CbError::BadConnection(format!(
-                            "Failed to send message over WebSocket: {}",
-                            e
+                            "Failed to send message over WebSocket: {why}"
                         ))
                     })
                 } else {
@@ -636,10 +536,9 @@ impl WebSocketClient {
             EndpointType::User => {
                 let mut tx = self.secure_tx.lock().await;
                 if let Some(socket) = tx.as_mut() {
-                    socket.send(body_message).await.map_err(|e| {
+                    socket.send(body_message).await.map_err(|why| {
                         CbError::BadConnection(format!(
-                            "Failed to send message over WebSocket: {}",
-                            e
+                            "Failed to send message over WebSocket: {why}"
                         ))
                     })
                 } else {
@@ -660,6 +559,10 @@ impl WebSocketClient {
     ///
     /// * `channel` - The Channel that is being subscribed to.
     /// * `product_ids` - A vector of product IDs to listen for.
+    ///
+    /// # Errors
+    ///
+    /// Returns a `CbError` if the public or secure user connection is not enabled.
     pub async fn subscribe(&mut self, channel: &Channel, product_ids: &[String]) -> CbResult<()> {
         let route = &get_channel_endpoint(channel);
         match route {
@@ -688,16 +591,6 @@ impl WebSocketClient {
         Ok(())
     }
 
-    /// Shorthand version of `subscribe`.
-    ///
-    /// # Arguments
-    ///
-    /// * `channel` - The Channel that is being subscribed to.
-    /// * `product_ids` - A vector of product IDs to listen for.
-    pub async fn sub(&mut self, channel: &Channel, product_ids: &[String]) -> CbResult<()> {
-        self.subscribe(channel, product_ids).await
-    }
-
     /// Unsubscribes from the product IDs for the Channel provided. This will stop additional updates
     /// coming in via the `listener` for these products.
     ///
@@ -705,6 +598,10 @@ impl WebSocketClient {
     ///
     /// * `channel` - The Channel that is being changed to.
     /// * `product_ids` - A vector of product IDs to no longer listen for.
+    ///
+    /// # Errors
+    ///
+    /// Returns a `CbError` if the public or secure user connection is not enabled.
     pub async fn unsubscribe(&mut self, channel: &Channel, product_ids: &[String]) -> CbResult<()> {
         let route = &get_channel_endpoint(channel);
         match route {
@@ -733,22 +630,16 @@ impl WebSocketClient {
         Ok(())
     }
 
-    /// Shorthand version of `unsubscribe`.
-    ///
-    /// # Arguments
-    ///
-    /// * `channel` - The Channel that is being changed to.
-    /// * `product_ids` - A vector of product IDs to no longer listen for.
-    pub async fn unsub(&mut self, channel: &Channel, product_ids: &[String]) -> CbResult<()> {
-        self.unsubscribe(channel, product_ids).await
-    }
-
     /// Watches candles for a set of products, producing candles once they are considered complete.
     ///
     /// # Argument
     ///
     /// * `products` - Products to watch for candles for.
     /// * `watcher` - User-defined struct that implements `CandleCallback` to send completed candles to.
+    ///
+    /// # Errors
+    ///
+    /// Returns a `CbError` if the public connection is not enabled.
     pub async fn watch_candles<T>(
         mut self,
         products: &[String],
@@ -767,8 +658,8 @@ impl WebSocketClient {
         match self.connect().await?.take_endpoint(&EndpointType::Public) {
             Some(public) => {
                 // Keep the connection open by subscribing to heartbeats and sub to candles.
-                self.sub(&Channel::Heartbeats, &[]).await?;
-                self.sub(&Channel::Candles, products).await?;
+                self.subscribe(&Channel::Heartbeats, &[]).await?;
+                self.subscribe(&Channel::Candles, products).await?;
 
                 // Start task to watch candles using user's watcher.
                 let listener = tokio::spawn(CandleWatcher::start(self, public, watcher));

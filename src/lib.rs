@@ -7,7 +7,13 @@
 //! come in future updates. Use it as your own discretion and be mindful that bugs most likely
 //! exist. I hold no responsibility for any issues that occur by using this software and welcome
 //! contributions.
-
+#![warn(clippy::pedantic)]
+#![allow(
+    clippy::return_self_not_must_use,
+    clippy::must_use_candidate,
+    clippy::module_name_repetitions,
+    clippy::struct_excessive_bools
+)]
 #![cfg_attr(all(test, feature = "full"), deny(unreachable_pub))]
 #![cfg_attr(all(test, feature = "full"), deny(warnings))]
 
@@ -28,14 +34,15 @@ pub mod time;
 pub mod traits;
 pub mod types;
 pub(crate) mod utils;
+pub use utils::FunctionCallback;
 
-pub(crate) mod apis;
-pub(crate) mod models;
-pub use models::{
-    account, convert, fee, order, portfolio, product, public, shared, websocket as ws,
-};
+pub mod apis;
+pub mod models;
 
 mod rest;
 mod websocket;
 pub use rest::{RestClient, RestClientBuilder};
 pub use websocket::{WebSocketClient, WebSocketClientBuilder};
+
+// Re-export async_trait for the end-user.
+pub use async_trait::async_trait;

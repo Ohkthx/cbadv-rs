@@ -8,65 +8,37 @@
 
 use std::process::exit;
 
-use cbadv::config::{self, BaseConfig};
-use cbadv::traits::MessageCallback;
+use cbadv::models::websocket::{Channel, EndpointType, Message};
 use cbadv::types::CbResult;
-use cbadv::ws::{Channel, EndpointType, Message};
-use cbadv::WebSocketClientBuilder;
+use cbadv::{FunctionCallback, WebSocketClientBuilder};
 
-/// Example of an object with an attached callback function for messages.
-struct CallbackObject {
-    /// Total amount of messages processed.
-    total_processed: usize,
-}
+/// This is used to parse messages. It is passed to the `listen` function to pull Messages out of
+/// the stream.
+fn message_callback(msg: CbResult<Message>) {
+    let rcvd = match msg {
+        Ok(message) => format!("{message:?}"), // Leverage Debug for all Message variants
+        Err(error) => format!("Error: {error}"), // Handle WebSocket errors
+    };
 
-impl MessageCallback for CallbackObject {
-    /// This is used to parse messages. It is passed to the `listen` function to pull Messages out of
-    /// the stream.
-    fn message_callback(&mut self, msg: CbResult<Message>) {
-        let rcvd = match msg {
-            Ok(message) => format!("{:?}", message), // Leverage Debug for all Message variants
-            Err(error) => format!("Error: {}", error), // Handle WebSocket errors
-        };
-
-        // Update the callback object's properties and log the message.
-        self.total_processed += 1;
-        println!("{:<5}> {}\n", self.total_processed, rcvd);
-    }
+    // Update the callback object's properties and log the message.
+    println!("{rcvd}\n");
 }
 
 #[tokio::main]
 async fn main() {
-    // Load the configuration file.
-    let config: BaseConfig = match config::load("config.toml") {
-        Ok(c) => c,
-        Err(err) => {
-            println!("Could not load configuration file.");
-            if config::exists("config.toml") {
-                println!("File exists, {}", err);
-                exit(1);
-            }
-
-            // Create a new configuration file.
-            config::create_base_config("config.toml").unwrap();
-            println!("Empty configuration file created, please update it.");
-            exit(1);
-        }
-    };
-
+    // Create a client that can only access private streams.
     let mut client = WebSocketClientBuilder::new()
-        .with_config(&config)
         .auto_reconnect(true)
         .max_retries(20)
         .build()
         .map_err(|e| {
-            eprintln!("!ERROR! {}", e);
+            eprintln!("!ERROR! {e}");
             exit(1);
         })
         .unwrap();
 
-    // Callback Object.
-    let cb_obj = CallbackObject { total_processed: 0 };
+    // Assign the callback function to an object.
+    let callback = FunctionCallback::from_sync(message_callback);
 
     // Connect to the websocket, a subscription needs to be sent within 5 seconds.
     // If a subscription is not sent, Coinbase will close the connection.
@@ -82,23 +54,26 @@ async fn main() {
     let listened_client = client.clone();
     let listener = tokio::spawn(async move {
         let mut listened_client = listened_client;
-        listened_client.listen_trait(public, cb_obj).await;
+        listened_client.listen(public, callback).await;
     });
 
     // Products of interest.
     let products = vec!["BTC-USD".to_string(), "ETH-USD".to_string()];
 
     // Heartbeats is a great way to keep a connection alive and not timeout.
-    client.sub(&Channel::Heartbeats, &[]).await.unwrap();
-
-    // Subscribe to user orders.
-    client.sub(&Channel::User, &products).await.unwrap();
+    client.subscribe(&Channel::Heartbeats, &[]).await.unwrap();
 
     // Get updates (subscribe) on products and currencies.
-    client.sub(&Channel::Candles, &products).await.unwrap();
+    client
+        .subscribe(&Channel::Candles, &products)
+        .await
+        .unwrap();
 
     // Stop obtaining (unsubscribe) updates on products and currencies.
-    client.unsub(&Channel::Status, &products).await.unwrap();
+    client
+        .unsubscribe(&Channel::Status, &products)
+        .await
+        .unwrap();
 
     // Passes the parser callback and listens for messages.
     listener.await.unwrap();

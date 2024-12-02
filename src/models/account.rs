@@ -63,7 +63,7 @@ pub struct Account {
     pub updated_at: String,
     /// Time at which this account was deleted.
     pub deleted_at: Option<String>,
-    /// Possible values: [ACCOUNT_TYPE_UNSPECIFIED, ACCOUNT_TYPE_CRYPTO, ACCOUNT_TYPE_FIAT, ACCOUNT_TYPE_VAULT]
+    /// Possible values: [`ACCOUNT_TYPE_UNSPECIFIED`, `ACCOUNT_TYPE_CRYPTO`, `ACCOUNT_TYPE_FIAT`, `ACCOUNT_TYPE_VAULT`]
     pub r#type: AccountType,
     /// Whether or not this account is ready to trade.
     pub ready: bool,
@@ -99,8 +99,7 @@ impl Query for AccountListQuery {
     fn check(&self) -> CbResult<()> {
         if self.limit == 0 || self.limit > LIST_ACCOUNT_MAXIMUM {
             return Err(CbError::BadQuery(format!(
-                "Limit must be greater than 0 with a maximum of {}",
-                LIST_ACCOUNT_MAXIMUM
+                "Limit must be greater than 0 with a maximum of {LIST_ACCOUNT_MAXIMUM}"
             )));
         }
         Ok(())
@@ -124,9 +123,9 @@ impl Default for AccountListQuery {
 }
 
 impl AccountListQuery {
-    /// Creates a new AccountListQuery with default values.
+    /// Creates a new `AccountListQuery` with default values.
     pub fn new() -> Self {
-        Default::default()
+        Self::default()
     }
 
     /// Sets the limit for the query. Default is 49 and maximum is 250.

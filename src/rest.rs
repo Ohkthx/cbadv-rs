@@ -19,7 +19,7 @@ use crate::config::ConfigFile;
 use crate::token_bucket::{RateLimits, TokenBucket};
 use crate::types::CbResult;
 
-/// Used to create a new RestClient.
+/// Builds a new REST Client (`RestClient`) that directly interacts with the Coinbase Advanced API.
 #[derive(Default)]
 pub struct RestClientBuilder {
     api_key: Option<String>,
@@ -28,7 +28,7 @@ pub struct RestClientBuilder {
 }
 
 impl RestClientBuilder {
-    /// Creates a new instance of a RestClientBuilder.
+    /// Creates a new instance of a `RestClientBuilder`.
     pub fn new() -> Self {
         Self {
             api_key: None,
@@ -41,7 +41,7 @@ impl RestClientBuilder {
     ///
     /// # Arguments
     ///
-    /// * `config` - Configuration that implements ConfigFile trait.
+    /// * `config` - Configuration that implements `ConfigFile` trait.
     #[cfg(feature = "config")]
     pub fn with_config<T>(mut self, config: &T) -> Self
     where
@@ -65,7 +65,7 @@ impl RestClientBuilder {
         self
     }
 
-    /// Sets the use_sandbox flag for the client.
+    /// Sets the `use_sandbox` flag for the client.
     ///
     /// # Arguments
     ///
@@ -75,7 +75,11 @@ impl RestClientBuilder {
         self
     }
 
-    /// Builds the RestClient.
+    /// Builds the `RestClient`.
+    ///
+    /// # Errors
+    ///
+    /// * `CbError::RequestError` - If there was an issue creating the HTTP client.
     pub fn build(self) -> CbResult<RestClient> {
         // Initialize token buckets
         let secure_bucket = Arc::new(Mutex::new(TokenBucket::new(
@@ -88,14 +92,11 @@ impl RestClientBuilder {
             RateLimits::refresh_rate(true, true),
         )));
 
-        // Determine if authentication is enabled.
-        let is_authenticated = self.api_key.is_some() && self.api_secret.is_some();
-
         // Initialize agents.
-        let secure_agent = if is_authenticated {
+        let secure_agent = if let (Some(key), Some(secret)) = (self.api_key, self.api_secret) {
             Some(SecureHttpAgent::new(
-                &self.api_key.unwrap(),
-                &self.api_secret.unwrap(),
+                &key,
+                &secret,
                 self.use_sandbox,
                 secure_bucket,
             )?)
@@ -121,7 +122,7 @@ impl RestClientBuilder {
     }
 }
 
-/// Represents a Client for the API.
+/// Represents a REST Client for interacting with the Coinbase Advanced API.
 pub struct RestClient {
     /// Gives access to the Account API.
     pub account: AccountApi,

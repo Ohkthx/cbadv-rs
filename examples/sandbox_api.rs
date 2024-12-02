@@ -11,7 +11,9 @@
 use std::process::exit;
 
 use cbadv::config::{self, BaseConfig};
-use cbadv::order::{OrderCreateBuilder, OrderEditRequest, OrderSide, OrderType, TimeInForce};
+use cbadv::models::order::{
+    OrderCreateBuilder, OrderEditRequest, OrderSide, OrderType, TimeInForce,
+};
 use cbadv::RestClientBuilder;
 
 #[tokio::main]
@@ -27,7 +29,7 @@ async fn main() {
         Err(err) => {
             println!("Could not load configuration file.");
             if config::exists("config.toml") {
-                println!("File exists, {}", err);
+                println!("File exists, {err}");
                 exit(1);
             }
 
@@ -46,14 +48,14 @@ async fn main() {
     {
         Ok(c) => c,
         Err(why) => {
-            eprintln!("!ERROR! {}", why);
+            eprintln!("!ERROR! {why}");
             exit(1)
         }
     };
 
     // Create an order request using the `OrderCreateBuilder`.
     // This example creates a Limit Order that is Good-Til-Cancelled (GTC) and post-only.
-    let order = match OrderCreateBuilder::new(product_pair, &side)
+    let order = match OrderCreateBuilder::new(product_pair, side)
         .base_size(total_size)
         .limit_price(price)
         .post_only(true)
@@ -64,27 +66,27 @@ async fn main() {
     {
         Ok(order) => order,
         Err(error) => {
-            println!("Unable to build order: {}", error);
+            println!("Unable to build order: {error}");
             exit(1);
         }
     };
 
-    println!("Creating Order for {}.", product_pair);
+    println!("Creating Order for {product_pair}.");
     match client.order.create(&order).await {
-        Ok(summary) => println!("Order creation result: {:#?}", summary),
-        Err(error) => println!("Unable to create order: {}", error),
+        Ok(summary) => println!("Order creation result: {summary:#?}"),
+        Err(error) => println!("Unable to create order: {error}"),
     }
 
     println!("\n\nPreviewing an order creation.");
     match client.order.preview_create(&order).await {
-        Ok(summary) => println!("Order preview result: {:#?}", summary),
-        Err(error) => println!("Unable to preview order: {}", error),
+        Ok(summary) => println!("Order preview result: {summary:#?}"),
+        Err(error) => println!("Unable to preview order: {error}"),
     }
 
     println!("\n\nPreviewing an order edit.");
     let edit_preview = OrderEditRequest::new("order_id", 100.00, 0.005);
     match client.order.preview_edit(&edit_preview).await {
-        Ok(summary) => println!("Order edit preview result: {:#?}", summary),
-        Err(error) => println!("Unable to preview order edit: {}", error),
+        Ok(summary) => println!("Order edit preview result: {summary:#?}"),
+        Err(error) => println!("Unable to preview order edit: {error}"),
     }
 }

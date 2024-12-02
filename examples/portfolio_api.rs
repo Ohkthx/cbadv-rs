@@ -10,7 +10,9 @@
 use std::process::exit;
 
 use cbadv::config::{self, BaseConfig};
-use cbadv::portfolio::{PortfolioBreakdownQuery, PortfolioListQuery, PortfolioModifyRequest};
+use cbadv::models::portfolio::{
+    PortfolioBreakdownQuery, PortfolioListQuery, PortfolioModifyRequest,
+};
 use cbadv::RestClientBuilder;
 
 #[tokio::main]
@@ -34,7 +36,7 @@ async fn main() {
         Err(err) => {
             println!("Could not load configuration file.");
             if config::exists("config.toml") {
-                println!("File exists, {}", err);
+                println!("File exists, {err}");
                 exit(1);
             }
 
@@ -49,7 +51,7 @@ async fn main() {
     let mut client = match RestClientBuilder::new().with_config(&config).build() {
         Ok(c) => c,
         Err(why) => {
-            eprintln!("!ERROR! {}", why);
+            eprintln!("!ERROR! {why}");
             exit(1)
         }
     };
@@ -58,8 +60,8 @@ async fn main() {
     if let Some(name) = create_portfolio_name {
         println!("Creating Portfolio.");
         match client.portfolio.create(name).await {
-            Ok(portfolio) => println!("{:#?}", portfolio),
-            Err(error) => println!("Unable to create the portfolio: {}", error),
+            Ok(portfolio) => println!("{portfolio:#?}"),
+            Err(error) => println!("Unable to create the portfolio: {error}"),
         }
     }
 
@@ -68,8 +70,8 @@ async fn main() {
         println!("Editing Portfolio.");
         let request = PortfolioModifyRequest::new(edit_portfolio_name);
         match client.portfolio.edit(uuid, &request).await {
-            Ok(portfolio) => println!("{:#?}", portfolio),
-            Err(error) => println!("Unable to edit the portfolio: {}", error),
+            Ok(portfolio) => println!("{portfolio:#?}"),
+            Err(error) => println!("Unable to edit the portfolio: {error}"),
         }
     }
 
@@ -77,8 +79,8 @@ async fn main() {
     if let Some(uuid) = delete_portfolio_uuid {
         println!("Deleting Portfolio.");
         match client.portfolio.delete(uuid).await {
-            Ok(_) => println!("Portfolio deleted!"),
-            Err(error) => println!("Unable to delete the portfolio: {}", error),
+            Ok(()) => println!("Portfolio deleted!"),
+            Err(error) => println!("Unable to delete the portfolio: {error}"),
         }
     }
 
@@ -89,25 +91,25 @@ async fn main() {
     println!("Obtaining Portfolios");
     let breakdown_uuid = match client.portfolio.get_all(&query).await {
         Ok(portfolios) => {
-            println!("{:#?}", portfolios);
+            println!("{portfolios:#?}");
             Some(portfolios.first().unwrap().uuid.clone())
         }
         Err(error) => {
-            println!("Unable to get the portfolios: {}", error);
+            println!("Unable to get the portfolios: {error}");
             None
         }
     };
 
     // Get the breakdown for the first portfolio.
     if let Some(uuid) = breakdown_uuid {
-        println!("Obtaining Portfolio Breakdown for {}.", uuid);
+        println!("Obtaining Portfolio Breakdown for {uuid}.");
         match client
             .portfolio
             .get(&uuid, &PortfolioBreakdownQuery::new())
             .await
         {
-            Ok(breakdown) => println!("{:#?}", breakdown),
-            Err(error) => println!("Unable to get the breakdown: {}", error),
+            Ok(breakdown) => println!("{breakdown:#?}"),
+            Err(error) => println!("Unable to get the breakdown: {error}"),
         }
     }
 }

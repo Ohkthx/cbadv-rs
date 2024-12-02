@@ -8,9 +8,9 @@
 
 use std::process::exit;
 
-use cbadv::product::{Candle, ProductListQuery};
+use cbadv::models::product::{Candle, ProductListQuery};
 use cbadv::traits::CandleCallback;
-use cbadv::{RestClient, RestClientBuilder, WebSocketClientBuilder};
+use cbadv::{async_trait, RestClient, RestClientBuilder, WebSocketClientBuilder};
 
 /// Example of user-defined struct to pass to the candle watcher.
 pub struct UserStruct {
@@ -18,8 +18,9 @@ pub struct UserStruct {
     processed: usize,
 }
 
+#[async_trait]
 impl CandleCallback for UserStruct {
-    fn candle_callback(&mut self, current_start: u64, product_id: String, candle: Candle) {
+    async fn candle_callback(&mut self, current_start: u64, product_id: String, candle: Candle) {
         self.processed += 1;
 
         let mut is_same = "";
@@ -55,7 +56,7 @@ async fn get_products(client: &mut RestClient) -> Vec<String> {
                 })
                 .collect();
         }
-        Err(error) => println!("Unable to get products: {}", error),
+        Err(error) => println!("Unable to get products: {error}"),
     }
 
     product_names
@@ -67,7 +68,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + 'static>> {
     let mut rclient = match RestClientBuilder::new().build() {
         Ok(c) => c,
         Err(why) => {
-            eprintln!("!ERROR! {}", why);
+            eprintln!("!ERROR! {why}");
             exit(1)
         }
     };
@@ -80,7 +81,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + 'static>> {
     {
         Ok(c) => c,
         Err(why) => {
-            eprintln!("!ERROR! {}", why);
+            eprintln!("!ERROR! {why}");
             exit(1)
         }
     };
@@ -98,15 +99,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error + 'static>> {
     let task = match wsclient.watch_candles(&products, mystruct).await {
         Ok(value) => value,
         Err(err) => {
-            println!("Could not watch candles: {}", err);
+            println!("Could not watch candles: {err}");
             exit(1);
         }
     };
 
     // Wait to join the task.
     match task.await {
-        Ok(_) => println!("Task is complete."),
-        Err(err) => println!("Task ended in error: {}", err),
+        Ok(()) => println!("Task is complete."),
+        Err(err) => println!("Task ended in error: {err}"),
     };
 
     Ok(())

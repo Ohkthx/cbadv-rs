@@ -6,8 +6,8 @@
 use std::process::exit;
 
 use cbadv::config::{self, BaseConfig};
-use cbadv::fee::FeeTransactionSummaryQuery;
-use cbadv::product::ProductType;
+use cbadv::models::fee::FeeTransactionSummaryQuery;
+use cbadv::models::product::ProductType;
 use cbadv::RestClientBuilder;
 
 #[tokio::main]
@@ -18,7 +18,7 @@ async fn main() {
         Err(err) => {
             println!("Could not load configuration file.");
             if config::exists("config.toml") {
-                println!("File exists, {}", err);
+                println!("File exists, {err}");
                 exit(1);
             }
 
@@ -33,7 +33,7 @@ async fn main() {
     let mut client = match RestClientBuilder::new().with_config(&config).build() {
         Ok(c) => c,
         Err(why) => {
-            eprintln!("!ERROR! {}", why);
+            eprintln!("!ERROR! {why}");
             exit(1)
         }
     };
@@ -44,7 +44,7 @@ async fn main() {
     // Get fee transaction summary.
     println!("Obtaining Transaction Fee Summary");
     match client.fee.get(&params).await {
-        Ok(summary) => println!("{:#?}", summary),
-        Err(error) => println!("Unable to get the Transaction Summary: {}", error),
+        Ok(summary) => println!("{summary:#?}"),
+        Err(error) => println!("Unable to get the Transaction Summary: {error}"),
     }
 }

@@ -1,8 +1,8 @@
 use serde::Deserialize;
 
 use super::{
-    CandleUpdate, EventType, Level2Update, MarketTradesUpdate, OrderUpdate, ProductUpdate,
-    SubscribeUpdate, TickerUpdate,
+    CandleUpdate, EventType, FuturesBalanceSummaryUpdate, Level2Update, MarketTradesUpdate,
+    OrderUpdate, ProductUpdate, SubscribeUpdate, TickerUpdate,
 };
 
 /// Events that could be received in a message.
@@ -17,6 +17,7 @@ pub enum Event {
     MarketTrades(MarketTradesEvent),
     Heartbeats(HeartbeatsEvent),
     Subscribe(SubscribeEvent),
+    FuturesBalanceSummary(FuturesSummaryBalanceEvent),
 }
 
 /// The status event containing updates to products.
@@ -73,4 +74,11 @@ pub struct HeartbeatsEvent {
 #[derive(Deserialize, Debug)]
 pub struct SubscribeEvent {
     pub subscriptions: SubscribeUpdate,
+}
+
+/// The futures summary balance event containing the current futures account balance.
+#[derive(Deserialize, Debug)]
+pub struct FuturesSummaryBalanceEvent {
+    pub r#type: EventType,
+    pub fcm_balance_summary: FuturesBalanceSummaryUpdate,
 }

@@ -54,7 +54,7 @@ async fn main() {
         Err(err) => {
             println!("Could not load configuration file.");
             if config::exists("config.toml") {
-                println!("File exists, {}", err);
+                println!("File exists, {err}");
                 exit(1);
             }
 
@@ -69,7 +69,7 @@ async fn main() {
     let mut client = match RestClientBuilder::new().with_config(&config).build() {
         Ok(c) => c,
         Err(why) => {
-            eprintln!("!ERROR! {}", why);
+            eprintln!("!ERROR! {why}");
             exit(1)
         }
     };
@@ -79,9 +79,9 @@ async fn main() {
     let product = match client.product.get(&config.general.product_id).await {
         Ok(p) => p,
         Err(err) => {
-            println!("{}", err);
+            println!("{err}");
             exit(1);
         }
     };
-    println!("{:#?}\n\n", product);
+    println!("{product:#?}\n\n");
 }

@@ -7,8 +7,8 @@
 
 use std::process::exit;
 
-use cbadv::account::AccountListQuery;
 use cbadv::config::{self, BaseConfig};
+use cbadv::models::account::AccountListQuery;
 use cbadv::RestClientBuilder;
 
 #[tokio::main]
@@ -21,7 +21,7 @@ async fn main() {
         Err(err) => {
             println!("Could not load configuration file.");
             if config::exists("config.toml") {
-                println!("File exists, {}", err);
+                println!("File exists, {err}");
                 exit(1);
             }
 
@@ -36,7 +36,7 @@ async fn main() {
     let mut client = match RestClientBuilder::new().with_config(&config).build() {
         Ok(c) => c,
         Err(why) => {
-            eprintln!("!ERROR! {}", why);
+            eprintln!("!ERROR! {why}");
             exit(1)
         }
     };
@@ -48,12 +48,12 @@ async fn main() {
         .get_by_id(product_name, &AccountListQuery::new())
         .await
     {
-        Ok(account) => println!("{:#?}", account),
-        Err(error) => println!("Unable to get account: {}", error),
+        Ok(account) => println!("{account:#?}"),
+        Err(error) => println!("Unable to get account: {error}"),
     }
 
     // Pull accounts by ID.
-    let mut account_uuid = "".to_string();
+    let mut account_uuid = String::new();
     println!("\n\nObtaining ALL accounts (non-standard).");
     match client.account.get_all(&AccountListQuery::new()).await {
         Ok(accounts) => {
@@ -68,7 +68,7 @@ async fn main() {
                 None => println!("Out of bounds, could not find account."),
             }
         }
-        Err(error) => println!("Unable to get accounts: {}", error),
+        Err(error) => println!("Unable to get accounts: {error}"),
     }
 
     // Parameters to send to the API.
@@ -79,17 +79,17 @@ async fn main() {
     match client.account.get_bulk(&query).await {
         Ok(accounts) => {
             println!("Accounts obtained: {:#?}", accounts.accounts.len());
-            for acct in accounts.accounts.iter() {
+            for acct in &accounts.accounts {
                 println!("Account name: {}", acct.currency);
             }
         }
-        Err(error) => println!("Unable to get all accounts: {}", error),
+        Err(error) => println!("Unable to get all accounts: {error}"),
     }
 
     // Get a singular account based on the UUID.
-    println!("\n\nObtaining Account by UUID: {}", account_uuid);
+    println!("\n\nObtaining Account by UUID: {account_uuid}");
     match client.account.get(&account_uuid).await {
-        Ok(account) => println!("{:#?}", account),
-        Err(error) => println!("Unable to get account: {}", error),
+        Ok(account) => println!("{account:#?}"),
+        Err(error) => println!("Unable to get account: {error}"),
     }
 }
