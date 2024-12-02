@@ -10,7 +10,7 @@ use std::process::exit;
 
 use cbadv::models::product::{Candle, ProductListQuery};
 use cbadv::traits::CandleCallback;
-use cbadv::{RestClient, RestClientBuilder, WebSocketClientBuilder};
+use cbadv::{async_trait, RestClient, RestClientBuilder, WebSocketClientBuilder};
 
 /// Example of user-defined struct to pass to the candle watcher.
 pub struct UserStruct {
@@ -18,8 +18,9 @@ pub struct UserStruct {
     processed: usize,
 }
 
+#[async_trait]
 impl CandleCallback for UserStruct {
-    fn candle_callback(&mut self, current_start: u64, product_id: String, candle: Candle) {
+    async fn candle_callback(&mut self, current_start: u64, product_id: String, candle: Candle) {
         self.processed += 1;
 
         let mut is_same = "";

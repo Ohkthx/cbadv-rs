@@ -8,6 +8,7 @@ use crate::models::{product::Candle, websocket::Message};
 use crate::types::CbResult;
 
 /// Used to pass to a callback to the candle watcher on a successful ejection.
+#[async_trait]
 pub trait CandleCallback {
     /// Called when a candle is succesfully ejected.
     ///
@@ -16,7 +17,7 @@ pub trait CandleCallback {
     /// * `current_start` - Current UTC timestamp for a start.
     /// * `product_id` - Product the candle belongs to.
     /// * `candle` - Candle that was recently completed.
-    fn candle_callback(&mut self, current_start: u64, product_id: String, candle: Candle);
+    async fn candle_callback(&mut self, current_start: u64, product_id: String, candle: Candle);
 }
 
 /// Used to pass objects to the listener for greater control over message processing.

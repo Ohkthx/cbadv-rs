@@ -108,13 +108,14 @@ where
     /// # Arguments
     ///
     /// * `updates` - The sorted vector of `CandleUpdate` to process.
-    fn process_candle_updates(&mut self, mut updates: Vec<CandleUpdate>) {
+    async fn process_candle_updates(&mut self, mut updates: Vec<CandleUpdate>) {
         if let Some(update) = updates.pop() {
             let product_id = update.product_id.clone();
             let new_candle = update.data;
 
             if let Some(completed_candle) = self.check_candle(&product_id, new_candle) {
-                self.trigger_user_callback(product_id, completed_candle);
+                self.trigger_user_callback(product_id, completed_candle)
+                    .await;
             }
         }
     }
@@ -125,12 +126,13 @@ where
     ///
     /// * `product_id` - The ID of the product associated with the candle.
     /// * `completed_candle` - The completed candle to send to the callback.
-    fn trigger_user_callback(&mut self, product_id: String, completed_candle: Candle) {
+    async fn trigger_user_callback(&mut self, product_id: String, completed_candle: Candle) {
         let now = Utc::now().timestamp() as u64;
         let start_time = now - (now % (GRANULARITY * 2));
 
         self.user_watcher
-            .candle_callback(start_time, product_id, completed_candle);
+            .candle_callback(start_time, product_id, completed_candle)
+            .await;
     }
 }
 
@@ -154,7 +156,7 @@ where
                 }
 
                 // Process the most recent update and handle completed candles.
-                self.process_candle_updates(updates);
+                self.process_candle_updates(updates).await;
             }
             Err(err) => {
                 eprintln!("!WEBSOCKET ERROR! {}", err);
