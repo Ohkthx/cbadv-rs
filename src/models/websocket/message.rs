@@ -4,8 +4,8 @@ use serde::de::{self, Deserialize, Deserializer, MapAccess, Visitor};
 use serde_json::Value;
 
 use super::{
-    CandlesEvent, Channel, Event, HeartbeatsEvent, Level2Event, MarketTradesEvent, StatusEvent,
-    SubscribeEvent, TickerEvent, UserEvent,
+    CandlesEvent, Channel, Event, FuturesSummaryBalanceEvent, HeartbeatsEvent, Level2Event,
+    MarketTradesEvent, StatusEvent, SubscribeEvent, TickerEvent, UserEvent,
 };
 
 /// Message from the WebSocket containing event updates.
@@ -47,15 +47,15 @@ impl<'de> Visitor<'de> for MessageVisitor {
     where
         M: MapAccess<'de>,
     {
-        let mut channel = None;
-        let mut client_id = None;
-        let mut timestamp = None;
-        let mut sequence_num = None;
-        let mut events_value = None;
+        let mut channel: Option<Channel> = None;
+        let mut client_id: Option<String> = None;
+        let mut timestamp: Option<String> = None;
+        let mut sequence_num: Option<u64> = None;
+        let mut events_value: Option<Value> = None;
 
-        // Extract common fields and events.
-        while let Some(key) = map.next_key::<String>()? {
-            match key.as_str() {
+        // Extract common fields and store the raw events for later deserialization.
+        while let Some(key) = map.next_key::<&str>()? {
+            match key {
                 "channel" => {
                     if channel.is_some() {
                         return Err(de::Error::duplicate_field("channel"));
@@ -84,75 +84,24 @@ impl<'de> Visitor<'de> for MessageVisitor {
                     if events_value.is_some() {
                         return Err(de::Error::duplicate_field("events"));
                     }
+                    // Temporarily store events as serde_json::Value
                     events_value = Some(map.next_value()?);
                 }
                 _ => {
                     // Skip unknown fields or handle as needed.
-                    let _ = map.next_value::<Value>()?;
+                    let _ = map.next_value::<de::IgnoredAny>()?;
                 }
             }
         }
 
-        let channel: Channel = channel.ok_or_else(|| de::Error::missing_field("channel"))?;
+        let channel = channel.ok_or_else(|| de::Error::missing_field("channel"))?;
         let client_id = client_id.ok_or_else(|| de::Error::missing_field("client_id"))?;
         let timestamp = timestamp.ok_or_else(|| de::Error::missing_field("timestamp"))?;
         let sequence_num = sequence_num.ok_or_else(|| de::Error::missing_field("sequence_num"))?;
         let events_value = events_value.ok_or_else(|| de::Error::missing_field("events"))?;
 
         // Deserialize events based on the channel.
-        let events = match channel {
-            Channel::Status => {
-                let events: Vec<StatusEvent> =
-                    serde_json::from_value(events_value).map_err(de::Error::custom)?;
-                events.into_iter().map(Event::Status).collect()
-            }
-            Channel::Candles => {
-                let events: Vec<CandlesEvent> =
-                    serde_json::from_value(events_value).map_err(de::Error::custom)?;
-                events.into_iter().map(Event::Candles).collect()
-            }
-            Channel::Ticker => {
-                let events: Vec<TickerEvent> =
-                    serde_json::from_value(events_value).map_err(de::Error::custom)?;
-                events.into_iter().map(Event::Ticker).collect()
-            }
-            Channel::TickerBatch => {
-                let events: Vec<TickerEvent> =
-                    serde_json::from_value(events_value).map_err(de::Error::custom)?;
-                events.into_iter().map(Event::TickerBatch).collect()
-            }
-            Channel::Level2 => {
-                let events: Vec<Level2Event> =
-                    serde_json::from_value(events_value).map_err(de::Error::custom)?;
-                events.into_iter().map(Event::Level2).collect()
-            }
-            Channel::User => {
-                let events: Vec<UserEvent> =
-                    serde_json::from_value(events_value).map_err(de::Error::custom)?;
-                events.into_iter().map(Event::User).collect()
-            }
-            Channel::MarketTrades => {
-                let events: Vec<MarketTradesEvent> =
-                    serde_json::from_value(events_value).map_err(de::Error::custom)?;
-                events.into_iter().map(Event::MarketTrades).collect()
-            }
-            Channel::Heartbeats => {
-                let events: Vec<HeartbeatsEvent> =
-                    serde_json::from_value(events_value).map_err(de::Error::custom)?;
-                events.into_iter().map(Event::Heartbeats).collect()
-            }
-            Channel::Subscriptions => {
-                let events: Vec<SubscribeEvent> =
-                    serde_json::from_value(events_value).map_err(de::Error::custom)?;
-                events.into_iter().map(Event::Subscribe).collect()
-            }
-            _ => {
-                return Err(de::Error::custom(format!(
-                    "Unsupported channel: {:?}",
-                    channel
-                )));
-            }
-        };
+        let events = deserialize_events(&channel, events_value).map_err(de::Error::custom)?;
 
         Ok(Message {
             channel,
@@ -161,5 +110,57 @@ impl<'de> Visitor<'de> for MessageVisitor {
             sequence_num,
             events,
         })
+    }
+}
+
+/// Helper function to deserialize events based on the channel.
+fn deserialize_events(
+    channel: &Channel,
+    events_value: Value,
+) -> Result<Vec<Event>, Box<dyn std::error::Error>> {
+    match channel {
+        Channel::Status => {
+            let events: Vec<StatusEvent> = serde_json::from_value(events_value)?;
+            Ok(events.into_iter().map(Event::Status).collect())
+        }
+        Channel::Candles => {
+            let events: Vec<CandlesEvent> = serde_json::from_value(events_value)?;
+            Ok(events.into_iter().map(Event::Candles).collect())
+        }
+        Channel::Ticker => {
+            let events: Vec<TickerEvent> = serde_json::from_value(events_value)?;
+            Ok(events.into_iter().map(Event::Ticker).collect())
+        }
+        Channel::TickerBatch => {
+            let events: Vec<TickerEvent> = serde_json::from_value(events_value)?;
+            Ok(events.into_iter().map(Event::TickerBatch).collect())
+        }
+        Channel::Level2 => {
+            let events: Vec<Level2Event> = serde_json::from_value(events_value)?;
+            Ok(events.into_iter().map(Event::Level2).collect())
+        }
+        Channel::User => {
+            let events: Vec<UserEvent> = serde_json::from_value(events_value)?;
+            Ok(events.into_iter().map(Event::User).collect())
+        }
+        Channel::MarketTrades => {
+            let events: Vec<MarketTradesEvent> = serde_json::from_value(events_value)?;
+            Ok(events.into_iter().map(Event::MarketTrades).collect())
+        }
+        Channel::Heartbeats => {
+            let events: Vec<HeartbeatsEvent> = serde_json::from_value(events_value)?;
+            Ok(events.into_iter().map(Event::Heartbeats).collect())
+        }
+        Channel::Subscriptions => {
+            let events: Vec<SubscribeEvent> = serde_json::from_value(events_value)?;
+            Ok(events.into_iter().map(Event::Subscribe).collect())
+        }
+        Channel::FuturesBalanceSummary => {
+            let events: Vec<FuturesSummaryBalanceEvent> = serde_json::from_value(events_value)?;
+            Ok(events
+                .into_iter()
+                .map(Event::FuturesBalanceSummary)
+                .collect())
+        }
     }
 }

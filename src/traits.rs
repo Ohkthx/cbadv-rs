@@ -57,7 +57,7 @@ impl Query for NoQuery {
     }
 }
 
-/// Trait for the HttpAgent that is responsible for making HTTP requests and managing the token bucket.
+/// Trait for the `HttpAgent` that is responsible for making HTTP requests and managing the token bucket.
 pub(crate) trait HttpAgent {
     /// Performs a HTTP GET Request.
     ///

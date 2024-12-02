@@ -27,7 +27,7 @@ async fn main() {
     let cancel_all: bool = false;
     let product_id: &str = "ETH-USDC";
     let mut created_order_id: Option<String> = None;
-    let new_order = match OrderCreateBuilder::new(product_id, &OrderSide::Buy)
+    let new_order = match OrderCreateBuilder::new(product_id, OrderSide::Buy)
         .base_size(0.005)
         .limit_price(100.0)
         .post_only(true)

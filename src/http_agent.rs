@@ -1,7 +1,7 @@
 //! # Authentication and signing messages.
 //!
-//! `http_agent` contains the backbone of the API requests in the form of the SecureHttpAgent and PublicHttpAgent struct. This signs
-//! all requests to the API for ensure proper authentication. The HttpAgents are also responsible for handling
+//! `http_agent` contains the backbone of the API requests in the form of the `SecureHttpAgent` and `PublicHttpAgent` struct. This signs
+//! all requests to the API for ensure proper authentication. The `HttpAgents` are also responsible for handling
 //! the GET and POST requests.
 
 use std::sync::Arc;
@@ -30,7 +30,7 @@ pub(crate) struct HttpAgentBase {
 }
 
 impl HttpAgentBase {
-    /// Creates a new instance of SecureHttpAgent.
+    /// Creates a new instance of `SecureHttpAgent`.
     ///
     /// # Arguments
     ///
@@ -79,7 +79,7 @@ impl HttpAgentBase {
     /// # Arguments
     ///
     /// * `request` - The request to convert to a JSON string.
-    fn convert_request<'a, T>(&self, request: &'a T) -> CbResult<String>
+    fn convert_request<'a, T>(request: &'a T) -> CbResult<String>
     where
         T: Request + Serialize + 'a,
     {
@@ -158,7 +158,7 @@ pub(crate) struct PublicHttpAgent {
 }
 
 impl PublicHttpAgent {
-    /// Creates a new instance of PublicHttpAgent.
+    /// Creates a new instance of `PublicHttpAgent`.
     ///
     /// # Arguments
     ///
@@ -189,7 +189,7 @@ impl HttpAgent for PublicHttpAgent {
         T: Request + Serialize + 'a,
     {
         let url = self.base.build_url(resource, query)?;
-        let data = self.base.convert_request(body)?;
+        let data = HttpAgentBase::convert_request(body)?;
         self.base
             .execute_request(Method::POST, url, Some(data), None)
             .await
@@ -205,7 +205,7 @@ impl HttpAgent for PublicHttpAgent {
         T: Request + Serialize + 'a,
     {
         let url = self.base.build_url(resource, query)?;
-        let data = self.base.convert_request(body)?;
+        let data = HttpAgentBase::convert_request(body)?;
         self.base
             .execute_request(Method::PUT, url, Some(data), None)
             .await
@@ -230,7 +230,7 @@ pub(crate) struct SecureHttpAgent {
 
 /// Responsible for signing and sending HTTP requests.
 impl SecureHttpAgent {
-    /// Creates a new instance of SecureHttpAgent.
+    /// Creates a new instance of `SecureHttpAgent`.
     ///
     /// # Arguments
     ///
@@ -250,7 +250,7 @@ impl SecureHttpAgent {
         } else {
             Some(
                 Jwt::new(api_key, api_secret)
-                    .map_err(|e| CbError::Unknown(format!("Error creating JWT: {}", e)))?,
+                    .map_err(|e| CbError::BadJwt(format!("Error creating JWT: {e}")))?,
             )
         };
 
@@ -266,7 +266,7 @@ impl SecureHttpAgent {
     ///
     /// * `method` - The method of the request, GET, POST, etc.
     /// * `resource` - The resource being accessed.
-    fn build_token(&self, method: Method, resource: &str) -> CbResult<Option<String>> {
+    fn build_token(&self, method: &Method, resource: &str) -> CbResult<Option<String>> {
         if let Some(jwt) = &self.jwt {
             let uri = Jwt::build_uri(method.as_str(), self.base.root_uri, resource);
             Ok(Some(jwt.encode(Some(&uri))?))
@@ -279,7 +279,7 @@ impl SecureHttpAgent {
 impl HttpAgent for SecureHttpAgent {
     async fn get(&mut self, resource: &str, query: &impl Query) -> CbResult<Response> {
         let url = self.base.build_url(resource, query)?;
-        let token = self.build_token(Method::GET, resource)?;
+        let token = self.build_token(&Method::GET, resource)?;
         self.base
             .execute_request(Method::GET, url, None, token)
             .await
@@ -295,8 +295,8 @@ impl HttpAgent for SecureHttpAgent {
         T: Request + Serialize + 'a,
     {
         let url = self.base.build_url(resource, query)?;
-        let data = self.base.convert_request(body)?;
-        let token = self.build_token(Method::POST, resource)?;
+        let data = HttpAgentBase::convert_request(body)?;
+        let token = self.build_token(&Method::POST, resource)?;
         self.base
             .execute_request(Method::POST, url, Some(data), token)
             .await
@@ -312,8 +312,8 @@ impl HttpAgent for SecureHttpAgent {
         T: Request + Serialize + 'a,
     {
         let url = self.base.build_url(resource, query)?;
-        let data = self.base.convert_request(body)?;
-        let token = self.build_token(Method::PUT, resource)?;
+        let data = HttpAgentBase::convert_request(body)?;
+        let token = self.build_token(&Method::PUT, resource)?;
         self.base
             .execute_request(Method::PUT, url, Some(data), token)
             .await
@@ -321,7 +321,7 @@ impl HttpAgent for SecureHttpAgent {
 
     async fn delete(&mut self, resource: &str, query: &impl Query) -> CbResult<Response> {
         let url = self.base.build_url(resource, query)?;
-        let token = self.build_token(Method::DELETE, resource)?;
+        let token = self.build_token(&Method::DELETE, resource)?;
         self.base
             .execute_request(Method::DELETE, url, None, token)
             .await

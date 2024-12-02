@@ -87,10 +87,10 @@ async fn main() {
     });
 
     // Heartbeats is a great way to keep a connection alive and not timeout.
-    client.sub(&Channel::Heartbeats, &[]).await.unwrap();
+    client.subscribe(&Channel::Heartbeats, &[]).await.unwrap();
 
     // Subscribe to user orders.
-    client.sub(&Channel::User, &[]).await.unwrap();
+    client.subscribe(&Channel::User, &[]).await.unwrap();
 
     // Passes the parser callback and listens for messages.
     listener.await.unwrap();

@@ -1,13 +1,13 @@
-use std::fmt::Write;
 use std::str;
+use std::sync::Arc;
 
 use base64::engine::general_purpose::{STANDARD_NO_PAD, URL_SAFE_NO_PAD};
 use base64::Engine;
 use openssl::ec::EcKey;
 use openssl::pkey::PKey;
-use rand::{distributions::Alphanumeric, Rng};
+use ring::rand::SecureRandom;
 use ring::rand::SystemRandom;
-use ring::signature::{self};
+use ring::signature::{self, EcdsaKeyPair};
 use serde::Serialize;
 
 use crate::errors::CbError;
@@ -15,31 +15,40 @@ use crate::time;
 use crate::types::CbResult;
 
 #[derive(Serialize)]
-struct Header {
-    alg: String,
+struct Header<'a> {
+    alg: &'a str,
     kid: String,
     nonce: String,
 }
 
 #[derive(Serialize)]
-struct Payload {
+struct Payload<'a> {
     sub: String,
-    iss: String,
+    iss: &'a str,
     nbf: u64,
     exp: u64,
     #[serde(skip_serializing_if = "Option::is_none")]
     uri: Option<String>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub(crate) struct Jwt {
     /// API Key provided by the service.
     api_key: String,
-    /// API Secret provided by the service.
-    api_secret: Vec<u8>,
+    /// Pre-initialized ECDSA signing key pair.
+    signing_key: Arc<EcdsaKeyPair>,
     /// RNG for signing.
     rng: SystemRandom,
-    // signing_key: signature::EcdsaKeyPair,
+}
+
+impl Clone for Jwt {
+    fn clone(&self) -> Self {
+        Self {
+            api_key: self.api_key.clone(),
+            signing_key: Arc::clone(&self.signing_key),
+            rng: SystemRandom::new(),
+        }
+    }
 }
 
 impl Jwt {
@@ -47,42 +56,49 @@ impl Jwt {
     pub(crate) fn new(api_key: &str, api_secret: &str) -> CbResult<Self> {
         let secret = Self::format_key(api_secret.as_bytes())?;
 
+        // Initialize SystemRandom.
+        let rng = SystemRandom::new();
+
+        // Initialize the EcdsaKeyPair once with the RNG.
+        let signing_key = EcdsaKeyPair::from_pkcs8(Self::get_alg(), &secret, &rng)
+            .map_err(|why| CbError::BadSignature(why.to_string()))?;
+
         Ok(Self {
             api_key: api_key.to_string(),
-            api_secret: secret.to_vec(),
-            rng: SystemRandom::new(),
+            signing_key: Arc::new(signing_key),
+            rng,
         })
     }
 
     #[inline]
     pub(crate) fn build_uri(method: &str, root: &str, url: &str) -> String {
-        format!("{} {}{}", method, root, url)
+        format!("{method} {root}{url}")
     }
 
     /// Creates the header for the message.
-    fn build_header(&self) -> Header {
-        let nonce: String = rand::thread_rng()
-            .sample_iter(&Alphanumeric)
-            .take(64)
-            .map(char::from)
-            .collect();
+    fn build_header(&self) -> CbResult<Header<'static>> {
+        // Generate 48 random bytes for the nonce (resulting in 64 Base64 characters)
+        let mut nonce_bytes = [0u8; 48];
+        self.rng
+            .fill(&mut nonce_bytes)
+            .map_err(|why| CbError::BadSignature(format!("RNG error: {why:?}")))?;
 
-        Header {
-            alg: "ES256".to_string(),
+        Ok(Header {
+            alg: "ES256",
             kid: self.api_key.clone(),
-            nonce,
-        }
+            nonce: URL_SAFE_NO_PAD.encode(nonce_bytes),
+        })
     }
 
     /// Creates the payload for the message.
-    fn build_payload(&self, uri: Option<&str>) -> Payload {
+    fn build_payload(&self, uri: Option<&str>) -> Payload<'static> {
         let now = time::now();
         Payload {
             sub: self.api_key.clone(),
-            iss: "coinbase-cloud".to_string(),
+            iss: "coinbase-cloud",
             nbf: now,
             exp: now + 120,
-            uri: uri.map(|u| u.to_string()),
+            uri: uri.map(String::from),
         }
     }
 
@@ -159,7 +175,7 @@ impl Jwt {
         let pem_str =
             str::from_utf8(api_secret).map_err(|why| CbError::BadPrivateKey(why.to_string()))?;
 
-        // Checks for the headers and footers to remove it.
+        // Checks for the headers and footers to remove them.
         let base64_encoded = if pem_str.starts_with("-----BEGIN") && pem_str.contains("-----END") {
             let start = pem_str
                 .find("-----BEGIN")
@@ -186,24 +202,20 @@ impl Jwt {
             .map_err(|why| CbError::BadPrivateKey(why.to_string()))
     }
 
-    /// Signs a message using ECDSA with the specified private key.
+    /// Signs a message using the pre-initialized ECDSA key pair.
     ///
     /// # Arguments
     ///
-    /// * `key`: A byte slice (`&[u8]`) containing the private key in PKCS#8 format.
     /// * `message`: A byte slice (`&[u8]`) of the message to be signed.
     ///
     /// # Returns
     ///
     /// A `CbResult<String>` with the base64-encoded signature if successful; otherwise, an error.
     fn sign_message(&self, message: &[u8]) -> CbResult<String> {
-        let signing_key =
-            signature::EcdsaKeyPair::from_pkcs8(Self::get_alg(), &self.api_secret, &self.rng)
-                .map_err(|why| CbError::BadSignature(why.to_string()))?;
-        let signature = signing_key
+        let signature = self
+            .signing_key
             .sign(&self.rng, message)
             .map_err(|why| CbError::BadSignature(why.to_string()))?;
-
         Ok(Self::to_base64(signature.as_ref()))
     }
 
@@ -211,27 +223,37 @@ impl Jwt {
     ///
     /// # Arguments
     ///
-    /// * `service`: The service the JWT is being created for..
     /// * `uri`: the URI being accessed.
     ///
     /// # Returns
     ///
     /// A `CbResult<String>` with the JWT token if successful; otherwise, an error.
     pub(crate) fn encode(&self, uri: Option<&str>) -> CbResult<String> {
-        // Conver the header and payload into base64.
-        let header = Self::base64_encode(&self.build_header())?;
-        let payload = Self::base64_encode(&self.build_payload(uri))?;
+        // Convert the header and payload into base64.
+        let header = self.build_header()?.serialize_base64()?;
+        let payload = Jwt::base64_encode(&self.build_payload(uri))?;
 
-        // Create the message w/ header and payload.
-        let mut message = String::with_capacity(header.len() + payload.len() + 128);
-        write!(message, "{}.{}", header, payload)
-            .map_err(|why| CbError::BadSignature(why.to_string()))?;
+        // Estimate capacity: header + payload + signature + 2 dots
+        // Assuming signature is ~43 characters for ECDSA P-256
+        let mut message = String::with_capacity(header.len() + payload.len() + 50);
+        message.push_str(&header);
+        message.push('.');
+        message.push_str(&payload);
 
         // Sign the message.
         let signature = self.sign_message(message.as_bytes())?;
-        write!(message, ".{}", signature)
-            .map_err(|why| CbError::BadSignature(why.to_string()))?;
+        message.push('.');
+        message.push_str(&signature);
 
         Ok(message)
     }
 }
+
+// Implement serialization for Header to handle base64 encoding
+impl<'a> Header<'a> {
+    fn serialize_base64(&self) -> CbResult<String> {
+        let raw = serde_json::to_vec(self).map_err(|why| CbError::BadSignature(why.to_string()))?;
+        Ok(URL_SAFE_NO_PAD.encode(&raw))
+    }
+}
+

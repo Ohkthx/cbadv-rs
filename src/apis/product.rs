@@ -40,12 +40,20 @@ impl ProductApi {
     ///
     /// * `query` - A query to obtain the best bid/ask for multiple products.
     ///
+    /// # Errors
+    ///
+    /// * `CbError::AuthenticationError` - If the agent is not authenticated.
+    /// * `CbError::JsonError` - If there was an issue parsing the JSON response.
+    /// * `CbError::RequestError` - If there was an issue making the request.
+    /// * `CbError::UrlParseError` - If there was an issue parsing the URL.
+    /// * `CbError::BadSerialization` - If there was an issue serializing the request.
+    /// * `CbError::BadStatus` - If the status code was not 200.
+    /// * `CbError::BadJwt` - If there was an issue creating the JWT.
+    ///
     /// # Endpoint / Reference
     ///
-    #[allow(rustdoc::bare_urls)]
-    /// https://api.coinbase.com/api/v3/brokerage/best_bid_ask
-    ///
-    /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getbestbidask>
+    /// * <https://api.coinbase.com/api/v3/brokerage/best_bid_ask>
+    /// * <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getbestbidask>
     pub async fn best_bid_ask(&mut self, query: &ProductBidAskQuery) -> CbResult<Vec<ProductBook>> {
         let agent = get_auth!(self.agent, "get best bid/ask");
         let response = agent.get(BID_ASK_ENDPOINT, query).await?;
@@ -62,12 +70,20 @@ impl ProductApi {
     ///
     /// * `query` - A query to obtain the product book.
     ///
+    /// # Errors
+    ///
+    /// * `CbError::AuthenticationError` - If the agent is not authenticated.
+    /// * `CbError::JsonError` - If there was an issue parsing the JSON response.
+    /// * `CbError::RequestError` - If there was an issue making the request.
+    /// * `CbError::UrlParseError` - If there was an issue parsing the URL.
+    /// * `CbError::BadSerialization` - If there was an issue serializing the request.
+    /// * `CbError::BadStatus` - If the status code was not 200.
+    /// * `CbError::BadJwt` - If there was an issue creating the JWT.
+    ///
     /// # Endpoint / Reference
     ///
-    #[allow(rustdoc::bare_urls)]
-    /// https://api.coinbase.com/api/v3/brokerage/product_book
-    ///
-    /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getproductbook>
+    /// * <https://api.coinbase.com/api/v3/brokerage/product_book>
+    /// * <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getproductbook>
     pub async fn product_book(&mut self, query: &ProductBookQuery) -> CbResult<ProductBook> {
         let agent = get_auth!(self.agent, "get product book");
         let response = agent.get(PRODUCT_BOOK_ENDPOINT, query).await?;
@@ -84,15 +100,23 @@ impl ProductApi {
     ///
     /// * `product_id` - A string the represents the product's ID.
     ///
+    /// # Errors
+    ///
+    /// * `CbError::AuthenticationError` - If the agent is not authenticated.
+    /// * `CbError::JsonError` - If there was an issue parsing the JSON response.
+    /// * `CbError::RequestError` - If there was an issue making the request.
+    /// * `CbError::UrlParseError` - If there was an issue parsing the URL.
+    /// * `CbError::BadSerialization` - If there was an issue serializing the request.
+    /// * `CbError::BadStatus` - If the status code was not 200.
+    /// * `CbError::BadJwt` - If there was an issue creating the JWT.
+    ///
     /// # Endpoint / Reference
     ///
-    #[allow(rustdoc::bare_urls)]
-    /// https://api.coinbase.com/api/v3/brokerage/products/{product_id}
-    ///
-    /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getproduct>
+    /// * <https://api.coinbase.com/api/v3/brokerage/products/{product_id>}
+    /// * <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getproduct>
     pub async fn get(&mut self, product_id: &str) -> CbResult<Product> {
         let agent = get_auth!(self.agent, "get product");
-        let resource = format!("{}/{}", RESOURCE_ENDPOINT, product_id);
+        let resource = format!("{RESOURCE_ENDPOINT}/{product_id}");
         let response = agent.get(&resource, &NoQuery).await?;
         let data: Product = response
             .json()
@@ -107,12 +131,20 @@ impl ProductApi {
     ///
     /// * `query` - Query used to obtain products.
     ///
+    /// # Errors
+    ///
+    /// * `CbError::AuthenticationError` - If the agent is not authenticated.
+    /// * `CbError::JsonError` - If there was an issue parsing the JSON response.
+    /// * `CbError::RequestError` - If there was an issue making the request.
+    /// * `CbError::UrlParseError` - If there was an issue parsing the URL.
+    /// * `CbError::BadSerialization` - If there was an issue serializing the request.
+    /// * `CbError::BadStatus` - If the status code was not 200.
+    /// * `CbError::BadJwt` - If there was an issue creating the JWT.
+    ///
     /// # Endpoint / Reference
     ///
-    #[allow(rustdoc::bare_urls)]
-    /// https://api.coinbase.com/api/v3/brokerage/products
-    ///
-    /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getproducts>
+    /// * <https://api.coinbase.com/api/v3/brokerage/products>
+    /// * <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getproducts>
     pub async fn get_bulk(&mut self, query: &ProductListQuery) -> CbResult<Vec<Product>> {
         let agent = get_auth!(self.agent, "get bulk products");
         let response = agent.get(RESOURCE_ENDPOINT, query).await?;
@@ -130,19 +162,27 @@ impl ProductApi {
     /// * `product_id` - A string the represents the product's ID.
     /// * `query` - A query to obtain candles within a span of time.
     ///
+    /// # Errors
+    ///
+    /// * `CbError::AuthenticationError` - If the agent is not authenticated.
+    /// * `CbError::JsonError` - If there was an issue parsing the JSON response.
+    /// * `CbError::RequestError` - If there was an issue making the request.
+    /// * `CbError::UrlParseError` - If there was an issue parsing the URL.
+    /// * `CbError::BadSerialization` - If there was an issue serializing the request.
+    /// * `CbError::BadStatus` - If the status code was not 200.
+    /// * `CbError::BadJwt` - If there was an issue creating the JWT.
+    ///
     /// # Endpoint / Reference
     ///
-    #[allow(rustdoc::bare_urls)]
-    /// https://api.coinbase.com/api/v3/brokerage/products/{product_id}/candles
-    ///
-    /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getcandles>
+    /// * <https://api.coinbase.com/api/v3/brokerage/products/{product_id}/candles>
+    /// * <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getcandles>
     pub async fn candles(
         &mut self,
         product_id: &str,
         query: &ProductCandleQuery,
     ) -> CbResult<Vec<Candle>> {
         let agent = get_auth!(self.agent, "get candles");
-        let resource = format!("{}/{}/candles", RESOURCE_ENDPOINT, product_id);
+        let resource = format!("{RESOURCE_ENDPOINT}/{product_id}/candles");
         let response = agent.get(&resource, query).await?;
         let data: CandlesWrapper = response
             .json()
@@ -154,13 +194,23 @@ impl ProductApi {
     /// Obtains candles for a specific product extended. This will exceed the 300 limit threshold
     /// and try to obtain the amount specified.
     ///
-    /// NOTE: NOT A STANDARD API FUNCTION. QoL function that may require additional API requests than
+    /// NOTE: NOT A STANDARD API FUNCTION. QOL function that may require additional API requests than
     /// normal.
     ///
     /// # Arguments
     ///
     /// * `product_id` - A string the represents the product's ID.
     /// * `query` - Span of time to obtain.
+    ///
+    /// # Errors
+    ///
+    /// * `CbError::AuthenticationError` - If the agent is not authenticated.
+    /// * `CbError::JsonError` - If there was an issue parsing the JSON response.
+    /// * `CbError::RequestError` - If there was an issue making the request.
+    /// * `CbError::UrlParseError` - If there was an issue parsing the URL.
+    /// * `CbError::BadSerialization` - If there was an issue serializing the request.
+    /// * `CbError::BadStatus` - If the status code was not 200.
+    /// * `CbError::BadJwt` - If there was an issue creating the JWT.
     pub async fn candles_ext(
         &mut self,
         product_id: &str,
@@ -172,8 +222,8 @@ impl ProductApi {
         // Extract query parameters.
         let end_time = query.end;
         let granularity = query.granularity.clone();
-        let interval_seconds = Granularity::to_secs(&granularity) as u64;
-        let maximum_candles = CANDLE_MAXIMUM as u64;
+        let interval_seconds = u64::from(Granularity::to_secs(&granularity));
+        let maximum_candles = u64::from(CANDLE_MAXIMUM);
 
         // Initialize the span.
         let mut current_start = query.start;
@@ -211,19 +261,27 @@ impl ProductApi {
     /// * `product_id` - A string the represents the product's ID.
     /// * `query` - Amount of products to get.
     ///
+    /// # Errors
+    ///
+    /// * `CbError::AuthenticationError` - If the agent is not authenticated.
+    /// * `CbError::JsonError` - If there was an issue parsing the JSON response.
+    /// * `CbError::RequestError` - If there was an issue making the request.
+    /// * `CbError::UrlParseError` - If there was an issue parsing the URL.
+    /// * `CbError::BadSerialization` - If there was an issue serializing the request.
+    /// * `CbError::BadStatus` - If the status code was not 200.
+    /// * `CbError::BadJwt` - If there was an issue creating the JWT.
+    ///
     /// # Endpoint / Reference
     ///
-    #[allow(rustdoc::bare_urls)]
-    /// https://api.coinbase.com/api/v3/brokerage/products/{product_id}/ticker
-    ///
-    /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getmarkettrades>
+    /// * <https://api.coinbase.com/api/v3/brokerage/products/{product_id}/ticker>
+    /// * <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getmarkettrades>
     pub async fn ticker(
         &mut self,
         product_id: &str,
         query: &ProductTickerQuery,
     ) -> CbResult<Ticker> {
         let agent = get_auth!(self.agent, "get ticker");
-        let resource = format!("{}/{}/ticker", RESOURCE_ENDPOINT, product_id);
+        let resource = format!("{RESOURCE_ENDPOINT}/{product_id}/ticker");
         let response = agent.get(&resource, query).await?;
         let data: Ticker = response
             .json()

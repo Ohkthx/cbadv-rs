@@ -18,7 +18,7 @@ pub trait ConfigFile {
 }
 
 /// Configuration settings for API, this should be in either a custom user configuration or
-/// in the BaseConfig. See `BaseConfig` or `config.toml.sample` for
+/// in the `BaseConfig`. See `BaseConfig` or `config.toml.sample` for
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ApiConfig {
     /// Version of the Configuration file.
@@ -84,6 +84,14 @@ pub fn new() -> ApiConfig {
 /// # Arguments
 ///
 /// * `path` - A string slice that holds the location for the file.
+///
+/// # Panics
+///
+/// Panics if the file cannot be written.
+///
+/// # Errors
+///
+/// Errors if the file cannot be written.
 pub fn create_base_config(path: &str) -> Result<(), std::io::Error> {
     let contents = toml::to_string_pretty(&BaseConfig::default());
     fs::write(path, contents.unwrap())
@@ -93,8 +101,16 @@ pub fn create_base_config(path: &str) -> Result<(), std::io::Error> {
 ///
 /// # Arguments
 ///
-/// * `config` - Configuration that implement ConfigFile trait.
+/// * `config` - Configuration that implement `ConfigFile` trait.
 /// * `path` - A string slice that holds the location for the file.
+///
+/// # Panics
+///
+/// Panics if the file cannot be written.
+///
+/// # Errors
+///
+/// Errors if the file cannot be written.
 pub fn save<T>(config: &T, path: &str) -> Result<(), std::io::Error>
 where
     T: ConfigFile + Serialize,
@@ -108,6 +124,10 @@ where
 /// # Arguments
 ///
 /// * `path` - A string slice that holds the location for the file.
+///
+/// # Errors
+///
+/// Errors if the file cannot be read or the configuration cannot be parsed.
 pub fn load<T>(path: &str) -> Result<T, &str>
 where
     T: ConfigFile + DeserializeOwned,

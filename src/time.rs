@@ -138,11 +138,15 @@ impl Span {
     }
 
     /// Total amount of intervals within the span.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the number of intervals is greater than `usize`.
     pub fn count(&self) -> usize {
         // Clean the time, they have to be the correct offset.
-        let end = self.end - (self.end % self.granularity as u64);
-        let start = self.start - (self.start % self.granularity as u64);
-        ((end - start) / self.granularity as u64) as usize
+        let end = self.end - (self.end % u64::from(self.granularity));
+        let start = self.start - (self.start % u64::from(self.granularity));
+        usize::try_from((end - start) / u64::from(self.granularity)).unwrap()
     }
 }
 
@@ -169,6 +173,10 @@ impl Query for Span {
 }
 
 /// Obtains the current timestamp in UNIX format.
+///
+/// # Panics
+///
+/// Panics if the system time is before the UNIX epoch.
 pub fn now() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)

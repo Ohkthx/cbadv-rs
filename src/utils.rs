@@ -38,7 +38,7 @@ impl QueryBuilder {
             self.query.push('&');
         }
 
-        write!(self.query, "{}={}", key, value).unwrap();
+        write!(self.query, "{key}={value}").unwrap();
         self
     }
 

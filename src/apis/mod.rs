@@ -1,4 +1,4 @@
-//! # API Endpoints that are interact with via RestClient.
+//! # API Endpoints that are interact with via `RestClient`.
 //!
 //! This module contains all the API Endpoints that are used to interact with Coinbase Advanced.
 

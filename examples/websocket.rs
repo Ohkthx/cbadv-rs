@@ -61,13 +61,19 @@ async fn main() {
     let products = vec!["BTC-USD".to_string(), "ETH-USD".to_string()];
 
     // Heartbeats is a great way to keep a connection alive and not timeout.
-    client.sub(&Channel::Heartbeats, &[]).await.unwrap();
+    client.subscribe(&Channel::Heartbeats, &[]).await.unwrap();
 
     // Get updates (subscribe) on products and currencies.
-    client.sub(&Channel::Candles, &products).await.unwrap();
+    client
+        .subscribe(&Channel::Candles, &products)
+        .await
+        .unwrap();
 
     // Stop obtaining (unsubscribe) updates on products and currencies.
-    client.unsub(&Channel::Status, &products).await.unwrap();
+    client
+        .unsubscribe(&Channel::Status, &products)
+        .await
+        .unwrap();
 
     // Passes the parser callback and listens for messages.
     listener.await.unwrap();

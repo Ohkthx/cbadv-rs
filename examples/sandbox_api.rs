@@ -55,7 +55,7 @@ async fn main() {
 
     // Create an order request using the `OrderCreateBuilder`.
     // This example creates a Limit Order that is Good-Til-Cancelled (GTC) and post-only.
-    let order = match OrderCreateBuilder::new(product_pair, &side)
+    let order = match OrderCreateBuilder::new(product_pair, side)
         .base_size(total_size)
         .limit_price(price)
         .post_only(true)

@@ -54,24 +54,21 @@ where
     /// * `new_candle` - The new candle update received from the WebSocket.
     fn check_candle(&mut self, product_id: &str, new_candle: Candle) -> Option<Candle> {
         // Retrieve the current candle for the product.
-        match self.candles.get(product_id) {
-            Some(existing_candle) => {
-                if existing_candle.start < new_candle.start {
-                    // A newer candle has been received; replace the existing candle.
-                    let completed_candle = self.candles.remove(product_id).unwrap();
-                    self.candles.insert(product_id.to_string(), new_candle);
-                    Some(completed_candle) // Return the completed candle.
-                } else {
-                    // Update the existing candle without considering it complete.
-                    self.candles.insert(product_id.to_string(), new_candle);
-                    None
-                }
-            }
-            None => {
-                // No existing candle; add the new candle as the initial one.
+        if let Some(existing_candle) = self.candles.get(product_id) {
+            if existing_candle.start < new_candle.start {
+                // A newer candle has been received; replace the existing candle.
+                let completed_candle = self.candles.remove(product_id).unwrap();
+                self.candles.insert(product_id.to_string(), new_candle);
+                Some(completed_candle) // Return the completed candle.
+            } else {
+                // Update the existing candle without considering it complete.
                 self.candles.insert(product_id.to_string(), new_candle);
                 None
             }
+        } else {
+            // No existing candle; add the new candle as the initial one.
+            self.candles.insert(product_id.to_string(), new_candle);
+            None
         }
     }
 
@@ -84,7 +81,7 @@ where
     /// # Returns
     ///
     /// A vector of `CandleUpdate` sorted by timestamp (newest first).
-    fn extract_candle_updates(&self, message: &Message) -> Vec<CandleUpdate> {
+    fn extract_candle_updates(message: &Message) -> Vec<CandleUpdate> {
         let mut updates: Vec<CandleUpdate> = message
             .events
             .iter()
@@ -127,6 +124,7 @@ where
     /// * `product_id` - The ID of the product associated with the candle.
     /// * `completed_candle` - The completed candle to send to the callback.
     async fn trigger_user_callback(&mut self, product_id: String, completed_candle: Candle) {
+        #![allow(clippy::cast_sign_loss)]
         let now = Utc::now().timestamp() as u64;
         let start_time = now - (now % (GRANULARITY * 2));
 
@@ -150,7 +148,7 @@ where
                 }
 
                 // Extract candle updates and process them.
-                let updates = self.extract_candle_updates(&message);
+                let updates = CandleWatcher::<T>::extract_candle_updates(&message);
                 if updates.is_empty() {
                     return; // No updates to process.
                 }
@@ -159,7 +157,7 @@ where
                 self.process_candle_updates(updates).await;
             }
             Err(err) => {
-                eprintln!("!WEBSOCKET ERROR! {}", err);
+                eprintln!("!WEBSOCKET ERROR! {err}");
             }
         }
     }

@@ -27,13 +27,15 @@ impl RateLimits {
     /// * `is_public` - Requester is Public Client, true, otherwise false.
     pub(crate) fn refresh_rate(is_rest: bool, is_public: bool) -> f64 {
         if is_rest {
-            is_public
-                .then(|| ratelimits::PUBLIC_REST_REFRESH_RATE)
-                .unwrap_or(ratelimits::SECURE_REST_REFRESH_RATE)
+            if is_public {
+                ratelimits::PUBLIC_REST_REFRESH_RATE
+            } else {
+                ratelimits::SECURE_REST_REFRESH_RATE
+            }
+        } else if is_public {
+            ratelimits::PUBLIC_WEBSOCKET_REFRESH_RATE
         } else {
-            is_public
-                .then(|| ratelimits::PUBLIC_WEBSOCKET_REFRESH_RATE)
-                .unwrap_or(ratelimits::SECURE_WEBSOCKET_REFRESH_RATE)
+            ratelimits::SECURE_WEBSOCKET_REFRESH_RATE
         }
     }
 
@@ -45,13 +47,15 @@ impl RateLimits {
     /// * `is_public` - Requester is Public Client, true, otherwise false.
     pub(crate) fn max_tokens(is_rest: bool, is_public: bool) -> f64 {
         if is_rest {
-            is_public
-                .then(|| RateLimits::PUBLIC_REST_MAX_TOKENS)
-                .unwrap_or(RateLimits::SECURE_REST_MAX_TOKENS)
+            if is_public {
+                RateLimits::PUBLIC_REST_MAX_TOKENS
+            } else {
+                RateLimits::SECURE_REST_MAX_TOKENS
+            }
+        } else if is_public {
+            RateLimits::PUBLIC_WEBSOCKET_MAX_TOKENS
         } else {
-            is_public
-                .then(|| RateLimits::PUBLIC_WEBSOCKET_MAX_TOKENS)
-                .unwrap_or(RateLimits::SECURE_WEBSOCKET_MAX_TOKENS)
+            RateLimits::SECURE_WEBSOCKET_MAX_TOKENS
         }
     }
 }

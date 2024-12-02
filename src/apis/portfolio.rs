@@ -36,12 +36,20 @@ impl PortfolioApi {
     ///
     /// * `query` - The query parameters to filter the results.
     ///
+    /// # Errors
+    ///
+    /// * `CbError::AuthenticationError` - If the agent is not authenticated.
+    /// * `CbError::JsonError` - If there was an issue parsing the JSON response.
+    /// * `CbError::RequestError` - If there was an issue making the request.
+    /// * `CbError::UrlParseError` - If there was an issue parsing the URL.
+    /// * `CbError::BadSerialization` - If there was an issue serializing the request.
+    /// * `CbError::BadStatus` - If the status code was not 200.
+    /// * `CbError::BadJwt` - If there was an issue creating the JWT.
+    ///
     /// # Endpoint / Reference
     ///
-    #[allow(rustdoc::bare_urls)]
-    /// https://api.coinbase.com/api/v3/brokerage/portfolios
-    ///
-    /// <https://docs.cdp.coinbase.com/advanced-trade/reference/retailbrokerageapi_getportfolios>
+    /// * <https://api.coinbase.com/api/v3/brokerage/portfolios>
+    /// * <https://docs.cdp.coinbase.com/advanced-trade/reference/retailbrokerageapi_getportfolios>
     pub async fn get_all(&mut self, query: &PortfolioListQuery) -> CbResult<Vec<Portfolio>> {
         let agent = get_auth!(self.agent, "get all portfolios");
         let response = agent.get(RESOURCE_ENDPOINT, query).await?;
@@ -58,12 +66,20 @@ impl PortfolioApi {
     ///
     /// * `request` - The request to create a new portfolio.
     ///
+    /// # Errors
+    ///
+    /// * `CbError::AuthenticationError` - If the agent is not authenticated.
+    /// * `CbError::JsonError` - If there was an issue parsing the JSON response.
+    /// * `CbError::RequestError` - If there was an issue making the request.
+    /// * `CbError::UrlParseError` - If there was an issue parsing the URL.
+    /// * `CbError::BadSerialization` - If there was an issue serializing the request.
+    /// * `CbError::BadStatus` - If the status code was not 200.
+    /// * `CbError::BadJwt` - If there was an issue creating the JWT.
+    ///
     /// # Endpoint / Reference
     ///
-    #[allow(rustdoc::bare_urls)]
-    /// https://api.coinbase.com/api/v3/brokerage/portfolios
-    ///
-    /// <https://docs.cdp.coinbase.com/advanced-trade/reference/retailbrokerageapi_createportfolio>
+    /// * <https://api.coinbase.com/api/v3/brokerage/portfolios>
+    /// * <https://docs.cdp.coinbase.com/advanced-trade/reference/retailbrokerageapi_createportfolio>
     pub async fn create(&mut self, request: &PortfolioModifyRequest) -> CbResult<Portfolio> {
         let agent = get_auth!(self.agent, "create portfolio");
         let response = agent.post(RESOURCE_ENDPOINT, &NoQuery, request).await?;
@@ -81,19 +97,27 @@ impl PortfolioApi {
     /// * `portfolio_uuid` - The UUID of the portfolio to edit.
     /// * `request` - The request to edit the portfolio.
     ///
+    /// # Errors
+    ///
+    /// * `CbError::AuthenticationError` - If the agent is not authenticated.
+    /// * `CbError::JsonError` - If there was an issue parsing the JSON response.
+    /// * `CbError::RequestError` - If there was an issue making the request.
+    /// * `CbError::UrlParseError` - If there was an issue parsing the URL.
+    /// * `CbError::BadSerialization` - If there was an issue serializing the request.
+    /// * `CbError::BadStatus` - If the status code was not 200.
+    /// * `CbError::BadJwt` - If there was an issue creating the JWT.
+    ///
     /// # Endpoint / Reference
     ///
-    #[allow(rustdoc::bare_urls)]
-    /// https://api.coinbase.com/api/v3/brokerage/portfolios
-    ///
-    /// <https://docs.cdp.coinbase.com/advanced-trade/reference/retailbrokerageapi_editportfolio>
+    /// * <https://api.coinbase.com/api/v3/brokerage/portfolios>
+    /// * <https://docs.cdp.coinbase.com/advanced-trade/reference/retailbrokerageapi_editportfolio>
     pub async fn edit(
         &mut self,
         portfolio_uuid: &str,
         request: &PortfolioModifyRequest,
     ) -> CbResult<Portfolio> {
         let agent = get_auth!(self.agent, "edit portfolio");
-        let resource = format!("{}/{}", RESOURCE_ENDPOINT, portfolio_uuid);
+        let resource = format!("{RESOURCE_ENDPOINT}/{portfolio_uuid}");
         let response = agent.put(&resource, &NoQuery, request).await?;
         let data: PortfolioWrapper = response
             .json()
@@ -108,15 +132,22 @@ impl PortfolioApi {
     ///
     /// * `portfolio_uuid` - The UUID of the portfolio to delete.
     ///
+    /// # Errors
+    ///
+    /// * `CbError::AuthenticationError` - If the agent is not authenticated.
+    /// * `CbError::RequestError` - If there was an issue making the request.
+    /// * `CbError::UrlParseError` - If there was an issue parsing the URL.
+    /// * `CbError::BadSerialization` - If there was an issue serializing the request.
+    /// * `CbError::BadStatus` - If the status code was not 200.
+    /// * `CbError::BadJwt` - If there was an issue creating the JWT.
+    ///
     /// # Endpoint / Reference
     ///
-    #[allow(rustdoc::bare_urls)]
-    /// https://api.coinbase.com/api/v3/brokerage/portfolios
-    ///
-    /// <https://docs.cdp.coinbase.com/advanced-trade/reference/retailbrokerageapi_editportfolio>
+    /// * <https://api.coinbase.com/api/v3/brokerage/portfolios>
+    /// * <https://docs.cdp.coinbase.com/advanced-trade/reference/retailbrokerageapi_editportfolio>
     pub async fn delete(&mut self, portfolio_uuid: &str) -> CbResult<()> {
         let agent = get_auth!(self.agent, "delete portfolio");
-        let resource = format!("{}/{}", RESOURCE_ENDPOINT, portfolio_uuid);
+        let resource = format!("{RESOURCE_ENDPOINT}/{portfolio_uuid}");
         agent.delete(&resource, &NoQuery).await?;
         Ok(())
     }
@@ -127,12 +158,19 @@ impl PortfolioApi {
     ///
     /// * `request` - The request to move funds.
     ///
+    /// # Errors
+    ///
+    /// * `CbError::AuthenticationError` - If the agent is not authenticated.
+    /// * `CbError::RequestError` - If there was an issue making the request.
+    /// * `CbError::UrlParseError` - If there was an issue parsing the URL.
+    /// * `CbError::BadSerialization` - If there was an issue serializing the request.
+    /// * `CbError::BadStatus` - If the status code was not 200.
+    /// * `CbError::BadJwt` - If there was an issue creating the JWT.
+    ///
     /// # Endpoint / Reference
     ///
-    #[allow(rustdoc::bare_urls)]
-    /// https://api.coinbase.com/api/v3/brokerage/portfolios/move_funds
-    ///
-    /// <https://docs.cdp.coinbase.com/advanced-trade/reference/retailbrokerageapi_moveportfoliofunds>
+    /// * <https://api.coinbase.com/api/v3/brokerage/portfolios/move_funds>
+    /// * <https://docs.cdp.coinbase.com/advanced-trade/reference/retailbrokerageapi_moveportfoliofunds>
     pub async fn move_funds(&mut self, request: &PortfolioMoveFundsRequest) -> CbResult<()> {
         let agent = get_auth!(self.agent, "move funds");
         agent.post(MOVE_FUNDS_ENDPOINT, &NoQuery, request).await?;
@@ -146,19 +184,27 @@ impl PortfolioApi {
     /// * `portfolio_uuid` - The UUID of the portfolio to obtain a breakdown for.
     /// * `query` - The query parameters to filter the results.
     ///
+    /// # Errors
+    ///
+    /// * `CbError::AuthenticationError` - If the agent is not authenticated.
+    /// * `CbError::JsonError` - If there was an issue parsing the JSON response.
+    /// * `CbError::RequestError` - If there was an issue making the request.
+    /// * `CbError::UrlParseError` - If there was an issue parsing the URL.
+    /// * `CbError::BadSerialization` - If there was an issue serializing the request.
+    /// * `CbError::BadStatus` - If the status code was not 200.
+    /// * `CbError::BadJwt` - If there was an issue creating the JWT.
+    ///
     /// # Endpoint / Reference
     ///
-    #[allow(rustdoc::bare_urls)]
-    /// https://api.coinbase.com/api/v3/brokerage/portfolios
-    ///
-    /// <https://docs.cdp.coinbase.com/advanced-trade/reference/retailbrokerageapi_getportfoliobreakdown>
+    /// * <https://api.coinbase.com/api/v3/brokerage/portfolios>
+    /// * <https://docs.cdp.coinbase.com/advanced-trade/reference/retailbrokerageapi_getportfoliobreakdown>
     pub async fn get(
         &mut self,
         portfolio_uuid: &str,
         query: &PortfolioBreakdownQuery,
     ) -> CbResult<PortfolioBreakdown> {
         let agent = get_auth!(self.agent, "get portfolio breakdown");
-        let resource = format!("{}/{}", RESOURCE_ENDPOINT, portfolio_uuid);
+        let resource = format!("{RESOURCE_ENDPOINT}/{portfolio_uuid}");
         let response = agent.get(&resource, query).await?;
         let data: PortfolioBreakdownWrapper = response
             .json()

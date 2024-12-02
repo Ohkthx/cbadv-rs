@@ -50,12 +50,12 @@ pub struct WebSocketEndpoints {
 }
 
 impl WebSocketEndpoints {
-    /// Create a new WebSocketEndpoints.
+    /// Create a new `WebSocketEndpoints`.
     pub fn new() -> Self {
         Self::default()
     }
 
-    /// Add an endpoint to the WebSocketEndpoints.
+    /// Add an endpoint to the `WebSocketEndpoints`.
     ///
     /// # Arguments
     ///
@@ -64,7 +64,7 @@ impl WebSocketEndpoints {
         self.endpoints.insert(endpoint_type, endpoint);
     }
 
-    /// Check if the WebSocketEndpoints contains an endpoint.
+    /// Check if the `WebSocketEndpoints` contains an endpoint.
     ///
     /// # Arguments
     ///
@@ -73,7 +73,7 @@ impl WebSocketEndpoints {
         self.endpoints.get(endpoint_type)
     }
 
-    /// Check if the WebSocketEndpoints contains a mutable reference to an endpoint.
+    /// Check if the `WebSocketEndpoints` contains a mutable reference to an endpoint.
     ///
     /// # Arguments
     ///
@@ -82,7 +82,7 @@ impl WebSocketEndpoints {
         self.endpoints.get_mut(endpoint_type)
     }
 
-    /// Take an endpoint from the WebSocketEndpoints.
+    /// Take an endpoint from the `WebSocketEndpoints`.
     ///
     /// # Arguments
     ///
@@ -101,7 +101,7 @@ impl WebSocketEndpoints {
         self.get(&EndpointType::User)
     }
 
-    /// Converts the WebSocketEndpoints into a vector of Endpoints.
+    /// Converts the `WebSocketEndpoints` into a vector of Endpoints.
     pub(crate) fn extract_to_vec(&mut self) -> Vec<Endpoint> {
         let mut endpoints = Vec::new();
         for (_, endpoint) in self.endpoints.drain() {
@@ -127,7 +127,7 @@ impl Default for WebSocketSubscriptions {
 }
 
 impl WebSocketSubscriptions {
-    /// Create a new WebSocketSubscriptions.
+    /// Create a new `WebSocketSubscriptions`.
     pub(crate) fn new() -> Self {
         Self::default()
     }
@@ -189,7 +189,7 @@ impl WebSocketSubscriptions {
     }
 
     /// Obtains all of the keys (endpoints) that have subscriptions.
-    pub(crate) async fn get_keys(&self) -> Vec<EndpointType> {
+    pub(crate) fn get_keys(&self) -> Vec<EndpointType> {
         let keys: Vec<EndpointType> = self.data.keys().cloned().collect();
         keys
     }

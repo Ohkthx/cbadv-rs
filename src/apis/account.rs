@@ -33,15 +33,23 @@ impl AccountApi {
     ///
     /// * `account_uuid` - A string the represents the account's UUID.
     ///
+    /// # Errors
+    ///
+    /// * `CbError::AuthenticationError` - If the agent is not authenticated.
+    /// * `CbError::JsonError` - If there was an issue parsing the JSON response.
+    /// * `CbError::RequestError` - If there was an issue making the request.
+    /// * `CbError::UrlParseError` - If there was an issue parsing the URL.
+    /// * `CbError::BadSerialization` - If there was an issue serializing the request.
+    /// * `CbError::BadStatus` - If the status code was not 200.
+    /// * `CbError::BadJwt` - If there was an issue creating the JWT.
+    ///
     /// # Endpoint / Reference
     ///
-    #[allow(rustdoc::bare_urls)]
-    /// https://api.coinbase.com/api/v3/brokerage/accounts/{account_uuid}
-    ///
-    /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getaccount>
+    /// * <https://api.coinbase.com/api/v3/brokerage/accounts/{account_uuid>}
+    /// * <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getaccount>
     pub async fn get(&mut self, account_uuid: &str) -> CbResult<Account> {
         let agent = get_auth!(self.agent, "get account");
-        let resource = format!("{}/{}", RESOURCE_ENDPOINT, account_uuid);
+        let resource = format!("{RESOURCE_ENDPOINT}/{account_uuid}");
         let response = agent.get(&resource, &NoQuery).await?;
         let data: AccountWrapper = response
             .json()
@@ -55,13 +63,24 @@ impl AccountApi {
     /// account is found or there are not more accounts. This is a more expensive call, but more
     /// convient than `get` which requires knowing the UUID already.
     ///
-    /// NOTE: NOT A STANDARD API FUNCTION. QoL function that may require additional API requests than
+    /// NOTE: NOT A STANDARD API FUNCTION. QOL function that may require additional API requests than
     /// normal.
     ///
     /// # Arguments
     ///
     /// * `id` - Identifier for the account, such as BTC or ETH.
     /// * `query` - Parameters to control the query, such as limit.
+    ///
+    /// # Errors
+    ///
+    /// * `CbError::AuthenticationError` - If the agent is not authenticated.
+    /// * `CbError::JsonError` - If there was an issue parsing the JSON response.
+    /// * `CbError::RequestError` - If there was an issue making the request.
+    /// * `CbError::UrlParseError` - If there was an issue parsing the URL.
+    /// * `CbError::BadSerialization` - If there was an issue serializing the request.
+    /// * `CbError::BadStatus` - If the status code was not 200.
+    /// * `CbError::BadJwt` - If there was an issue creating the JWT.
+    /// * `CbError::NotFound` - If the account was not found.
     pub async fn get_by_id(&mut self, id: &str, query: &AccountListQuery) -> CbResult<Account> {
         is_auth!(self.agent, "get account by ID");
 
@@ -79,8 +98,7 @@ impl AccountApi {
             // If no more pages to fetch, return a "not found" error with context.
             if !listed.has_next {
                 return Err(CbError::NotFound(format!(
-                    "No account found with ID '{}'.",
-                    id
+                    "No account found with ID '{id}'."
                 )));
             }
 
@@ -92,12 +110,22 @@ impl AccountApi {
     /// Obtains all accounts available to the API Key. Use a larger limit in the query to decrease
     /// the amount of API calls. Iteratively makes calls to obtain all accounts.
     ///
-    /// NOTE: NOT A STANDARD API FUNCTION. QoL function that may require additional API requests than
+    /// NOTE: NOT A STANDARD API FUNCTION. `QoL` function that may require additional API requests than
     /// normal.
     ///
     /// # Arguments
     ///
     /// * `query` - Parameters to control the query, such as limit.
+    ///
+    /// # Errors
+    ///
+    /// * `CbError::AuthenticationError` - If the agent is not authenticated.
+    /// * `CbError::JsonError` - If there was an issue parsing the JSON response.
+    /// * `CbError::RequestError` - If there was an issue making the request.
+    /// * `CbError::UrlParseError` - If there was an issue parsing the URL.
+    /// * `CbError::BadSerialization` - If there was an issue serializing the request.
+    /// * `CbError::BadStatus` - If the status code was not 200.
+    /// * `CbError::BadJwt` - If there was an issue creating the JWT.
     pub async fn get_all(&mut self, query: &AccountListQuery) -> CbResult<Vec<Account>> {
         is_auth!(self.agent, "get all accounts");
 
@@ -126,12 +154,24 @@ impl AccountApi {
 
     /// Obtains various accounts from the API.
     ///
+    /// # Arguments
+    ///
+    /// * `query` - Parameters to control the query, such as limit.
+    ///
+    /// # Errors
+    ///
+    /// * `CbError::AuthenticationError` - If the agent is not authenticated.
+    /// * `CbError::JsonError` - If there was an issue parsing the JSON response.
+    /// * `CbError::RequestError` - If there was an issue making the request.
+    /// * `CbError::UrlParseError` - If there was an issue parsing the URL.
+    /// * `CbError::BadSerialization` - If there was an issue serializing the request.
+    /// * `CbError::BadStatus` - If the status code was not 200.
+    /// * `CbError::BadJwt` - If there was an issue creating the JWT.
+    ///
     /// # Endpoint / Reference
     ///
-    #[allow(rustdoc::bare_urls)]
-    /// https://api.coinbase.com/api/v3/brokerage/accounts
-    ///
-    /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getaccounts>
+    /// * <https://api.coinbase.com/api/v3/brokerage/accounts>
+    /// * <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getaccounts>
     pub async fn get_bulk(&mut self, query: &AccountListQuery) -> CbResult<PaginatedAccounts> {
         let agent = get_auth!(self.agent, "get bulk accounts");
         let response = agent.get(RESOURCE_ENDPOINT, query).await?;

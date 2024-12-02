@@ -27,12 +27,20 @@ impl DataApi {
 
     /// Get information about your CDP API key permissions.
     ///
+    /// # Errors
+    ///
+    /// * `CbError::AuthenticationError` - If the agent is not authenticated.
+    /// * `CbError::JsonError` - If there was an issue parsing the JSON response.
+    /// * `CbError::RequestError` - If there was an issue making the request.
+    /// * `CbError::UrlParseError` - If there was an issue parsing the URL.
+    /// * `CbError::BadSerialization` - If there was an issue serializing the request.
+    /// * `CbError::BadStatus` - If the status code was not 200.
+    /// * `CbError::BadJwt` - If there was an issue creating the JWT.
+    ///
     /// # Endpoint / Reference
     ///
-    #[allow(rustdoc::bare_urls)]
-    /// https://api.coinbase.com/api/v3/brokerage/key_permissions
-    ///
-    /// <https://docs.cdp.coinbase.com/advanced-trade/reference/retailbrokerageapi_getapikeypermissions>
+    /// * <https://api.coinbase.com/api/v3/brokerage/key_permissions>
+    /// * <https://docs.cdp.coinbase.com/advanced-trade/reference/retailbrokerageapi_getapikeypermissions>
     pub async fn key_permissions(&mut self) -> CbResult<KeyPermissions> {
         let agent = get_auth!(self.agent, "get key permissions");
         let response = agent.get(KEY_PERMISSIONS_ENDPOINT, &NoQuery).await?;

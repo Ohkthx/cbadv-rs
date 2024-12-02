@@ -35,12 +35,18 @@ impl PublicApi {
 
     /// Get the current time from the Coinbase Advanced API.
     ///
+    /// # Errors
+    ///
+    /// * `CbError::JsonError` - If there was an issue parsing the JSON response.
+    /// * `CbError::RequestError` - If there was an issue making the request.
+    /// * `CbError::UrlParseError` - If there was an issue parsing the URL.
+    /// * `CbError::BadSerialization` - If there was an issue serializing the request.
+    /// * `CbError::BadStatus` - If the status code was not 200.
+    ///
     /// # Endpoint / Reference
     ///
-    #[allow(rustdoc::bare_urls)]
-    /// https://api.coinbase.com/api/v3/brokerage/time
-    ///
-    /// <https://docs.cdp.coinbase.com/advanced-trade/reference/retailbrokerageapi_getservertime>
+    /// * <https://api.coinbase.com/api/v3/brokerage/time>
+    /// * <https://docs.cdp.coinbase.com/advanced-trade/reference/retailbrokerageapi_getservertime>
     pub async fn time(&mut self) -> CbResult<ServerTime> {
         let response = self.agent.get(SERVERTIME_ENDPOINT, &NoQuery).await?;
         let data: ServerTime = response
@@ -56,12 +62,18 @@ impl PublicApi {
     ///
     /// * `query` - Query used to obtain the product book.
     ///
+    /// # Errors
+    ///
+    /// * `CbError::JsonError` - If there was an issue parsing the JSON response.
+    /// * `CbError::RequestError` - If there was an issue making the request.
+    /// * `CbError::UrlParseError` - If there was an issue parsing the URL.
+    /// * `CbError::BadSerialization` - If there was an issue serializing the request.
+    /// * `CbError::BadStatus` - If the status code was not 200.
+    ///
     /// # Endpoint / Reference
     ///
-    #[allow(rustdoc::bare_urls)]
-    /// https://api.coinbase.com/api/v3/brokerage/market/product_book
-    ///
-    /// <https://docs.cdp.coinbase.com/advanced-trade/reference/retailbrokerageapi_getpublicproductbook>
+    /// * <https://api.coinbase.com/api/v3/brokerage/market/product_book>
+    /// * <https://docs.cdp.coinbase.com/advanced-trade/reference/retailbrokerageapi_getpublicproductbook>
     pub async fn product_book(&mut self, query: &ProductBookQuery) -> CbResult<ProductBook> {
         let response = self.agent.get(PRODUCT_BOOK_ENDPOINT, query).await?;
         let data: ProductBookWrapper = response
@@ -77,14 +89,20 @@ impl PublicApi {
     ///
     /// * `product_id` - A string the represents the product's ID.
     ///
+    /// # Errors
+    ///
+    /// * `CbError::JsonError` - If there was an issue parsing the JSON response.
+    /// * `CbError::RequestError` - If there was an issue making the request.
+    /// * `CbError::UrlParseError` - If there was an issue parsing the URL.
+    /// * `CbError::BadSerialization` - If there was an issue serializing the request.
+    /// * `CbError::BadStatus` - If the status code was not 200.
+    ///
     /// # Endpoint / Reference
     ///
-    #[allow(rustdoc::bare_urls)]
-    /// https://api.coinbase.com/api/v3/brokerage/products/{product_id}
-    ///
-    /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getproduct>
+    /// * <https://api.coinbase.com/api/v3/brokerage/products/{product_id>}
+    /// * <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getproduct>
     pub async fn product(&mut self, product_id: &str) -> CbResult<Product> {
-        let resource = format!("{}/{}", RESOURCE_ENDPOINT, product_id);
+        let resource = format!("{RESOURCE_ENDPOINT}/{product_id}");
         let response = self.agent.get(&resource, &NoQuery).await?;
         let data: Product = response
             .json()
@@ -99,12 +117,18 @@ impl PublicApi {
     ///
     /// * `query` - Query used to obtain products.
     ///
+    /// # Errors
+    ///
+    /// * `CbError::JsonError` - If there was an issue parsing the JSON response.
+    /// * `CbError::RequestError` - If there was an issue making the request.
+    /// * `CbError::UrlParseError` - If there was an issue parsing the URL.
+    /// * `CbError::BadSerialization` - If there was an issue serializing the request.
+    /// * `CbError::BadStatus` - If the status code was not 200.
+    ///
     /// # Endpoint / Reference
     ///
-    #[allow(rustdoc::bare_urls)]
-    /// https://api.coinbase.com/api/v3/brokerage/products
-    ///
-    /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getproducts>
+    /// * <https://api.coinbase.com/api/v3/brokerage/products>
+    /// * <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getproducts>
     pub async fn products(&mut self, query: &ProductListQuery) -> CbResult<Vec<Product>> {
         let response = self.agent.get(RESOURCE_ENDPOINT, query).await?;
         let data: ProductsWrapper = response
@@ -121,18 +145,24 @@ impl PublicApi {
     /// * `product_id` - A string the represents the product's ID.
     /// * `query` - Span of time to obtain.
     ///
+    /// # Errors
+    ///
+    /// * `CbError::JsonError` - If there was an issue parsing the JSON response.
+    /// * `CbError::RequestError` - If there was an issue making the request.
+    /// * `CbError::UrlParseError` - If there was an issue parsing the URL.
+    /// * `CbError::BadSerialization` - If there was an issue serializing the request.
+    /// * `CbError::BadStatus` - If the status code was not 200.
+    ///
     /// # Endpoint / Reference
     ///
-    #[allow(rustdoc::bare_urls)]
-    /// https://api.coinbase.com/api/v3/brokerage/products/{product_id}/candles
-    ///
-    /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getcandles>
+    /// * <https://api.coinbase.com/api/v3/brokerage/products/{product_id}/candles>
+    /// * <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getcandles>
     pub async fn candles(
         &mut self,
         product_id: &str,
         query: &ProductCandleQuery,
     ) -> CbResult<Vec<Candle>> {
-        let resource = format!("{}/{}/candles", RESOURCE_ENDPOINT, product_id);
+        let resource = format!("{RESOURCE_ENDPOINT}/{product_id}/candles");
         let response = self.agent.get(&resource, query).await?;
         let data: CandlesWrapper = response
             .json()
@@ -144,13 +174,21 @@ impl PublicApi {
     /// Obtains candles for a specific product extended. This will exceed the 300 limit threshold
     /// and try to obtain the amount specified.
     ///
-    /// NOTE: NOT A STANDARD API FUNCTION. QoL function that may require additional API requests than
+    /// NOTE: NOT A STANDARD API FUNCTION. QOL function that may require additional API requests than
     /// normal.
     ///
     /// # Arguments
     ///
     /// * `product_id` - A string the represents the product's ID.
     /// * `query` - Span of time to obtain.
+    ///
+    /// # Errors
+    ///
+    /// * `CbError::JsonError` - If there was an issue parsing the JSON response.
+    /// * `CbError::RequestError` - If there was an issue making the request.
+    /// * `CbError::UrlParseError` - If there was an issue parsing the URL.
+    /// * `CbError::BadSerialization` - If there was an issue serializing the request.
+    /// * `CbError::BadStatus` - If the status code was not 200.
     pub async fn candles_ext(
         &mut self,
         product_id: &str,
@@ -161,8 +199,8 @@ impl PublicApi {
         // Extract query parameters.
         let end_time = query.end;
         let granularity = query.granularity.clone();
-        let interval_seconds = Granularity::to_secs(&granularity) as u64;
-        let maximum_candles = CANDLE_MAXIMUM as u64;
+        let interval_seconds = u64::from(Granularity::to_secs(&granularity));
+        let maximum_candles = u64::from(CANDLE_MAXIMUM);
 
         // Initialize the span.
         let mut current_start = query.start;
@@ -200,18 +238,24 @@ impl PublicApi {
     /// * `product_id` - A string the represents the product's ID.
     /// * `query` - Amount of products to get.
     ///
+    /// # Errors
+    ///
+    /// * `CbError::JsonError` - If there was an issue parsing the JSON response.
+    /// * `CbError::RequestError` - If there was an issue making the request.
+    /// * `CbError::UrlParseError` - If there was an issue parsing the URL.
+    /// * `CbError::BadSerialization` - If there was an issue serializing the request.
+    /// * `CbError::BadStatus` - If the status code was not 200.
+    ///
     /// # Endpoint / Reference
     ///
-    #[allow(rustdoc::bare_urls)]
-    /// https://api.coinbase.com/api/v3/brokerage/products/{product_id}/ticker
-    ///
-    /// <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getmarkettrades>
+    /// * <https://api.coinbase.com/api/v3/brokerage/products/{product_id}/ticker>
+    /// * <https://docs.cloud.coinbase.com/advanced-trade-api/reference/retailbrokerageapi_getmarkettrades>
     pub async fn ticker(
         &mut self,
         product_id: &str,
         query: &ProductTickerQuery,
     ) -> CbResult<Ticker> {
-        let resource = format!("{}/{}/ticker", RESOURCE_ENDPOINT, product_id);
+        let resource = format!("{RESOURCE_ENDPOINT}/{product_id}/ticker");
         let response = self.agent.get(&resource, query).await?;
         let data: Ticker = response
             .json()
