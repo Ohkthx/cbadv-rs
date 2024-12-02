@@ -16,7 +16,7 @@ async fn main() {
         Err(err) => {
             println!("Could not load configuration file.");
             if config::exists("config.toml") {
-                println!("File exists, {}", err);
+                println!("File exists, {err}");
                 exit(1);
             }
 
@@ -31,7 +31,7 @@ async fn main() {
     let mut client = match RestClientBuilder::new().with_config(&config).build() {
         Ok(c) => c,
         Err(why) => {
-            eprintln!("!ERROR! {}", why);
+            eprintln!("!ERROR! {why}");
             exit(1)
         }
     };
@@ -39,7 +39,7 @@ async fn main() {
     // Get the API key permissions.
     println!("Obtaining Key Permissions for the API key.");
     match client.data.key_permissions().await {
-        Ok(perm) => println!("{:#?}", perm),
-        Err(error) => println!("Unable to get the API key permissions: {}", error),
+        Ok(perm) => println!("{perm:#?}"),
+        Err(error) => println!("Unable to get the API key permissions: {error}"),
     }
 }

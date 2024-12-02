@@ -76,8 +76,9 @@ Full API documentation is available at [docs.rs](https://docs.rs/cbadv/latest/cb
 Client: `use cbadv::{WebSocketClient, WebSocketClientBuilder}`
 
 - **Authentication**: `client.connect`
-- **Subscribe**: `client.subscribe` or `client.sub`
-- **Unsubscribe**: `client.unsubscribe` or `client.unsub`
+- **Subscribe**: `client.subscribe`
+- **Unsubscribe**: `client.unsubscribe`
+- **Listen**: `client.listen`
 - **Channels Supported**:
   - `Channel::STATUS`: Status
   - `Channel::CANDLES`: Candles

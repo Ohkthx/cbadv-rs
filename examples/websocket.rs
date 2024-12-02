@@ -16,12 +16,12 @@ use cbadv::{FunctionCallback, WebSocketClientBuilder};
 /// the stream.
 fn message_callback(msg: CbResult<Message>) {
     let rcvd = match msg {
-        Ok(message) => format!("{:?}", message), // Leverage Debug for all Message variants
-        Err(error) => format!("Error: {}", error), // Handle WebSocket errors
+        Ok(message) => format!("{message:?}"), // Leverage Debug for all Message variants
+        Err(error) => format!("Error: {error}"), // Handle WebSocket errors
     };
 
     // Update the callback object's properties and log the message.
-    println!("{}\n", rcvd);
+    println!("{rcvd}\n");
 }
 
 #[tokio::main]
@@ -32,7 +32,7 @@ async fn main() {
         .max_retries(20)
         .build()
         .map_err(|e| {
-            eprintln!("!ERROR! {}", e);
+            eprintln!("!ERROR! {e}");
             exit(1);
         })
         .unwrap();

@@ -21,7 +21,7 @@ async fn main() {
     let mut client = match RestClientBuilder::new().build() {
         Ok(c) => c,
         Err(why) => {
-            eprintln!("!ERROR! {}", why);
+            eprintln!("!ERROR! {why}");
             exit(1)
         }
     };
@@ -29,8 +29,8 @@ async fn main() {
     // Get API Unix time.
     println!("Obtaining API Unix time");
     match client.public.time().await {
-        Ok(time) => println!("{:#?}", time),
-        Err(error) => println!("Unable to get the Unix time: {}", error),
+        Ok(time) => println!("{time:#?}"),
+        Err(error) => println!("Unable to get the Unix time: {error}"),
     }
 
     // NOTE: Commented out due to large amounts of output.
@@ -52,13 +52,13 @@ async fn main() {
     // Pull multiple products from the Product API.
     match client.public.products(&query).await {
         Ok(products) => println!("Obtained {:#?} products", products.len()),
-        Err(error) => println!("Unable to get products: {}", error),
+        Err(error) => println!("Unable to get products: {error}"),
     }
 
     // Pull candles.
     let end = time::now();
-    let interval = Granularity::to_secs(&Granularity::OneDay) as u64;
-    println!("\n\nGetting candles for: {}.", product_pair);
+    let interval = u64::from(Granularity::to_secs(&Granularity::OneDay));
+    println!("\n\nGetting candles for: {product_pair}.");
     let query = ProductCandleQuery::new(
         time::before(end, interval * 365),
         end,
@@ -69,15 +69,15 @@ async fn main() {
         Ok(candles) => {
             println!("Obtained {} candles.", candles.len());
             match candles.first() {
-                Some(candle) => println!("{:#?}", candle),
+                Some(candle) => println!("{candle:#?}"),
                 None => println!("Out of bounds, no candles obtained."),
             }
         }
-        Err(error) => println!("Unable to get candles: {}", error),
+        Err(error) => println!("Unable to get candles: {error}"),
     }
 
     // Pull ticker.
-    println!("\n\nGetting ticker for: {}.", product_pair);
+    println!("\n\nGetting ticker for: {product_pair}.");
     let query = ProductTickerQuery::new(200);
     match client.public.ticker(product_pair, &query).await {
         Ok(ticker) => {
@@ -88,10 +88,10 @@ async fn main() {
                 ticker.trades.len()
             );
             match ticker.trades.first() {
-                Some(trade) => println!("{:#?}", trade),
+                Some(trade) => println!("{trade:#?}"),
                 None => println!("Out of bounds, no trades available."),
             }
         }
-        Err(error) => println!("Unable to get ticker: {}", error),
+        Err(error) => println!("Unable to get ticker: {error}"),
     }
 }

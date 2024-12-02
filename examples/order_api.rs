@@ -37,7 +37,7 @@ async fn main() {
     {
         Ok(order) => order,
         Err(error) => {
-            println!("Unable to build order: {}", error);
+            println!("Unable to build order: {error}");
             exit(1);
         }
     };
@@ -48,7 +48,7 @@ async fn main() {
         Err(err) => {
             println!("Could not load configuration file.");
             if config::exists("config.toml") {
-                println!("File exists, {}", err);
+                println!("File exists, {err}");
                 exit(1);
             }
 
@@ -63,7 +63,7 @@ async fn main() {
     let mut client = match RestClientBuilder::new().with_config(&config).build() {
         Ok(c) => c,
         Err(why) => {
-            eprintln!("!ERROR! {}", why);
+            eprintln!("!ERROR! {why}");
             exit(1)
         }
     };
@@ -78,9 +78,9 @@ async fn main() {
                 if let Some(success) = &summary.success_response {
                     created_order_id = Some(success.order_id.clone());
                 }
-                println!("Order creation result: {:#?}", summary);
+                println!("Order creation result: {summary:#?}");
             }
-            Err(error) => println!("Unable to create order: {}", error),
+            Err(error) => println!("Unable to create order: {error}"),
         }
     }
 
@@ -88,49 +88,49 @@ async fn main() {
         if create_new && edit_created {
             thread::sleep(Duration::seconds(1).to_std().unwrap());
             let edit_order = OrderEditRequest::new(order_id, 50.0, 0.006);
-            println!("\n\nEditing order for {}.", order_id);
+            println!("\n\nEditing order for {order_id}.");
             match client.order.edit(&edit_order).await {
-                Ok(result) => println!("{:#?}", result),
-                Err(error) => println!("Unable to edit order: {}", error),
+                Ok(result) => println!("{result:#?}"),
+                Err(error) => println!("Unable to edit order: {error}"),
             }
         }
     }
 
     if let Some(order_id) = &created_order_id {
         if create_new && cancel_created {
-            println!("\n\nCancelling Order with ID: {}", order_id);
+            println!("\n\nCancelling Order with ID: {order_id}");
             match client
                 .order
                 .cancel(&OrderCancelRequest::new(&[order_id.clone()]))
                 .await
             {
-                Ok(summary) => println!("Order cancel result: {:#?}", summary),
-                Err(error) => println!("Unable to cancel order: {}", error),
+                Ok(summary) => println!("Order cancel result: {summary:#?}"),
+                Err(error) => println!("Unable to cancel order: {error}"),
             }
         }
     }
 
     // Cancels all OPEN orders.
     if cancel_all {
-        println!("\n\nCancelling all OPEN orders for {}.", product_id);
+        println!("\n\nCancelling all OPEN orders for {product_id}.");
         match client.order.cancel_all(product_id).await {
-            Ok(result) => println!("{:#?}", result),
-            Err(error) => println!("Unable to cancel orders: {}", error),
+            Ok(result) => println!("{result:#?}"),
+            Err(error) => println!("Unable to cancel orders: {error}"),
         }
     }
 
-    println!("\n\nGetting all orders for {} (get_all).", product_id);
+    println!("\n\nGetting all orders for {product_id} (get_all).");
     match client
         .order
         .get_all(product_id, &OrderListQuery::new())
         .await
     {
         Ok(orders) => println!("Orders obtained: {:#?}", orders.len()),
-        Err(error) => println!("Unable to obtain all orders: {}", error),
+        Err(error) => println!("Unable to obtain all orders: {error}"),
     }
 
     // Get all BUYING orders.
-    let mut order_id = "".to_string();
+    let mut order_id = String::new();
     let query = OrderListQuery {
         product_ids: Some(vec![product_id.to_string()]),
         order_side: Some(OrderSide::Buy),
@@ -144,7 +144,7 @@ async fn main() {
             match orders.orders.first() {
                 Some(order) => {
                     order_id = order.order_id.clone();
-                    println!("{:#?}", order);
+                    println!("{order:#?}");
                 }
                 None => println!("Out of bounds, no orders exist."),
             }
@@ -165,18 +165,18 @@ async fn main() {
                     .cancel(&OrderCancelRequest::new(&order_ids))
                     .await
                 {
-                    Ok(summary) => println!("Order cancel result: {:#?}", summary),
-                    Err(error) => println!("Unable to cancel order: {}", error),
+                    Ok(summary) => println!("Order cancel result: {summary:#?}"),
+                    Err(error) => println!("Unable to cancel order: {error}"),
                 }
             }
         }
-        Err(error) => println!("Unable to obtain bulk or cancel orders: {}", error),
+        Err(error) => println!("Unable to obtain bulk or cancel orders: {error}"),
     }
 
     // Get a singular order based on the ID.
-    println!("\n\nObtaining single order: {}", order_id);
+    println!("\n\nObtaining single order: {order_id}");
     match client.order.get(&order_id).await {
-        Ok(order) => println!("{:#?}", order),
-        Err(error) => println!("Unable to get single order: {}", error),
+        Ok(order) => println!("{order:#?}"),
+        Err(error) => println!("Unable to get single order: {error}"),
     }
 }

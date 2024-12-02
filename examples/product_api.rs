@@ -26,7 +26,7 @@ async fn main() {
         Err(err) => {
             println!("Could not load configuration file.");
             if config::exists("config.toml") {
-                println!("File exists, {}", err);
+                println!("File exists, {err}");
                 exit(1);
             }
 
@@ -41,21 +41,21 @@ async fn main() {
     let mut client = match RestClientBuilder::new().with_config(&config).build() {
         Ok(c) => c,
         Err(why) => {
-            eprintln!("!ERROR! {}", why);
+            eprintln!("!ERROR! {why}");
             exit(1)
         }
     };
 
     // Pull a singular product from the Product API.
-    println!("Getting product: {}.", product_pair);
+    println!("Getting product: {product_pair}.");
     let product = client.product.get(product_pair).await.unwrap();
-    println!("{:#?}\n\n", product);
+    println!("{product:#?}\n\n");
 
     println!("Getting best bids and asks.");
     let query = ProductBidAskQuery::new().product_ids(&["BTC-USD".to_string()]);
     match client.product.best_bid_ask(&query).await {
-        Ok(bidasks) => println!("{:#?}", bidasks),
-        Err(error) => println!("Unable to get best bids and asks: {}", error),
+        Ok(bidasks) => println!("{bidasks:#?}"),
+        Err(error) => println!("Unable to get best bids and asks: {error}"),
     }
 
     // NOTE: Commented out due to large amounts of output.
@@ -71,13 +71,13 @@ async fn main() {
     // Pull multiple products from the Product API.
     match client.product.get_bulk(&query).await {
         Ok(products) => println!("Obtained {:#?} products", products.len()),
-        Err(error) => println!("Unable to get products: {}", error),
+        Err(error) => println!("Unable to get products: {error}"),
     }
 
     // Pull candles.
     let end = time::now();
-    let interval = Granularity::to_secs(&Granularity::OneDay) as u64;
-    println!("\n\nGetting candles for: {}.", product_pair);
+    let interval = u64::from(Granularity::to_secs(&Granularity::OneDay));
+    println!("\n\nGetting candles for: {product_pair}.");
     let query = ProductCandleQuery::new(
         time::before(end, interval * 365),
         end,
@@ -88,15 +88,15 @@ async fn main() {
         Ok(candles) => {
             println!("Obtained {} candles.", candles.len());
             match candles.first() {
-                Some(candle) => println!("{:#?}", candle),
+                Some(candle) => println!("{candle:#?}"),
                 None => println!("Out of bounds, no candles obtained."),
             }
         }
-        Err(error) => println!("Unable to get candles: {}", error),
+        Err(error) => println!("Unable to get candles: {error}"),
     }
 
     // Pull ticker.
-    println!("\n\nGetting ticker for: {}.", product_pair);
+    println!("\n\nGetting ticker for: {product_pair}.");
     let query = ProductTickerQuery::new(200);
     match client.product.ticker(product_pair, &query).await {
         Ok(ticker) => {
@@ -107,10 +107,10 @@ async fn main() {
                 ticker.trades.len()
             );
             match ticker.trades.first() {
-                Some(trade) => println!("{:#?}", trade),
+                Some(trade) => println!("{trade:#?}"),
                 None => println!("Out of bounds, no trades available."),
             }
         }
-        Err(error) => println!("Unable to get ticker: {}", error),
+        Err(error) => println!("Unable to get ticker: {error}"),
     }
 }

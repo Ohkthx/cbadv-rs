@@ -17,7 +17,7 @@ async fn main() {
         Err(err) => {
             println!("Could not load configuration file.");
             if config::exists("config.toml") {
-                println!("File exists, {}", err);
+                println!("File exists, {err}");
                 exit(1);
             }
 
@@ -32,7 +32,7 @@ async fn main() {
     let mut client = match RestClientBuilder::new().with_config(&config).build() {
         Ok(c) => c,
         Err(why) => {
-            eprintln!("!ERROR! {}", why);
+            eprintln!("!ERROR! {why}");
             exit(1)
         }
     };
@@ -43,12 +43,12 @@ async fn main() {
     println!("Obtaining all payment methods.");
     match client.payment.get_all().await {
         Ok(methods) => {
-            println!("{:#?}", methods);
+            println!("{methods:#?}");
             if let Some(method) = methods.first() {
                 payment_method_id = Some(method.id.clone());
             }
         }
-        Err(error) => println!("Unable to get the Payment Methods: {}", error),
+        Err(error) => println!("Unable to get the Payment Methods: {error}"),
     }
 
     // Obtain a single payment method.
@@ -56,8 +56,8 @@ async fn main() {
         // Get a single payment method.
         println!("\n\nObtaining a single payment method.");
         match client.payment.get(&payment_method_id).await {
-            Ok(method) => println!("{:#?}", method),
-            Err(error) => println!("Unable to get the Payment Method: {}", error),
+            Ok(method) => println!("{method:#?}"),
+            Err(error) => println!("Unable to get the Payment Method: {error}"),
         }
     }
 }

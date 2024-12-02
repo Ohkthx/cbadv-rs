@@ -26,8 +26,8 @@ impl MessageCallback for CallbackObject {
     /// the stream.
     async fn message_callback(&mut self, msg: CbResult<Message>) {
         let rcvd = match msg {
-            Ok(message) => format!("{:?}", message), // Leverage Debug for all Message variants
-            Err(error) => format!("Error: {}", error), // Handle WebSocket errors
+            Ok(message) => format!("{message:?}"), // Leverage Debug for all Message variants
+            Err(error) => format!("Error: {error}"), // Handle WebSocket errors
         };
 
         // Update the callback object's properties and log the message.
@@ -44,7 +44,7 @@ async fn main() {
         Err(err) => {
             println!("Could not load configuration file.");
             if config::exists("config.toml") {
-                println!("File exists, {}", err);
+                println!("File exists, {err}");
                 exit(1);
             }
 
@@ -61,7 +61,7 @@ async fn main() {
         .max_retries(20)
         .build()
         .map_err(|e| {
-            eprintln!("!ERROR! {}", e);
+            eprintln!("!ERROR! {e}");
             exit(1);
         })
         .unwrap();

@@ -56,7 +56,7 @@ async fn get_products(client: &mut RestClient) -> Vec<String> {
                 })
                 .collect();
         }
-        Err(error) => println!("Unable to get products: {}", error),
+        Err(error) => println!("Unable to get products: {error}"),
     }
 
     product_names
@@ -68,7 +68,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + 'static>> {
     let mut rclient = match RestClientBuilder::new().build() {
         Ok(c) => c,
         Err(why) => {
-            eprintln!("!ERROR! {}", why);
+            eprintln!("!ERROR! {why}");
             exit(1)
         }
     };
@@ -81,7 +81,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + 'static>> {
     {
         Ok(c) => c,
         Err(why) => {
-            eprintln!("!ERROR! {}", why);
+            eprintln!("!ERROR! {why}");
             exit(1)
         }
     };
@@ -99,15 +99,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error + 'static>> {
     let task = match wsclient.watch_candles(&products, mystruct).await {
         Ok(value) => value,
         Err(err) => {
-            println!("Could not watch candles: {}", err);
+            println!("Could not watch candles: {err}");
             exit(1);
         }
     };
 
     // Wait to join the task.
     match task.await {
-        Ok(_) => println!("Task is complete."),
-        Err(err) => println!("Task ended in error: {}", err),
+        Ok(()) => println!("Task is complete."),
+        Err(err) => println!("Task ended in error: {err}"),
     };
 
     Ok(())
