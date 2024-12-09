@@ -429,7 +429,7 @@ impl OrderCreateBuilder {
     fn build_limit_gtd(&self) -> Result<OrderConfiguration, CbError> {
         let base_size = require_field(self.base_size, "base_size")?;
         let limit_price = require_field(self.limit_price, "limit_price")?;
-        let end_time = require_field_ref(&self.end_time, "end_time")?;
+        let end_time = require_field_ref(self.end_time.as_ref(), "end_time")?;
 
         Ok(OrderConfiguration::LimitGtd(LimitGtd {
             base_size,
@@ -460,7 +460,7 @@ impl OrderCreateBuilder {
         let limit_price = require_field(self.limit_price, "limit_price")?;
         let stop_price = require_field(self.stop_price, "stop_price")?;
         let stop_direction = require_field(self.stop_direction, "stop_direction")?;
-        let end_time = require_field_ref(&self.end_time, "end_time")?;
+        let end_time = require_field_ref(self.end_time.as_ref(), "end_time")?;
 
         Ok(OrderConfiguration::StopLimitGtd(StopLimitGtd {
             base_size,
@@ -478,8 +478,6 @@ fn require_field<T>(field: Option<T>, field_name: &str) -> Result<T, CbError> {
 }
 
 /// Validates that a required field reference is present and returns it, or an error if it is missing.
-fn require_field_ref<'a, T>(field: &'a Option<T>, field_name: &str) -> Result<&'a T, CbError> {
-    field
-        .as_ref()
-        .ok_or_else(move || CbError::BadParse(format!("{field_name} is required.")))
+fn require_field_ref<'a, T>(field: Option<&'a T>, field_name: &str) -> Result<&'a T, CbError> {
+    field.ok_or_else(|| CbError::BadParse(format!("{field_name} is required.")))
 }

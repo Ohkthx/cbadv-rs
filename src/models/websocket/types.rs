@@ -110,6 +110,11 @@ impl WebSocketEndpoints {
 
         endpoints
     }
+
+    /// Check if the `WebSocketEndpoints` is empty.
+    pub(crate) fn is_empty(&self) -> bool {
+        self.endpoints.is_empty()
+    }
 }
 
 /// Stores the current subscriptions for each channel for each endpoint.
@@ -133,7 +138,6 @@ impl WebSocketSubscriptions {
     }
 
     /// Add subscriptions to the specified channel.
-
     pub(crate) async fn add(
         &mut self,
         channel: &Channel,
@@ -229,6 +233,12 @@ impl From<Vec<Endpoint>> for EndpointStream {
         }
 
         EndpointStream::Multiple(select_all)
+    }
+}
+
+impl From<WebSocketEndpoints> for EndpointStream {
+    fn from(mut endpoints: WebSocketEndpoints) -> Self {
+        endpoints.extract_to_vec().into()
     }
 }
 

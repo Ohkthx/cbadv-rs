@@ -97,7 +97,7 @@ impl Query for FeeTransactionSummaryQuery {
 
     fn to_query(&self) -> String {
         QueryBuilder::new()
-            .push_optional("product_type", &self.product_type)
+            .push_optional("product_type", self.product_type.as_ref())
             .build()
     }
 }

@@ -250,10 +250,9 @@ impl Jwt {
 }
 
 // Implement serialization for Header to handle base64 encoding
-impl<'a> Header<'a> {
+impl Header<'_> {
     fn serialize_base64(&self) -> CbResult<String> {
         let raw = serde_json::to_vec(self).map_err(|why| CbError::BadSignature(why.to_string()))?;
         Ok(URL_SAFE_NO_PAD.encode(&raw))
     }
 }
-

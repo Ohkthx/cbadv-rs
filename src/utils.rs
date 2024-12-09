@@ -43,7 +43,7 @@ impl QueryBuilder {
     }
 
     /// Adds a key-value pair to the query string if the value is present.
-    pub(crate) fn push_optional<T: Display>(self, key: &str, value: &Option<T>) -> Self {
+    pub(crate) fn push_optional<T: Display>(self, key: &str, value: Option<&T>) -> Self {
         if let Some(v) = value {
             self.push(key, v)
         } else {
@@ -55,7 +55,7 @@ impl QueryBuilder {
     pub(crate) fn push_optional_vec<T: Display>(
         mut self,
         key: &str,
-        values: &Option<Vec<T>>,
+        values: Option<&Vec<T>>,
     ) -> Self {
         if let Some(values) = values {
             for value in values {

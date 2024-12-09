@@ -6,7 +6,7 @@
 
 use std::sync::Arc;
 
-use futures_util::stream::{self, SplitSink};
+use futures_util::stream::SplitSink;
 use futures_util::{SinkExt, StreamExt};
 use tokio::net::TcpStream;
 use tokio::sync::Mutex;
@@ -294,7 +294,7 @@ impl WebSocketClient {
     /// # Errors
     ///
     /// Returns a `CbError` if the WebSocket connection fails.
-    async fn reconnect(&mut self, endpoint_type: &EndpointType) -> CbResult<Endpoint> {
+    async fn handle_reconnect(&mut self, endpoint_type: &EndpointType) -> CbResult<Endpoint> {
         let endpoint = self.connect_endpoint(endpoint_type).await?;
 
         // Re-subscribe to previous channels for this endpoint.
@@ -328,7 +328,7 @@ impl WebSocketClient {
 
         // Rety until max retries hit.
         while retries < self.max_retries {
-            match self.reconnect(endpoint_type).await {
+            match self.handle_reconnect(endpoint_type).await {
                 Ok(endpoint) => return Ok(endpoint),
                 Err(why) => {
                     eprintln!(
@@ -346,12 +346,32 @@ impl WebSocketClient {
         )))
     }
 
-    /// Handles reconnection logic for endpoints.
-    async fn handle_reconnection(&mut self, stream: EndpointStream) -> Option<EndpointStream> {
-        match stream {
+    /// Reconnects to the WebSocket endpoint. Returns a new `EndpointStream`.
+    /// This is used when the WebSocket connection is lost.
+    ///
+    /// # Arguments
+    ///
+    /// * `stream` - The current `EndpointStream` that was being listened to.
+    ///
+    /// # Errors
+    ///
+    /// Returns a `CbError` if the WebSocket connection fails.
+    pub async fn reconnect<E>(&mut self, stream: E) -> CbResult<WebSocketEndpoints>
+    where
+        E: Into<EndpointStream>,
+    {
+        let mut new_endpoints = WebSocketEndpoints::default();
+
+        match stream.into() {
             EndpointStream::Single(route, _) => {
                 // Reconnect and return a new Single EndpointStream.
-                self.wait_on_reconnect(&route).await.ok().map(Into::into)
+                match self.wait_on_reconnect(&route).await {
+                    Ok(endpoint) => {
+                        new_endpoints.add(route, endpoint);
+                        Ok(new_endpoints)
+                    }
+                    Err(why) => Err(why),
+                }
             }
             EndpointStream::Multiple(_) => {
                 // Obtain all the endpoints that need to be reconnected.
@@ -361,32 +381,24 @@ impl WebSocketClient {
                 };
 
                 // Iterate over each endpoint and attempt to reconnect.
-                let mut new_endpoints = WebSocketEndpoints::default();
                 for endpoint_type in keys {
-                    if let Ok(new_endpoint) = self.wait_on_reconnect(&endpoint_type).await {
-                        new_endpoints.add(endpoint_type.clone(), new_endpoint);
-                    } else {
-                        eprintln!("Failed to reconnect: {endpoint_type:?}");
-                        return None;
+                    match self.wait_on_reconnect(&endpoint_type).await {
+                        Ok(new_endpoint) => {
+                            new_endpoints.add(endpoint_type.clone(), new_endpoint);
+                        }
+                        Err(why) => {
+                            return Err(why);
+                        }
                     }
                 }
 
-                // Extract the readers (streams) from the new endpoints.
-                let streams = new_endpoints
-                    .extract_to_vec()
-                    .into_iter()
-                    .map(|endpoint| match endpoint {
-                        Endpoint::Public((_, reader)) | Endpoint::User((_, reader)) => reader,
-                    })
-                    .collect::<Vec<_>>();
-
-                // Create a new Multiple EndpointStream.
-                let mut select_all = stream::SelectAll::new();
-                for stream in streams {
-                    select_all.push(stream);
+                if new_endpoints.is_empty() {
+                    return Err(CbError::BadConnection(
+                        "Failed to reconnect to any endpoints.".to_string(),
+                    ));
                 }
 
-                Some(EndpointStream::Multiple(select_all))
+                Ok(new_endpoints)
             }
         }
     }
@@ -409,14 +421,18 @@ impl WebSocketClient {
                 if let Some(result) = Self::process_message(message) {
                     if let Err(CbError::BadConnection(_)) = &result {
                         // Handle reconnection logic.
-                        if let Some(new_stream) = self.handle_reconnection(stream).await {
-                            // Restart the loop with the new streams.
-                            stream = new_stream;
-                            break;
+                        match self.reconnect(stream).await {
+                            Ok(new_stream) => {
+                                // Replace the stream with the new one
+                                stream = new_stream.into();
+                                break; // Exit the inner loop and continue listening
+                            }
+                            Err(why) => {
+                                eprintln!("Failed to reconnect: {why}");
+                                // Reconnection failed, exit the function
+                                return;
+                            }
                         }
-
-                        // Reconnection failed, exit.
-                        return;
                     }
 
                     callback.message_callback(result).await;

@@ -160,16 +160,20 @@ pub struct Product {
     /// The trading pair.
     pub product_id: String,
     /// The current price for the product, in quote currency.
-    #[serde_as(as = "DisplayFromStr")]
+    #[serde_as(as = "DefaultOnError<DisplayFromStr>")]
+    #[serde(default)]
     pub price: f64,
     /// The amount the price of the product has changed, in percent, in the last 24 hours.
-    #[serde_as(as = "DisplayFromStr")]
+    #[serde_as(as = "DefaultOnError<DisplayFromStr>")]
+    #[serde(default)]
     pub price_percentage_change_24h: f64,
     /// The trading volume for the product in the last 24 hours.
-    #[serde_as(as = "DisplayFromStr")]
+    #[serde_as(as = "DefaultOnError<DisplayFromStr>")]
+    #[serde(default)]
     pub volume_24h: f64,
     /// The percentage amount the volume of the product has changed in the last 24 hours.
-    #[serde_as(as = "DisplayFromStr")]
+    #[serde_as(as = "DefaultOnError<DisplayFromStr>")]
+    #[serde(default)]
     pub volume_percentage_change_24h: f64,
     /// Minimum amount base value can be increased or decreased at once.
     #[serde_as(as = "DisplayFromStr")]
@@ -388,12 +392,15 @@ impl Query for ProductListQuery {
 
     fn to_query(&self) -> String {
         QueryBuilder::new()
-            .push_optional("limit", &self.limit)
-            .push_optional("offset", &self.offset)
-            .push_optional("product_type", &self.product_type)
-            .push_optional_vec("product_ids", &self.product_ids)
-            .push_optional("get_all_products", &self.get_all_products)
-            .push_optional("get_tradability_status", &self.get_tradability_status)
+            .push_optional("limit", self.limit.as_ref())
+            .push_optional("offset", self.offset.as_ref())
+            .push_optional("product_type", self.product_type.as_ref())
+            .push_optional_vec("product_ids", self.product_ids.as_ref())
+            .push_optional("get_all_products", self.get_all_products.as_ref())
+            .push_optional(
+                "get_tradability_status",
+                self.get_tradability_status.as_ref(),
+            )
             .build()
     }
 }
@@ -470,8 +477,8 @@ impl Query for ProductTickerQuery {
     fn to_query(&self) -> String {
         QueryBuilder::new()
             .push("limit", self.limit)
-            .push_optional("start", &self.start)
-            .push_optional("end", &self.end)
+            .push_optional("start", self.start.as_ref())
+            .push_optional("end", self.end.as_ref())
             .build()
     }
 }
@@ -532,7 +539,7 @@ impl Query for ProductBidAskQuery {
 
     fn to_query(&self) -> String {
         QueryBuilder::new()
-            .push_optional_vec("product_ids", &Some(self.product_ids.clone()))
+            .push_optional_vec("product_ids", Some(self.product_ids.as_ref()))
             .build()
     }
 }
@@ -584,10 +591,10 @@ impl Query for ProductBookQuery {
     fn to_query(&self) -> String {
         QueryBuilder::new()
             .push("product_id", &self.product_id)
-            .push_optional("limit", &self.limit)
+            .push_optional("limit", self.limit.as_ref())
             .push_optional(
                 "aggregation_price_increment",
-                &self.aggregation_price_increment,
+                self.aggregation_price_increment.as_ref(),
             )
             .build()
     }

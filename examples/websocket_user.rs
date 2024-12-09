@@ -9,7 +9,7 @@
 use std::process::exit;
 
 use cbadv::config::{self, BaseConfig};
-use cbadv::models::websocket::{Channel, EndpointType, Message};
+use cbadv::models::websocket::{Channel, Message};
 use cbadv::traits::MessageCallback;
 use cbadv::types::CbResult;
 use cbadv::{async_trait, WebSocketClientBuilder};
@@ -71,26 +71,18 @@ async fn main() {
 
     // Connect to the websocket, a subscription needs to be sent within 5 seconds.
     // If a subscription is not sent, Coinbase will close the connection.
-    let mut readers = client
+    let readers = client
         .connect()
         .await
         .expect("Could not connect to WebSocket.");
 
-    let user = readers
-        .take_endpoint(&EndpointType::User)
-        .expect("Could not get secure user reader.");
-
-    let listened_client = client.clone();
-    let listener = tokio::spawn(async move {
-        let mut listened_client = listened_client;
-        listened_client.listen(user, callback).await;
-    });
-
-    // Heartbeats is a great way to keep a connection alive and not timeout.
+    // Basic subscriptions.
     client.subscribe(&Channel::Heartbeats, &[]).await.unwrap();
-
-    // Subscribe to user orders.
     client.subscribe(&Channel::User, &[]).await.unwrap();
+
+    let listener = tokio::spawn(async move {
+        client.listen(readers, callback).await;
+    });
 
     // Passes the parser callback and listens for messages.
     listener.await.unwrap();

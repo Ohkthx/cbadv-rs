@@ -19,7 +19,7 @@ impl<'de> DeDeserialize<'de> for OrderType {
 
 struct OrderTypeVisitor;
 
-impl<'de> Visitor<'de> for OrderTypeVisitor {
+impl Visitor<'_> for OrderTypeVisitor {
     type Value = OrderType;
 
     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {

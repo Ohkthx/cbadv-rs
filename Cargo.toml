@@ -1,6 +1,6 @@
 [package]
 name = "cbadv"
-version = "2.0.1"
+version = "2.0.2"
 edition = "2021"
 description = "Asynchronous Coinbase Advanced REST and WebSocket API"
 license = "MIT"
@@ -12,7 +12,7 @@ categories = ["api-bindings", "cryptography::cryptocurrencies"]
 include = ["src/**", "Cargo.toml", "README.md", "LICENSE", "examples/**"]
 
 [features]
-default = ["config"]
+default = []
 full = ["config"]
 config = ["dep:toml"]
 
