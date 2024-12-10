@@ -51,8 +51,8 @@ fn get_channel_endpoint(channel: &Channel) -> EndpointType {
 pub struct WebSocketClientBuilder {
     api_key: Option<String>,
     api_secret: Option<String>,
-    enable_public: bool,
-    enable_user: bool,
+    use_public: bool,
+    use_user: bool,
     max_retries: u32,
     public_bucket: Arc<Mutex<TokenBucket>>,
     secure_bucket: Arc<Mutex<TokenBucket>>,
@@ -63,9 +63,9 @@ impl Default for WebSocketClientBuilder {
         Self {
             api_key: None,
             api_secret: None,
-            enable_public: true, // By default, enable public connection.
-            enable_user: false,  // By default, do not enable secure connection.
-            max_retries: 0,      // By default, do not auto-reconnect.
+            use_public: true, // By default, enable public connection.
+            use_user: false,  // By default, disable user connection.
+            max_retries: 0,   // By default, do not auto-reconnect.
             public_bucket: Arc::new(Mutex::new(TokenBucket::new(
                 RateLimits::max_tokens(false, true),
                 RateLimits::refresh_rate(false, true),
@@ -96,7 +96,7 @@ impl WebSocketClientBuilder {
     {
         self.api_key = Some(config.coinbase().api_key.to_string());
         self.api_secret = Some(config.coinbase().api_secret.to_string());
-        self.enable_user = true;
+        self.use_user = true;
         self
     }
 
@@ -109,7 +109,7 @@ impl WebSocketClientBuilder {
     pub fn with_authentication(mut self, key: &str, secret: &str) -> Self {
         self.api_key = Some(key.to_string());
         self.api_secret = Some(secret.to_string());
-        self.enable_user = true;
+        self.use_user = true;
         self
     }
 
@@ -118,18 +118,8 @@ impl WebSocketClientBuilder {
     /// # Arguments
     ///
     /// * `enable` - Enable or disable the public connection.
-    pub fn enable_public(mut self, enable: bool) -> Self {
-        self.enable_public = enable;
-        self
-    }
-
-    /// Enables or disables the secure user connection.
-    ///
-    /// # Arguments
-    ///
-    /// * `enable` - Enable or disable the secure user connection.
-    pub fn enable_user(mut self, enable: bool) -> Self {
-        self.enable_user = enable;
+    pub fn use_public(mut self, enable: bool) -> Self {
+        self.use_public = enable;
         self
     }
 
@@ -164,14 +154,14 @@ impl WebSocketClientBuilder {
     /// Returns a `CbError` if the API key or secret are missing or if both public and secure connections are disabled.
     pub fn build(self) -> CbResult<WebSocketClient> {
         // Ensure at least one connection is enabled.
-        if !self.enable_public && !self.enable_user {
+        if !self.use_public && !self.use_user {
             return Err(CbError::BadConnection(
                 "At least one of public or secure connections must be enabled.".to_string(),
             ));
         }
 
         // Create JWT if user connection is enabled.
-        let jwt = if self.enable_user {
+        let jwt = if self.use_user {
             let key = self.api_key.ok_or_else(|| {
                 CbError::BadPrivateKey("API key is required for authentication.".to_string())
             })?;
@@ -189,8 +179,8 @@ impl WebSocketClientBuilder {
             secure_bucket: self.secure_bucket,
             public_tx: Arc::new(Mutex::new(None)),
             secure_tx: Arc::new(Mutex::new(None)),
-            enable_public: self.enable_public,
-            enable_user: self.enable_user,
+            enable_public: self.use_public,
+            enable_user: self.use_user,
             max_retries: self.max_retries,
             subscriptions: Arc::new(Mutex::new(WebSocketSubscriptions::new())),
         })
@@ -241,7 +231,7 @@ impl WebSocketClient {
     /// # Errors
     ///
     /// Returns a `CbError` if the WebSocket connection fails.
-    pub async fn connect(&mut self) -> CbResult<WebSocketEndpoints> {
+    pub async fn connect(&self) -> CbResult<WebSocketEndpoints> {
         let mut endpoints = WebSocketEndpoints::default();
 
         if self.enable_public {
@@ -258,7 +248,7 @@ impl WebSocketClient {
     }
 
     /// Connects to the WebSocket endpoint.
-    async fn connect_endpoint(&mut self, endpoint_type: &EndpointType) -> CbResult<Endpoint> {
+    async fn connect_endpoint(&self, endpoint_type: &EndpointType) -> CbResult<Endpoint> {
         match endpoint_type {
             EndpointType::Public => {
                 let (public_socket, _) = connect_async(PUBLIC_ENDPOINT).await.map_err(|why| {

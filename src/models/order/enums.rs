@@ -204,8 +204,8 @@ impl AsRef<str> for TimeInForce {
     fn as_ref(&self) -> &str {
         match self {
             TimeInForce::Unknown => "UNKNOWN_TIME_IN_FORCE",
-            TimeInForce::GoodUntilCancelled => "GOOD_TIL_CANCELLED",
-            TimeInForce::GoodUntilDate => "GOOD_TIL_DATE_TIME",
+            TimeInForce::GoodUntilCancelled => "GOOD_UNTIL_CANCELLED",
+            TimeInForce::GoodUntilDate => "GOOD_UNTIL_DATE_TIME",
             TimeInForce::ImmediateOrCancel => "IMMEDIATE_OR_CANCEL",
             TimeInForce::FillOrKill => "FILL_OR_KILL",
         }
