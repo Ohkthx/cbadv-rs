@@ -4,17 +4,18 @@
 //! Many parts of the REST API suggest using websockets instead due to ratelimits and being quicker
 //! for large amount of constantly changing data.
 
+use std::future::Future;
+use std::pin::Pin;
 use std::sync::Arc;
 
-use futures_util::stream::SplitSink;
-use futures_util::{SinkExt, StreamExt};
+use futures::stream::{SplitSink, Stream};
+use futures::task::{noop_waker_ref, Context, Poll};
+use futures::{SinkExt, StreamExt};
 use tokio::net::TcpStream;
 use tokio::sync::Mutex;
-use tokio::task::JoinHandle;
 use tokio_tungstenite::tungstenite::{Error as WsError, Message as WsMessage};
 use tokio_tungstenite::{connect_async, MaybeTlsStream, WebSocketStream};
 
-use crate::candle_watcher::CandleWatcher;
 use crate::constants::websocket::{PUBLIC_ENDPOINT, SECURE_ENDPOINT};
 use crate::errors::CbError;
 use crate::jwt::Jwt;
@@ -24,7 +25,6 @@ use crate::models::websocket::{
 };
 use crate::time;
 use crate::token_bucket::{RateLimits, TokenBucket};
-use crate::traits::{CandleCallback, MessageCallback};
 use crate::types::CbResult;
 
 #[cfg(feature = "config")]
@@ -398,11 +398,12 @@ impl WebSocketClient {
     /// # Arguments
     ///
     /// * `endpoints` - A single `Endpoint` or multiple `WebSocketEndpoints`.
-    /// * `callback` - A callback object that implements the `MessageCallback` trait.
-    pub async fn listen<T, E>(&mut self, endpoints: E, mut callback: T)
+    /// * `callback` - The asynchronous closure to invoke on each message.
+    pub async fn listen<E, F, Fut>(&mut self, endpoints: E, mut callback: F)
     where
-        T: MessageCallback + Send + 'static,
         E: Into<EndpointStream>,
+        F: FnMut(CbResult<Message>) -> Fut + Send + 'static,
+        Fut: Future<Output = ()> + Send,
     {
         let mut stream = endpoints.into();
 
@@ -413,19 +414,91 @@ impl WebSocketClient {
                         // Handle reconnection logic.
                         match self.reconnect(stream).await {
                             Ok(new_stream) => {
-                                // Replace the stream with the new one
                                 stream = new_stream.into();
-                                break; // Exit the inner loop and continue listening
+                                break; // Exit inner loop to reconnect.
                             }
                             Err(why) => {
                                 eprintln!("Failed to reconnect: {why}");
-                                // Reconnection failed, exit the function
-                                return;
+                                return; // Exit function if reconnection fails
                             }
                         }
                     }
 
-                    callback.message_callback(result).await;
+                    // Invoke the asynchronous closure with the result.
+                    callback(result).await;
+                }
+            }
+        }
+    }
+
+    /// Fetches messages from the WebSocket stream with a limit on the number of messages to fetch.
+    ///
+    /// NOTE: Adequate pauses / sleeps between calls should be added to prevent busy-looping.
+    ///
+    /// # Arguments
+    ///
+    /// * `stream` - The WebSocket stream to get messages from.
+    /// * `limit` - The maximum number of messages to fetch. Use `usize::MAX` to fetch all messages.
+    /// * `action` - The action to take on each message.
+    pub fn fetch_sync<F>(&self, stream: &mut EndpointStream, limit: usize, mut action: F)
+    where
+        F: FnMut(CbResult<Message>),
+    {
+        let mut count = 0;
+
+        while count <= limit || limit == usize::MAX {
+            // Use poll_next to check for available messages without waiting.
+            match Pin::new(&mut *stream).poll_next(&mut Context::from_waker(noop_waker_ref())) {
+                Poll::Ready(Some(message)) => {
+                    // Process and add the message to the result vector if valid.
+                    if let Some(result) = Self::process_message(message) {
+                        action(result);
+                    }
+
+                    count += 1;
+                }
+                Poll::Ready(None) | Poll::Pending => {
+                    // No more messages available or stream is pending; exit the loop.
+                    break;
+                }
+            }
+        }
+    }
+
+    /// Asynchronously fetches messages from the WebSocket stream with a limit on the number of messages to fetch.
+    ///
+    /// NOTE: Adequate pauses / sleeps between calls should be added to prevent busy-looping.
+    ///
+    /// # Arguments
+    ///
+    /// * `stream` - The WebSocket stream to get messages from.
+    /// * `limit` - The maximum number of messages to fetch. Use `usize::MAX` to fetch all messages.
+    /// * `action` - The action to take on each message.
+    pub async fn fetch_async<F, Fut>(
+        &self,
+        stream: &mut EndpointStream,
+        limit: usize,
+        mut action: F,
+    ) where
+        F: FnMut(CbResult<Message>) -> Fut,
+        Fut: Future<Output = ()>,
+    {
+        let mut count = 0;
+
+        while count <= limit || limit == usize::MAX {
+            // Use poll_next to check for available messages without waiting.
+            match Pin::new(&mut *stream).poll_next(&mut Context::from_waker(noop_waker_ref())) {
+                Poll::Ready(Some(message)) => {
+                    // Process and add the message to the result vector if valid.
+                    if let Some(result) = Self::process_message(message) {
+                        action(result).await;
+                    }
+
+                    count += 1;
+                }
+                Poll::Ready(None) | Poll::Pending => {
+                    // No more messages available or stream is pending; exit the loop.
+                    break;
                 }
             }
         }
@@ -445,13 +518,12 @@ impl WebSocketClient {
         }
     }
 
-    /// Processes WebSocket messages and applies a callback. Created to ignore alternative message types.
+    /// Processes the WebSocket message and returns a `Message` if successful.
     ///
     /// # Arguments
     ///
-    /// * `message` - A WebSocket message to process.
-    /// * `callback` - A closure or function that processes parsed messages or errors.
-    fn process_message(message: Result<WsMessage, WsError>) -> Option<CbResult<Message>> {
+    /// * `message` - The WebSocket message to process.
+    pub fn process_message(message: Result<WsMessage, WsError>) -> Option<CbResult<Message>> {
         match message {
             Ok(msg) => match msg {
                 WsMessage::Text(data) => {
@@ -484,7 +556,7 @@ impl WebSocketClient {
     /// * `product_ids` - A vector of product IDs that are being changed.
     /// * `action` - The action being taken (either "subscribe" or "unsubscribe").
     /// * `endpoint` - The endpoint type (either public or user).
-    pub(crate) async fn update(
+    async fn update(
         &mut self,
         channel: &Channel,
         product_ids: &[String],
@@ -594,6 +666,7 @@ impl WebSocketClient {
             let mut subs = self.subscriptions.lock().await;
             subs.add(channel, product_ids, route).await;
         }
+
         Ok(())
     }
 
@@ -634,46 +707,5 @@ impl WebSocketClient {
             subs.remove(channel, product_ids, route).await;
         }
         Ok(())
-    }
-
-    /// Watches candles for a set of products, producing candles once they are considered complete.
-    ///
-    /// # Argument
-    ///
-    /// * `products` - Products to watch for candles for.
-    /// * `watcher` - User-defined struct that implements `CandleCallback` to send completed candles to.
-    ///
-    /// # Errors
-    ///
-    /// Returns a `CbError` if the public connection is not enabled.
-    pub async fn watch_candles<T>(
-        mut self,
-        products: &[String],
-        watcher: T,
-    ) -> CbResult<JoinHandle<()>>
-    where
-        T: CandleCallback + Send + Sync + 'static,
-    {
-        if !self.enable_public {
-            return Err(CbError::BadConnection(
-                "Public connection is not enabled.".to_string(),
-            ));
-        }
-
-        // Connect and spawn a task.
-        match self.connect().await?.take_endpoint(&EndpointType::Public) {
-            Some(public) => {
-                // Keep the connection open by subscribing to heartbeats and sub to candles.
-                self.subscribe(&Channel::Heartbeats, &[]).await?;
-                self.subscribe(&Channel::Candles, products).await?;
-
-                // Start task to watch candles using user's watcher.
-                let listener = tokio::spawn(CandleWatcher::start(self, public, watcher));
-                Ok(listener)
-            }
-            None => Err(CbError::BadConnection(
-                "Public connection is not connected.".to_string(),
-            )),
-        }
     }
 }

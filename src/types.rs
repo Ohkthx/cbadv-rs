@@ -1,6 +1,6 @@
 //! Contains custom / shorthand types to simplify end-user code.
 
-use futures_util::stream::SplitStream;
+use futures::stream::SplitStream;
 use tokio::net::TcpStream;
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 

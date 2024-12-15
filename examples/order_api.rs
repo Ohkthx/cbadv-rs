@@ -10,6 +10,7 @@
 
 use std::process::exit;
 use std::thread;
+use std::time::Duration;
 
 use cbadv::config::{self, BaseConfig};
 use cbadv::models::order::{
@@ -17,7 +18,6 @@ use cbadv::models::order::{
     OrderSide, OrderStatus, OrderType, TimeInForce,
 };
 use cbadv::{RestClient, RestClientBuilder};
-use chrono::Duration;
 
 fn init_client() -> RestClient {
     // Load the configuration file.
@@ -124,7 +124,7 @@ async fn main() {
     // Edits the created order.
     if let Some(order_id) = &created_order_id {
         if create_new && edit_created {
-            thread::sleep(Duration::seconds(1).to_std().unwrap());
+            thread::sleep(Duration::from_secs(1));
             edit_created_order(&mut client, order_id).await;
         }
     }

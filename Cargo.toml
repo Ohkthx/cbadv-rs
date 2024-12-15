@@ -18,14 +18,11 @@ config = ["dep:toml"]
 
 [dependencies]
 # Core dependencies
-reqwest = { version = "0.12.9", features = ["json"] }
 futures = "0.3.31"
-tokio = { version = "1.41.1", features = ["full"] }
+reqwest = { version = "0.12.9", features = ["json"] }
+tokio-tungstenite = { version = "0.24.0", features = ["native-tls"] }
+tokio = { version = "1.42.0", features = ["macros", "rt-multi-thread"], default-features = false }
 
-# Cryptography and signing
-hmac = "0.12.1"
-sha2 = "0.10.8"
-hex = "0.4.3"
 
 # Serialization and configuration
 serde = { version = "1.0.215", features = ["derive"] }
@@ -33,22 +30,13 @@ serde_json = "1.0.133"
 serde_with = "3.11.0"
 toml = { version = "0.8.19", optional = true }
 
-# WebSocket support
-tokio-tungstenite = { version = "0.24.0", features = ["native-tls"] }
-futures-util = "0.3.31"
-async-trait = "0.1.83"
-
 # Utilities
 uuid = { version = "1.11.0", features = [
 	"v4",
 	"fast-rng",
-	"macro-diagnostics",
 ] }
-chrono = "0.4.38"
-num-traits = "0.2.19"
 base64 = "0.22.1"
 ring = "0.17.8"
-rand = "0.8.5"
 openssl = "0.10.68"
 
 [[example]]
@@ -103,16 +91,11 @@ required-features = ["config"]
 [[example]]
 name = "websocket"
 path = "examples/websocket.rs"
-required-features = ["config"]
 
 [[example]]
 name = "websocket_user"
 path = "examples/websocket_user.rs"
 required-features = ["config"]
-
-[[example]]
-name = "watch_candles"
-path = "examples/watch_candles.rs"
 
 [[example]]
 name = "custom_config"

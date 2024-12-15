@@ -2,8 +2,8 @@ use std::collections::{HashMap, HashSet};
 use std::pin::Pin;
 use std::sync::Arc;
 
+use futures::stream::{self, SelectAll};
 use futures::Stream;
-use futures_util::stream::{self, SelectAll};
 use serde::Serialize;
 use tokio::sync::Mutex;
 use tokio_tungstenite::tungstenite::{Error as WsError, Message as WsMessage};
