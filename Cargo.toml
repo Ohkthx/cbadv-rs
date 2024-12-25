@@ -17,24 +17,15 @@ full = ["config"]
 config = ["dep:toml"]
 
 [dependencies]
-# Core dependencies
 futures = "0.3.31"
 reqwest = { version = "0.12.9", features = ["json"] }
 tokio-tungstenite = { version = "0.24.0", features = ["native-tls"] }
 tokio = { version = "1.42.0", features = ["macros", "rt-multi-thread"], default-features = false }
-
-
-# Serialization and configuration
 serde = { version = "1.0.215", features = ["derive"] }
 serde_json = "1.0.133"
 serde_with = "3.11.0"
 toml = { version = "0.8.19", optional = true }
-
-# Utilities
-uuid = { version = "1.11.0", features = [
-	"v4",
-	"fast-rng",
-] }
+uuid = { version = "1.11.0", features = ["v4", "fast-rng"] }
 base64 = "0.22.1"
 ring = "0.17.8"
 openssl = "0.10.68"

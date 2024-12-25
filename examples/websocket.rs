@@ -15,7 +15,7 @@ use cbadv::WebSocketClientBuilder;
 
 /// This is used to parse messages. It is passed to the `listen` function to pull Messages out of
 /// the stream.
-fn message_action(msg: CbResult<Message>) {
+fn message_action(msg: CbResult<Message>) -> Result<(), String> {
     let rcvd = match msg {
         Ok(message) => format!("{message:?}"), // Leverage Debug for all Message variants
         Err(error) => format!("Error: {error}"), // Handle WebSocket errors
@@ -23,6 +23,7 @@ fn message_action(msg: CbResult<Message>) {
 
     // Update the callback object's properties and log the message.
     println!("{rcvd}\n");
+    Ok(())
 }
 
 #[tokio::main]
@@ -73,10 +74,10 @@ async fn main() {
 
     loop {
         // Fetch messages from the WebSocket stream.
-        client.fetch_sync(&mut stream, 100, |msg| {
+        let _ = client.fetch_sync(&mut stream, 100, |msg| {
             count += 1;
             print!("{count}: ");
-            message_action(msg);
+            message_action(msg)
         });
 
         // Calculate the time since the last tick and sleep for the remaining time to hit the tick rate.

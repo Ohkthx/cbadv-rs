@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, DefaultOnError, DisplayFromStr};
 
 use crate::models::order::{OrderSide, OrderStatus, OrderType, TimeInForce, TriggerStatus};
-use crate::models::product::{Candle, ProductType};
+use crate::models::product::{Candle, Product, ProductType};
 
 use super::Level2Side;
 
@@ -62,6 +62,23 @@ pub struct ProductUpdate {
     /// Minimum amount of funds.
     #[serde_as(as = "DisplayFromStr")]
     pub min_market_funds: f64,
+}
+
+impl From<Product> for ProductUpdate {
+    fn from(product: Product) -> Self {
+        ProductUpdate {
+            product_type: product.product_type,
+            id: product.product_id,
+            base_currency: product.base_currency_id,
+            quote_currency: product.quote_currency_id,
+            base_increment: product.base_increment,
+            quote_increment: product.quote_increment,
+            display_name: product.display_name,
+            status: product.status,
+            status_message: String::new(),
+            min_market_funds: product.quote_min_size,
+        }
+    }
 }
 
 /// Represents a Market Trade received from the Websocket API.
@@ -208,7 +225,7 @@ pub struct FuturesBalanceSummaryUpdate {
 
 #[serde_as]
 #[derive(Debug, Deserialize, Serialize, Clone)]
-struct MarginWindowMeasure {
+pub struct MarginWindowMeasure {
     margin_window_type: String,
     margin_level: String,
     #[serde_as(as = "DisplayFromStr")]

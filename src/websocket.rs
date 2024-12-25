@@ -440,9 +440,18 @@ impl WebSocketClient {
     /// * `stream` - The WebSocket stream to get messages from.
     /// * `limit` - The maximum number of messages to fetch. Use `usize::MAX` to fetch all messages.
     /// * `action` - The action to take on each message.
-    pub fn fetch_sync<F>(&self, stream: &mut EndpointStream, limit: usize, mut action: F)
+    ///
+    /// # Errors
+    ///
+    /// Returns a `String` if the user returns an error within the action.
+    pub fn fetch_sync<F>(
+        &self,
+        stream: &mut EndpointStream,
+        limit: usize,
+        mut action: F,
+    ) -> Result<(), String>
     where
-        F: FnMut(CbResult<Message>),
+        F: FnMut(CbResult<Message>) -> Result<(), String>,
     {
         let mut count = 0;
 
@@ -452,7 +461,7 @@ impl WebSocketClient {
                 Poll::Ready(Some(message)) => {
                     // Process and add the message to the result vector if valid.
                     if let Some(result) = Self::process_message(message) {
-                        action(result);
+                        action(result)?;
                     }
 
                     count += 1;
@@ -463,6 +472,8 @@ impl WebSocketClient {
                 }
             }
         }
+
+        Ok(())
     }
 
     /// Asynchronously fetches messages from the WebSocket stream with a limit on the number of messages to fetch.
@@ -474,14 +485,19 @@ impl WebSocketClient {
     /// * `stream` - The WebSocket stream to get messages from.
     /// * `limit` - The maximum number of messages to fetch. Use `usize::MAX` to fetch all messages.
     /// * `action` - The action to take on each message.
+    ///
+    /// # Errors
+    ///
+    /// Returns a `String` if the user returns an error within the action.
     pub async fn fetch_async<F, Fut>(
         &self,
         stream: &mut EndpointStream,
         limit: usize,
         mut action: F,
-    ) where
+    ) -> Result<(), String>
+    where
         F: FnMut(CbResult<Message>) -> Fut,
-        Fut: Future<Output = ()>,
+        Fut: Future<Output = Result<(), String>>,
     {
         let mut count = 0;
 
@@ -491,7 +507,7 @@ impl WebSocketClient {
                 Poll::Ready(Some(message)) => {
                     // Process and add the message to the result vector if valid.
                     if let Some(result) = Self::process_message(message) {
-                        action(result).await;
+                        action(result).await?;
                     }
 
                     count += 1;
@@ -502,6 +518,8 @@ impl WebSocketClient {
                 }
             }
         }
+
+        Ok(())
     }
 
     /// Waits for a token to be consumable for the correct bucket.
