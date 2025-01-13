@@ -1,6 +1,7 @@
 use std::fmt;
 
 use serde::de::{self, Deserialize, Deserializer, MapAccess, Visitor};
+use serde::Serialize;
 use serde_json::Value;
 
 use super::{
@@ -9,7 +10,7 @@ use super::{
 };
 
 /// Message from the WebSocket containing event updates.
-#[derive(Debug)]
+#[derive(Serialize, Debug)]
 pub struct Message {
     /// The channel the message is from.
     pub channel: Channel,
