@@ -6,18 +6,19 @@ use super::{
 };
 
 /// Events that could be received in a message.
-#[derive(Debug, Serialize)]
-pub enum Event {
-    Status(StatusEvent),
-    Candles(CandlesEvent),
-    Ticker(TickerEvent),
-    TickerBatch(TickerEvent),
-    Level2(Level2Event),
-    User(UserEvent),
-    MarketTrades(MarketTradesEvent),
-    Heartbeats(HeartbeatsEvent),
-    Subscribe(SubscribeEvent),
-    FuturesBalanceSummary(FuturesSummaryBalanceEvent),
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum Events {
+    Status(Vec<StatusEvent>),
+    Candles(Vec<CandlesEvent>),
+    Ticker(Vec<TickerEvent>),
+    TickerBatch(Vec<TickerEvent>),
+    Level2(Vec<Level2Event>),
+    User(Vec<UserEvent>),
+    MarketTrades(Vec<MarketTradesEvent>),
+    Heartbeats(Vec<HeartbeatsEvent>),
+    Subscribe(Vec<SubscribeEvent>),
+    FuturesBalanceSummary(Vec<FuturesSummaryBalanceEvent>),
 }
 
 /// The status event containing updates to products.
