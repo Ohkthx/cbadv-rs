@@ -1,3 +1,4 @@
+<!-- markdownlint-disable MD033 MD041 -->
 <p align="center">
     <a href="https://github.com/Ohkthx/cbadv-rs#tips-appreciated" title="Donate with Bitcoin!">
         <img src="https://img.shields.io/badge/donate-black?style=for-the-badge&logo=bitcoin&logoColor=f38ba8&label=BITCOIN&labelColor=11111b&color=f38ba8"
@@ -19,6 +20,7 @@
         <img src="https://img.shields.io/github/repo-size/Ohkthx/cbadv-rs?style=for-the-badge&logoColor=a6e3a1&labelColor=11111b&color=a6e3a1"
             alt="GitHub repo size"></a>
 </p>
+<!-- markdownlint-enable MD033 MD041 -->
 
 ---
 
@@ -39,16 +41,18 @@ cbadv = { git = "https://github.com/ohkthx/cbadv-rs", branch = "main" }
 
 ## Table of Contents
 
-- [Features](#features)
-- [Documentation](#documentation)
-- [Configuration](#configuration)
-- [Examples](#examples)
-- [API Coverage](#api-coverage)
-  - [WebSocket API](#websocket-api)
-  - [REST API](#rest-api)
-- [TODO](#todo)
-- [Contributing](#contributing)
-- [Tips Appreciated!](#tips-appreciated)
+- [Asynchronous CoinBase Advanced API](#asynchronous-coinbase-advanced-api)
+  - [Table of Contents](#table-of-contents)
+  - [Features](#features)
+  - [Documentation](#documentation)
+  - [API Coverage](#api-coverage)
+    - [WebSocket API](#websocket-api)
+    - [REST API](#rest-api)
+  - [Configuration](#configuration)
+  - [Examples](#examples)
+  - [TODO](#todo)
+  - [Contributing](#contributing)
+  - [Tips Appreciated](#tips-appreciated)
 
 ---
 
@@ -58,7 +62,6 @@ cbadv = { git = "https://github.com/ohkthx/cbadv-rs", branch = "main" }
 - Authenticated and Public REST Endpoints.
 - Builders to create REST and WebSocket Clients.
 - Convenient configuration file support for API keys (`features = ["config"]`).
-- Comprehensive coverage of all accessible REST and WebSocket endpoints (as of **20231206**).
 - Numerous examples for seamless integration and testing.
 
 ---

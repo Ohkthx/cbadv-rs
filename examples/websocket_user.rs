@@ -8,11 +8,12 @@
 
 use std::process::exit;
 
+use tokio::sync::mpsc;
+
 use cbadv::config::{self, BaseConfig};
-use cbadv::models::websocket::{Channel, EndpointType, Message};
-use cbadv::traits::MessageCallback;
+use cbadv::models::websocket::{Channel, Message};
 use cbadv::types::CbResult;
-use cbadv::{async_trait, WebSocketClientBuilder};
+use cbadv::WebSocketClientBuilder;
 
 /// Example of an object with an attached callback function for messages.
 struct CallbackObject {
@@ -20,11 +21,10 @@ struct CallbackObject {
     total_processed: usize,
 }
 
-#[async_trait]
-impl MessageCallback for CallbackObject {
+impl CallbackObject {
     /// This is used to parse messages. It is passed to the `listen` function to pull Messages out of
     /// the stream.
-    async fn message_callback(&mut self, msg: CbResult<Message>) {
+    async fn message_action(&mut self, msg: CbResult<Message>) {
         let rcvd = match msg {
             Ok(message) => format!("{message:?}"), // Leverage Debug for all Message variants
             Err(error) => format!("Error: {error}"), // Handle WebSocket errors
@@ -67,31 +67,40 @@ async fn main() {
         .unwrap();
 
     // Callback Object.
-    let callback = CallbackObject { total_processed: 0 };
+    let mut callback = CallbackObject { total_processed: 0 };
+
+    // Create an mpsc channel for communication.
+    let (tx, mut rx) = mpsc::channel::<CbResult<Message>>(100);
 
     // Connect to the websocket, a subscription needs to be sent within 5 seconds.
     // If a subscription is not sent, Coinbase will close the connection.
-    let mut readers = client
+    let readers = client
         .connect()
         .await
         .expect("Could not connect to WebSocket.");
 
-    let user = readers
-        .take_endpoint(&EndpointType::User)
-        .expect("Could not get secure user reader.");
-
-    let listened_client = client.clone();
-    let listener = tokio::spawn(async move {
-        let mut listened_client = listened_client;
-        listened_client.listen(user, callback).await;
-    });
-
-    // Heartbeats is a great way to keep a connection alive and not timeout.
+    // Basic subscriptions.
     client.subscribe(&Channel::Heartbeats, &[]).await.unwrap();
-
-    // Subscribe to user orders.
     client.subscribe(&Channel::User, &[]).await.unwrap();
 
-    // Passes the parser callback and listens for messages.
+    // Spawn the listener task.
+    let listener = tokio::spawn(async move {
+        client
+            .listen(readers, move |msg| {
+                let tx = tx.clone();
+                async move {
+                    if tx.send(msg).await.is_err() {
+                        eprintln!("Receiver dropped. Exiting listener...");
+                    }
+                }
+            })
+            .await;
+    });
+
+    // Process messages in the main task.
+    while let Some(msg) = rx.recv().await {
+        callback.message_action(msg).await;
+    }
+
     listener.await.unwrap();
 }

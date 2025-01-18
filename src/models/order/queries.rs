@@ -73,19 +73,19 @@ impl Query for OrderListQuery {
     /// Converts the object into HTTP request parameters.
     fn to_query(&self) -> String {
         QueryBuilder::new()
-            .push_optional_vec("order_ids", &self.order_ids)
-            .push_optional_vec("product_ids", &self.product_ids)
-            .push_optional("product_type", &self.product_type)
-            .push_optional_vec("order_status", &self.order_status)
-            .push_optional_vec("time_in_forces", &self.time_in_forces)
-            .push_optional_vec("order_types", &self.order_types)
-            .push_optional("order_side", &self.order_side)
-            .push_optional("start_date", &self.start_date)
-            .push_optional("end_date", &self.end_date)
-            .push_optional_vec("asset_filters", &self.asset_filters)
-            .push_optional("limit", &self.limit)
-            .push_optional("cursor", &self.cursor)
-            .push_optional("sort_by", &self.sort_by)
+            .push_optional_vec("order_ids", self.order_ids.as_ref())
+            .push_optional_vec("product_ids", self.product_ids.as_ref())
+            .push_optional("product_type", self.product_type.as_ref())
+            .push_optional_vec("order_status", self.order_status.as_ref())
+            .push_optional_vec("time_in_forces", self.time_in_forces.as_ref())
+            .push_optional_vec("order_types", self.order_types.as_ref())
+            .push_optional("order_side", self.order_side.as_ref())
+            .push_optional("start_date", self.start_date.as_ref())
+            .push_optional("end_date", self.end_date.as_ref())
+            .push_optional_vec("asset_filters", self.asset_filters.as_ref())
+            .push_optional("limit", self.limit.as_ref())
+            .push_optional("cursor", self.cursor.as_ref())
+            .push_optional("sort_by", self.sort_by.as_ref())
             .build()
     }
 }
@@ -225,14 +225,20 @@ impl Query for OrderListFillsQuery {
     /// Converts the object into HTTP request parameters.
     fn to_query(&self) -> String {
         QueryBuilder::new()
-            .push_optional_vec("order_ids", &self.order_ids)
-            .push_optional_vec("trade_ids", &self.trade_ids)
-            .push_optional_vec("product_ids", &self.product_ids)
-            .push_optional("start_sequence_timestamp", &self.start_sequence_timestamp)
-            .push_optional("end_sequence_timestamp", &self.end_sequence_timestamp)
+            .push_optional_vec("order_ids", self.order_ids.as_ref())
+            .push_optional_vec("trade_ids", self.trade_ids.as_ref())
+            .push_optional_vec("product_ids", self.product_ids.as_ref())
+            .push_optional(
+                "start_sequence_timestamp",
+                self.start_sequence_timestamp.as_ref(),
+            )
+            .push_optional(
+                "end_sequence_timestamp",
+                self.end_sequence_timestamp.as_ref(),
+            )
             .push("limit", self.limit)
-            .push_optional("cursor", &self.cursor)
-            .push_optional("sort_by", &self.sort_by)
+            .push_optional("cursor", self.cursor.as_ref())
+            .push_optional("sort_by", self.sort_by.as_ref())
             .build()
     }
 }

@@ -328,7 +328,7 @@ impl Query for PortfolioListQuery {
 
     fn to_query(&self) -> String {
         QueryBuilder::new()
-            .push_optional("portfolio_type", &self.portfolio_type)
+            .push_optional("portfolio_type", self.portfolio_type.as_ref())
             .build()
     }
 }
@@ -360,7 +360,7 @@ impl Query for PortfolioBreakdownQuery {
 
     fn to_query(&self) -> String {
         QueryBuilder::new()
-            .push_optional("currency", &self.currency)
+            .push_optional("currency", self.currency.as_ref())
             .build()
     }
 }

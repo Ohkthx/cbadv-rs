@@ -63,7 +63,7 @@ async fn main() {
             match accounts.iter().position(|r| r.currency == product_name) {
                 Some(index) => {
                     let account = accounts.get(index).unwrap();
-                    account_uuid = account.uuid.clone();
+                    account_uuid.clone_from(&account.uuid);
                 }
                 None => println!("Out of bounds, could not find account."),
             }

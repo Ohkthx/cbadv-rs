@@ -1,35 +1,9 @@
 //! Traits used to allow interfacing with advanced functionality for end-users.
 
-use async_trait::async_trait;
 use reqwest::Response;
 use serde::Serialize;
 
-use crate::models::{product::Candle, websocket::Message};
 use crate::types::CbResult;
-
-/// Used to pass to a callback to the candle watcher on a successful ejection.
-#[async_trait]
-pub trait CandleCallback {
-    /// Called when a candle is succesfully ejected.
-    ///
-    /// # Arguments
-    ///
-    /// * `current_start` - Current UTC timestamp for a start.
-    /// * `product_id` - Product the candle belongs to.
-    /// * `candle` - Candle that was recently completed.
-    async fn candle_callback(&mut self, current_start: u64, product_id: String, candle: Candle);
-}
-
-/// Used to pass objects to the listener for greater control over message processing.
-#[async_trait]
-pub trait MessageCallback {
-    /// This is called when processing a message from the WebSocket.
-    ///
-    /// # Arguments
-    ///
-    /// * `msg` - Message or Error received from the WebSocket.
-    async fn message_callback(&mut self, msg: CbResult<Message>);
-}
 
 /// Used to pass query/paramters for a URL.
 pub(crate) trait Query {

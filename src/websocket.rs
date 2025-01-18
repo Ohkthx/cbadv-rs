@@ -4,17 +4,18 @@
 //! Many parts of the REST API suggest using websockets instead due to ratelimits and being quicker
 //! for large amount of constantly changing data.
 
+use std::future::Future;
+use std::pin::Pin;
 use std::sync::Arc;
 
-use futures_util::stream::{self, SplitSink};
-use futures_util::{SinkExt, StreamExt};
+use futures::stream::{SplitSink, Stream};
+use futures::task::{noop_waker_ref, Context, Poll};
+use futures::{SinkExt, StreamExt};
 use tokio::net::TcpStream;
 use tokio::sync::Mutex;
-use tokio::task::JoinHandle;
 use tokio_tungstenite::tungstenite::{Error as WsError, Message as WsMessage};
 use tokio_tungstenite::{connect_async, MaybeTlsStream, WebSocketStream};
 
-use crate::candle_watcher::CandleWatcher;
 use crate::constants::websocket::{PUBLIC_ENDPOINT, SECURE_ENDPOINT};
 use crate::errors::CbError;
 use crate::jwt::Jwt;
@@ -24,7 +25,6 @@ use crate::models::websocket::{
 };
 use crate::time;
 use crate::token_bucket::{RateLimits, TokenBucket};
-use crate::traits::{CandleCallback, MessageCallback};
 use crate::types::CbResult;
 
 #[cfg(feature = "config")]
@@ -51,8 +51,8 @@ fn get_channel_endpoint(channel: &Channel) -> EndpointType {
 pub struct WebSocketClientBuilder {
     api_key: Option<String>,
     api_secret: Option<String>,
-    enable_public: bool,
-    enable_user: bool,
+    use_public: bool,
+    use_user: bool,
     max_retries: u32,
     public_bucket: Arc<Mutex<TokenBucket>>,
     secure_bucket: Arc<Mutex<TokenBucket>>,
@@ -63,9 +63,9 @@ impl Default for WebSocketClientBuilder {
         Self {
             api_key: None,
             api_secret: None,
-            enable_public: true, // By default, enable public connection.
-            enable_user: false,  // By default, do not enable secure connection.
-            max_retries: 0,      // By default, do not auto-reconnect.
+            use_public: true, // By default, enable public connection.
+            use_user: false,  // By default, disable user connection.
+            max_retries: 0,   // By default, do not auto-reconnect.
             public_bucket: Arc::new(Mutex::new(TokenBucket::new(
                 RateLimits::max_tokens(false, true),
                 RateLimits::refresh_rate(false, true),
@@ -96,7 +96,7 @@ impl WebSocketClientBuilder {
     {
         self.api_key = Some(config.coinbase().api_key.to_string());
         self.api_secret = Some(config.coinbase().api_secret.to_string());
-        self.enable_user = true;
+        self.use_user = true;
         self
     }
 
@@ -109,7 +109,7 @@ impl WebSocketClientBuilder {
     pub fn with_authentication(mut self, key: &str, secret: &str) -> Self {
         self.api_key = Some(key.to_string());
         self.api_secret = Some(secret.to_string());
-        self.enable_user = true;
+        self.use_user = true;
         self
     }
 
@@ -118,18 +118,8 @@ impl WebSocketClientBuilder {
     /// # Arguments
     ///
     /// * `enable` - Enable or disable the public connection.
-    pub fn enable_public(mut self, enable: bool) -> Self {
-        self.enable_public = enable;
-        self
-    }
-
-    /// Enables or disables the secure user connection.
-    ///
-    /// # Arguments
-    ///
-    /// * `enable` - Enable or disable the secure user connection.
-    pub fn enable_user(mut self, enable: bool) -> Self {
-        self.enable_user = enable;
+    pub fn use_public(mut self, enable: bool) -> Self {
+        self.use_public = enable;
         self
     }
 
@@ -164,14 +154,14 @@ impl WebSocketClientBuilder {
     /// Returns a `CbError` if the API key or secret are missing or if both public and secure connections are disabled.
     pub fn build(self) -> CbResult<WebSocketClient> {
         // Ensure at least one connection is enabled.
-        if !self.enable_public && !self.enable_user {
+        if !self.use_public && !self.use_user {
             return Err(CbError::BadConnection(
                 "At least one of public or secure connections must be enabled.".to_string(),
             ));
         }
 
         // Create JWT if user connection is enabled.
-        let jwt = if self.enable_user {
+        let jwt = if self.use_user {
             let key = self.api_key.ok_or_else(|| {
                 CbError::BadPrivateKey("API key is required for authentication.".to_string())
             })?;
@@ -189,8 +179,8 @@ impl WebSocketClientBuilder {
             secure_bucket: self.secure_bucket,
             public_tx: Arc::new(Mutex::new(None)),
             secure_tx: Arc::new(Mutex::new(None)),
-            enable_public: self.enable_public,
-            enable_user: self.enable_user,
+            enable_public: self.use_public,
+            enable_user: self.use_user,
             max_retries: self.max_retries,
             subscriptions: Arc::new(Mutex::new(WebSocketSubscriptions::new())),
         })
@@ -241,7 +231,7 @@ impl WebSocketClient {
     /// # Errors
     ///
     /// Returns a `CbError` if the WebSocket connection fails.
-    pub async fn connect(&mut self) -> CbResult<WebSocketEndpoints> {
+    pub async fn connect(&self) -> CbResult<WebSocketEndpoints> {
         let mut endpoints = WebSocketEndpoints::default();
 
         if self.enable_public {
@@ -258,7 +248,7 @@ impl WebSocketClient {
     }
 
     /// Connects to the WebSocket endpoint.
-    async fn connect_endpoint(&mut self, endpoint_type: &EndpointType) -> CbResult<Endpoint> {
+    async fn connect_endpoint(&self, endpoint_type: &EndpointType) -> CbResult<Endpoint> {
         match endpoint_type {
             EndpointType::Public => {
                 let (public_socket, _) = connect_async(PUBLIC_ENDPOINT).await.map_err(|why| {
@@ -294,7 +284,7 @@ impl WebSocketClient {
     /// # Errors
     ///
     /// Returns a `CbError` if the WebSocket connection fails.
-    async fn reconnect(&mut self, endpoint_type: &EndpointType) -> CbResult<Endpoint> {
+    async fn handle_reconnect(&mut self, endpoint_type: &EndpointType) -> CbResult<Endpoint> {
         let endpoint = self.connect_endpoint(endpoint_type).await?;
 
         // Re-subscribe to previous channels for this endpoint.
@@ -328,7 +318,7 @@ impl WebSocketClient {
 
         // Rety until max retries hit.
         while retries < self.max_retries {
-            match self.reconnect(endpoint_type).await {
+            match self.handle_reconnect(endpoint_type).await {
                 Ok(endpoint) => return Ok(endpoint),
                 Err(why) => {
                     eprintln!(
@@ -346,12 +336,32 @@ impl WebSocketClient {
         )))
     }
 
-    /// Handles reconnection logic for endpoints.
-    async fn handle_reconnection(&mut self, stream: EndpointStream) -> Option<EndpointStream> {
-        match stream {
+    /// Reconnects to the WebSocket endpoint. Returns a new `EndpointStream`.
+    /// This is used when the WebSocket connection is lost.
+    ///
+    /// # Arguments
+    ///
+    /// * `stream` - The current `EndpointStream` that was being listened to.
+    ///
+    /// # Errors
+    ///
+    /// Returns a `CbError` if the WebSocket connection fails.
+    pub async fn reconnect<E>(&mut self, stream: E) -> CbResult<WebSocketEndpoints>
+    where
+        E: Into<EndpointStream>,
+    {
+        let mut new_endpoints = WebSocketEndpoints::default();
+
+        match stream.into() {
             EndpointStream::Single(route, _) => {
                 // Reconnect and return a new Single EndpointStream.
-                self.wait_on_reconnect(&route).await.ok().map(Into::into)
+                match self.wait_on_reconnect(&route).await {
+                    Ok(endpoint) => {
+                        new_endpoints.add(route, endpoint);
+                        Ok(new_endpoints)
+                    }
+                    Err(why) => Err(why),
+                }
             }
             EndpointStream::Multiple(_) => {
                 // Obtain all the endpoints that need to be reconnected.
@@ -361,32 +371,24 @@ impl WebSocketClient {
                 };
 
                 // Iterate over each endpoint and attempt to reconnect.
-                let mut new_endpoints = WebSocketEndpoints::default();
                 for endpoint_type in keys {
-                    if let Ok(new_endpoint) = self.wait_on_reconnect(&endpoint_type).await {
-                        new_endpoints.add(endpoint_type.clone(), new_endpoint);
-                    } else {
-                        eprintln!("Failed to reconnect: {endpoint_type:?}");
-                        return None;
+                    match self.wait_on_reconnect(&endpoint_type).await {
+                        Ok(new_endpoint) => {
+                            new_endpoints.add(endpoint_type.clone(), new_endpoint);
+                        }
+                        Err(why) => {
+                            return Err(why);
+                        }
                     }
                 }
 
-                // Extract the readers (streams) from the new endpoints.
-                let streams = new_endpoints
-                    .extract_to_vec()
-                    .into_iter()
-                    .map(|endpoint| match endpoint {
-                        Endpoint::Public((_, reader)) | Endpoint::User((_, reader)) => reader,
-                    })
-                    .collect::<Vec<_>>();
-
-                // Create a new Multiple EndpointStream.
-                let mut select_all = stream::SelectAll::new();
-                for stream in streams {
-                    select_all.push(stream);
+                if new_endpoints.is_empty() {
+                    return Err(CbError::BadConnection(
+                        "Failed to reconnect to any endpoints.".to_string(),
+                    ));
                 }
 
-                Some(EndpointStream::Multiple(select_all))
+                Ok(new_endpoints)
             }
         }
     }
@@ -396,11 +398,12 @@ impl WebSocketClient {
     /// # Arguments
     ///
     /// * `endpoints` - A single `Endpoint` or multiple `WebSocketEndpoints`.
-    /// * `callback` - A callback object that implements the `MessageCallback` trait.
-    pub async fn listen<T, E>(&mut self, endpoints: E, mut callback: T)
+    /// * `callback` - The asynchronous closure to invoke on each message.
+    pub async fn listen<E, F, Fut>(&mut self, endpoints: E, mut callback: F)
     where
-        T: MessageCallback + Send + 'static,
         E: Into<EndpointStream>,
+        F: FnMut(CbResult<Message>) -> Fut + Send + 'static,
+        Fut: Future<Output = ()> + Send,
     {
         let mut stream = endpoints.into();
 
@@ -409,20 +412,114 @@ impl WebSocketClient {
                 if let Some(result) = Self::process_message(message) {
                     if let Err(CbError::BadConnection(_)) = &result {
                         // Handle reconnection logic.
-                        if let Some(new_stream) = self.handle_reconnection(stream).await {
-                            // Restart the loop with the new streams.
-                            stream = new_stream;
-                            break;
+                        match self.reconnect(stream).await {
+                            Ok(new_stream) => {
+                                stream = new_stream.into();
+                                break; // Exit inner loop to reconnect.
+                            }
+                            Err(why) => {
+                                eprintln!("Failed to reconnect: {why}");
+                                return; // Exit function if reconnection fails
+                            }
                         }
-
-                        // Reconnection failed, exit.
-                        return;
                     }
 
-                    callback.message_callback(result).await;
+                    // Invoke the asynchronous closure with the result.
+                    callback(result).await;
                 }
             }
         }
+    }
+
+    /// Fetches messages from the WebSocket stream with a limit on the number of messages to fetch.
+    ///
+    /// NOTE: Adequate pauses / sleeps between calls should be added to prevent busy-looping.
+    ///
+    /// # Arguments
+    ///
+    /// * `stream` - The WebSocket stream to get messages from.
+    /// * `limit` - The maximum number of messages to fetch. Use `usize::MAX` to fetch all messages.
+    /// * `action` - The action to take on each message.
+    ///
+    /// # Errors
+    ///
+    /// Returns a `String` if the user returns an error within the action.
+    pub fn fetch_sync<F>(
+        &self,
+        stream: &mut EndpointStream,
+        limit: usize,
+        mut action: F,
+    ) -> Result<(), String>
+    where
+        F: FnMut(CbResult<Message>) -> Result<(), String>,
+    {
+        let mut count = 0;
+
+        while count <= limit || limit == usize::MAX {
+            // Use poll_next to check for available messages without waiting.
+            match Pin::new(&mut *stream).poll_next(&mut Context::from_waker(noop_waker_ref())) {
+                Poll::Ready(Some(message)) => {
+                    // Process and add the message to the result vector if valid.
+                    if let Some(result) = Self::process_message(message) {
+                        action(result)?;
+                    }
+
+                    count += 1;
+                }
+                Poll::Ready(None) | Poll::Pending => {
+                    // No more messages available or stream is pending; exit the loop.
+                    break;
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Asynchronously fetches messages from the WebSocket stream with a limit on the number of messages to fetch.
+    ///
+    /// NOTE: Adequate pauses / sleeps between calls should be added to prevent busy-looping.
+    ///
+    /// # Arguments
+    ///
+    /// * `stream` - The WebSocket stream to get messages from.
+    /// * `limit` - The maximum number of messages to fetch. Use `usize::MAX` to fetch all messages.
+    /// * `action` - The action to take on each message.
+    ///
+    /// # Errors
+    ///
+    /// Returns a `String` if the user returns an error within the action.
+    pub async fn fetch_async<F, Fut>(
+        &self,
+        stream: &mut EndpointStream,
+        limit: usize,
+        mut action: F,
+    ) -> Result<(), String>
+    where
+        F: FnMut(CbResult<Message>) -> Fut,
+        Fut: Future<Output = Result<(), String>>,
+    {
+        let mut count = 0;
+
+        while count <= limit || limit == usize::MAX {
+            // Use poll_next to check for available messages without waiting.
+            match Pin::new(&mut *stream).poll_next(&mut Context::from_waker(noop_waker_ref())) {
+                Poll::Ready(Some(message)) => {
+                    // Process and add the message to the result vector if valid.
+                    if let Some(result) = Self::process_message(message) {
+                        action(result).await?;
+                    }
+
+                    count += 1;
+                }
+                Poll::Ready(None) | Poll::Pending => {
+                    // No more messages available or stream is pending; exit the loop.
+                    break;
+                }
+            }
+        }
+
+        Ok(())
     }
 
     /// Waits for a token to be consumable for the correct bucket.
@@ -439,13 +536,12 @@ impl WebSocketClient {
         }
     }
 
-    /// Processes WebSocket messages and applies a callback. Created to ignore alternative message types.
+    /// Processes the WebSocket message and returns a `Message` if successful.
     ///
     /// # Arguments
     ///
-    /// * `message` - A WebSocket message to process.
-    /// * `callback` - A closure or function that processes parsed messages or errors.
-    fn process_message(message: Result<WsMessage, WsError>) -> Option<CbResult<Message>> {
+    /// * `message` - The WebSocket message to process.
+    pub fn process_message(message: Result<WsMessage, WsError>) -> Option<CbResult<Message>> {
         match message {
             Ok(msg) => match msg {
                 WsMessage::Text(data) => {
@@ -478,7 +574,7 @@ impl WebSocketClient {
     /// * `product_ids` - A vector of product IDs that are being changed.
     /// * `action` - The action being taken (either "subscribe" or "unsubscribe").
     /// * `endpoint` - The endpoint type (either public or user).
-    pub(crate) async fn update(
+    async fn update(
         &mut self,
         channel: &Channel,
         product_ids: &[String],
@@ -588,6 +684,7 @@ impl WebSocketClient {
             let mut subs = self.subscriptions.lock().await;
             subs.add(channel, product_ids, route).await;
         }
+
         Ok(())
     }
 
@@ -628,46 +725,5 @@ impl WebSocketClient {
             subs.remove(channel, product_ids, route).await;
         }
         Ok(())
-    }
-
-    /// Watches candles for a set of products, producing candles once they are considered complete.
-    ///
-    /// # Argument
-    ///
-    /// * `products` - Products to watch for candles for.
-    /// * `watcher` - User-defined struct that implements `CandleCallback` to send completed candles to.
-    ///
-    /// # Errors
-    ///
-    /// Returns a `CbError` if the public connection is not enabled.
-    pub async fn watch_candles<T>(
-        mut self,
-        products: &[String],
-        watcher: T,
-    ) -> CbResult<JoinHandle<()>>
-    where
-        T: CandleCallback + Send + Sync + 'static,
-    {
-        if !self.enable_public {
-            return Err(CbError::BadConnection(
-                "Public connection is not enabled.".to_string(),
-            ));
-        }
-
-        // Connect and spawn a task.
-        match self.connect().await?.take_endpoint(&EndpointType::Public) {
-            Some(public) => {
-                // Keep the connection open by subscribing to heartbeats and sub to candles.
-                self.subscribe(&Channel::Heartbeats, &[]).await?;
-                self.subscribe(&Channel::Candles, products).await?;
-
-                // Start task to watch candles using user's watcher.
-                let listener = tokio::spawn(CandleWatcher::start(self, public, watcher));
-                Ok(listener)
-            }
-            None => Err(CbError::BadConnection(
-                "Public connection is not connected.".to_string(),
-            )),
-        }
     }
 }

@@ -7,21 +7,36 @@
 //! - Unsubscribe to channels.
 
 use std::process::exit;
+use std::time::{Duration, Instant};
 
-use cbadv::models::websocket::{Channel, EndpointType, Message};
+use cbadv::models::websocket::{Channel, EndpointStream, Events, Message};
 use cbadv::types::CbResult;
-use cbadv::{FunctionCallback, WebSocketClientBuilder};
+use cbadv::WebSocketClientBuilder;
 
 /// This is used to parse messages. It is passed to the `listen` function to pull Messages out of
 /// the stream.
-fn message_callback(msg: CbResult<Message>) {
+fn message_action(msg: CbResult<Message>) -> Result<(), String> {
     let rcvd = match msg {
-        Ok(message) => format!("{message:?}"), // Leverage Debug for all Message variants
+        Ok(Message {
+            events: Events::Candles(candles_events),
+            channel,
+            ..
+        }) => {
+            for ticker in candles_events {
+                println!("{ticker:?}");
+            }
+            format!("this is a {channel:?} message")
+        }
+        Ok(message) => format!(
+            "this is not a candles message it is a {:?} message",
+            message.channel
+        ), // Leverage Debug for all Message variants
         Err(error) => format!("Error: {error}"), // Handle WebSocket errors
     };
 
     // Update the callback object's properties and log the message.
     println!("{rcvd}\n");
+    Ok(())
 }
 
 #[tokio::main]
@@ -37,28 +52,15 @@ async fn main() {
         })
         .unwrap();
 
-    // Assign the callback function to an object.
-    let callback = FunctionCallback::from_sync(message_callback);
-
     // Connect to the websocket, a subscription needs to be sent within 5 seconds.
     // If a subscription is not sent, Coinbase will close the connection.
-    let mut readers = client
+    let readers = client
         .connect()
         .await
         .expect("Could not connect to WebSocket");
 
-    let public = readers
-        .take_endpoint(&EndpointType::Public)
-        .expect("Could not get public reader");
-
-    let listened_client = client.clone();
-    let listener = tokio::spawn(async move {
-        let mut listened_client = listened_client;
-        listened_client.listen(public, callback).await;
-    });
-
     // Products of interest.
-    let products = vec!["BTC-USD".to_string(), "ETH-USD".to_string()];
+    let products = vec!["BTC-USDC".to_string(), "ETH-USDC".to_string()];
 
     // Heartbeats is a great way to keep a connection alive and not timeout.
     client.subscribe(&Channel::Heartbeats, &[]).await.unwrap();
@@ -69,12 +71,40 @@ async fn main() {
         .await
         .unwrap();
 
+    // Get updates (subscribe) on products and currencies.
+    client.subscribe(&Channel::Level2, &products).await.unwrap();
+
     // Stop obtaining (unsubscribe) updates on products and currencies.
     client
         .unsubscribe(&Channel::Status, &products)
         .await
         .unwrap();
 
-    // Passes the parser callback and listens for messages.
-    listener.await.unwrap();
+    let mut count = 0;
+    const TICK_RATE: u64 = 1000 / 60;
+    let mut last_tick = Instant::now();
+    let mut stream: EndpointStream = readers.into();
+
+    loop {
+        // Fetch messages from the WebSocket stream.
+        let _ = client.fetch_sync(&mut stream, 100, |msg| {
+            count += 1;
+            print!("{count}: ");
+            message_action(msg)
+        });
+
+        // Calculate the time since the last tick and sleep for the remaining time to hit the tick rate.
+        let last_tick_ms = last_tick.elapsed().as_millis();
+        let timeout = match u64::try_from(last_tick_ms) {
+            Ok(ms) => TICK_RATE.saturating_sub(ms),
+            Err(why) => {
+                eprintln!("Conversion error: {why}");
+                TICK_RATE
+            }
+        };
+
+        // Sleep for the remaining time to hit the tick rate. Prevent busy loop.
+        tokio::time::sleep(Duration::from_millis(timeout)).await;
+        last_tick = Instant::now();
+    }
 }

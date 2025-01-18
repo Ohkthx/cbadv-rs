@@ -108,7 +108,7 @@ impl Query for AccountListQuery {
     fn to_query(&self) -> String {
         QueryBuilder::new()
             .push("limit", self.limit)
-            .push_optional("cursor", &self.cursor)
+            .push_optional("cursor", self.cursor.as_ref())
             .build()
     }
 }

@@ -23,7 +23,9 @@ pub mod config;
 #[macro_use]
 pub(crate) mod macros;
 
-mod candle_watcher;
+/// Re-export tokio for use in the library.
+pub use tokio::{self, main as tokio_main};
+
 pub(crate) mod http_agent;
 pub(crate) mod jwt;
 mod token_bucket;
@@ -34,7 +36,6 @@ pub mod time;
 pub mod traits;
 pub mod types;
 pub(crate) mod utils;
-pub use utils::FunctionCallback;
 
 pub mod apis;
 pub mod models;
@@ -43,6 +44,3 @@ mod rest;
 mod websocket;
 pub use rest::{RestClient, RestClientBuilder};
 pub use websocket::{WebSocketClient, WebSocketClientBuilder};
-
-// Re-export async_trait for the end-user.
-pub use async_trait::async_trait;

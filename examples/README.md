@@ -1,3 +1,4 @@
+<!-- markdownlint-disable MD033 MD041 -->
 <p align="center">
     <a href="https://crates.io/crates/cbadv" title="View on crates.io">
         <img src="https://img.shields.io/crates/v/cbadv?style=for-the-badge&logoColor=89b4fa&labelColor=11111b&color=89b4fa"
@@ -9,6 +10,7 @@
         <img src="https://img.shields.io/github/repo-size/Ohkthx/cbadv-rs?style=for-the-badge&logoColor=a6e3a1&labelColor=11111b&color=a6e3a1"
             alt="GitHub repo size"></a>
 </p>
+<!-- markdownlint-enable MD033 MD041 -->
 
 # cbadv-rs: Coinbase Advanced Trading API Wrapper
 
@@ -16,23 +18,24 @@ Welcome to **cbadv-rs**, a Rust crate for interacting with the Coinbase Advanced
 
 ## Table of Contents
 
-- [Examples](#examples)
-  - [Account API](#account-api)
-  - [Product API](#product-api)
-  - [Fee API](#fee-api)
-  - [Order API](#order-api)
-  - [Portfolio API](#portfolio-api)
-  - [Payment API](#payment-api)
-  - [Convert API](#convert-api)
-  - [Data API](#data-api)
-  - [Public API](#public-api)
-  - [Sandbox API](#sandbox-api)
-  - [WebSocket API](#websocket-api)
-    - [User Orders (WebSocket API)](#user-orders-websocket-api)
-    - [Watch Candles (WebSocket API)](#watch-candles-websocket-api)
-  - [Custom Configurations](#custom-configurations)
-- [Contributing](#contributing)
-- [License](#license)
+- [cbadv-rs: Coinbase Advanced Trading API Wrapper](#cbadv-rs-coinbase-advanced-trading-api-wrapper)
+  - [Table of Contents](#table-of-contents)
+  - [Examples](#examples)
+    - [Account API](#account-api)
+    - [Product API](#product-api)
+    - [Fee API](#fee-api)
+    - [Order API](#order-api)
+    - [Portfolio API](#portfolio-api)
+    - [Convert API](#convert-api)
+    - [Payment API](#payment-api)
+    - [Data API](#data-api)
+    - [Public API](#public-api)
+    - [Sandbox API](#sandbox-api)
+    - [WebSocket API](#websocket-api)
+      - [User Orders (WebSocket API)](#user-orders-websocket-api)
+    - [Custom Configurations](#custom-configurations)
+  - [Contributing](#contributing)
+  - [License](#license)
 
 ---
 
@@ -178,18 +181,6 @@ Learn how to watch user data via the WebSocket API. Example source: [websocket_u
 
 ```bash
 cargo run --example websocket_user --features="config"
-```
-
----
-
-#### Watch Candles (WebSocket API)
-
-Learn how to watch candlestick data via the WebSocket API. Currently, only 5-minute granularity is supported (as of 2023-10-19). Example source: [watch_candles.rs](https://github.com/Ohkthx/cbadv-rs/tree/main/examples/watch_candles.rs)
-
-**Run the example**:
-
-```bash
-cargo run --example watch_candles --features="config"
 ```
 
 ---

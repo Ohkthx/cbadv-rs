@@ -69,10 +69,6 @@ pub(crate) mod public {
 pub(crate) mod websocket {
     pub(crate) const PUBLIC_ENDPOINT: &str = "wss://advanced-trade-ws.coinbase.com";
     pub(crate) const SECURE_ENDPOINT: &str = "wss://advanced-trade-ws-user.coinbase.com";
-
-    /// Granularity of Candles from the WebSocket Candle subscription.
-    /// NOTE: This is a restriction by `CoinBase` and cannot be currently changed (20240125)
-    pub(crate) const GRANULARITY: u64 = 300;
 }
 
 /// Amount of tokens per second refilled.

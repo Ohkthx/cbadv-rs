@@ -16,7 +16,8 @@ pub enum Channel {
     Ticker,
     /// Real-time price updates every 5000 milli-seconds.
     TickerBatch,
-    /// All updates and easiest way to keep order book snapshot
+    /// All updates and easiest way to keep order book snapshot.
+    #[serde(alias = "l2_data")]
     Level2,
     /// Real-time updates every time a market trade happens.
     MarketTrades,
@@ -40,7 +41,11 @@ pub enum EventType {
 #[derive(Serialize, SerdeDeserialize, PartialEq, Debug)]
 #[serde(rename_all = "snake_case")]
 pub enum Level2Side {
+    /// Bids / Buy side.
     Bid,
+    /// Asks / Offer side.
+    /// NOTE: As of 20241209, the API has a typo and uses "offer" instead of "ask".
+    #[serde(alias = "offer")]
     Ask,
 }
 

@@ -10,14 +10,86 @@
 
 use std::process::exit;
 use std::thread;
+use std::time::Duration;
 
 use cbadv::config::{self, BaseConfig};
 use cbadv::models::order::{
-    OrderCancelRequest, OrderCreateBuilder, OrderEditRequest, OrderListQuery, OrderSide,
-    OrderStatus, OrderType, TimeInForce,
+    OrderCancelRequest, OrderCreateBuilder, OrderCreateRequest, OrderEditRequest, OrderListQuery,
+    OrderSide, OrderStatus, OrderType, TimeInForce,
 };
-use cbadv::RestClientBuilder;
-use chrono::Duration;
+use cbadv::{RestClient, RestClientBuilder};
+
+fn init_client() -> RestClient {
+    // Load the configuration file.
+    let config: BaseConfig = match config::load("config.toml") {
+        Ok(c) => c,
+        Err(err) => {
+            println!("Could not load configuration file.");
+            if config::exists("config.toml") {
+                println!("File exists, {err}");
+                exit(1);
+            }
+
+            // Create a new configuration file.
+            config::create_base_config("config.toml").unwrap();
+            println!("Empty configuration file created, please update it.");
+            exit(1);
+        }
+    };
+
+    // Create a client to interact with the API.
+    match RestClientBuilder::new().with_config(&config).build() {
+        Ok(c) => c,
+        Err(why) => {
+            eprintln!("!ERROR! {why}");
+            exit(1)
+        }
+    }
+}
+
+async fn create_new_order(
+    client: &mut RestClient,
+    new_order: &OrderCreateRequest,
+) -> Option<String> {
+    let mut created_order_id: Option<String> = None;
+    println!(
+        "Creating Order with Client ID: {}",
+        new_order.client_order_id
+    );
+
+    match client.order.create(new_order).await {
+        Ok(summary) => {
+            if let Some(success) = &summary.success_response {
+                created_order_id = Some(success.order_id.clone());
+            }
+            println!("Order creation result: {summary:#?}");
+        }
+        Err(error) => println!("Unable to create order: {error}"),
+    }
+
+    created_order_id
+}
+
+async fn edit_created_order(client: &mut RestClient, order_id: &str) {
+    let edit_order = OrderEditRequest::new(order_id, 50.0, 0.006);
+    println!("\n\nEditing order for {order_id}.");
+    match client.order.edit(&edit_order).await {
+        Ok(result) => println!("{result:#?}"),
+        Err(error) => println!("Unable to edit order: {error}"),
+    }
+}
+
+async fn cancel_created_order(client: &mut RestClient, order_id: &str) {
+    println!("\n\nCancelling Order with ID: {order_id}");
+    match client
+        .order
+        .cancel(&OrderCancelRequest::new(&[order_id.to_string()]))
+        .await
+    {
+        Ok(summary) => println!("Order cancel result: {summary:#?}"),
+        Err(error) => println!("Unable to cancel order: {error}"),
+    }
+}
 
 #[tokio::main]
 async fn main() {
@@ -42,71 +114,25 @@ async fn main() {
         }
     };
 
-    // Load the configuration file.
-    let config: BaseConfig = match config::load("config.toml") {
-        Ok(c) => c,
-        Err(err) => {
-            println!("Could not load configuration file.");
-            if config::exists("config.toml") {
-                println!("File exists, {err}");
-                exit(1);
-            }
+    let mut client = init_client();
 
-            // Create a new configuration file.
-            config::create_base_config("config.toml").unwrap();
-            println!("Empty configuration file created, please update it.");
-            exit(1);
-        }
-    };
-
-    // Create a client to interact with the API.
-    let mut client = match RestClientBuilder::new().with_config(&config).build() {
-        Ok(c) => c,
-        Err(why) => {
-            eprintln!("!ERROR! {why}");
-            exit(1)
-        }
-    };
-
+    // Creates a new order from scratch, the resulting order id will be used for other operations.
     if create_new {
-        println!(
-            "Creating Order with Client ID: {}",
-            new_order.client_order_id
-        );
-        match client.order.create(&new_order).await {
-            Ok(summary) => {
-                if let Some(success) = &summary.success_response {
-                    created_order_id = Some(success.order_id.clone());
-                }
-                println!("Order creation result: {summary:#?}");
-            }
-            Err(error) => println!("Unable to create order: {error}"),
-        }
+        created_order_id = create_new_order(&mut client, &new_order).await;
     }
 
+    // Edits the created order.
     if let Some(order_id) = &created_order_id {
         if create_new && edit_created {
-            thread::sleep(Duration::seconds(1).to_std().unwrap());
-            let edit_order = OrderEditRequest::new(order_id, 50.0, 0.006);
-            println!("\n\nEditing order for {order_id}.");
-            match client.order.edit(&edit_order).await {
-                Ok(result) => println!("{result:#?}"),
-                Err(error) => println!("Unable to edit order: {error}"),
-            }
+            thread::sleep(Duration::from_secs(1));
+            edit_created_order(&mut client, order_id).await;
         }
     }
 
+    // Cancels the created order.
     if let Some(order_id) = &created_order_id {
         if create_new && cancel_created {
-            println!("\n\nCancelling Order with ID: {order_id}");
-            match client
-                .order
-                .cancel(&OrderCancelRequest::new(&[order_id.clone()]))
-                .await
-            {
-                Ok(summary) => println!("Order cancel result: {summary:#?}"),
-                Err(error) => println!("Unable to cancel order: {error}"),
-            }
+            cancel_created_order(&mut client, order_id).await;
         }
     }
 
@@ -143,7 +169,7 @@ async fn main() {
             println!("Orders obtained: {:#?}", orders.orders.len());
             match orders.orders.first() {
                 Some(order) => {
-                    order_id = order.order_id.clone();
+                    order_id.clone_from(&order.order_id);
                     println!("{order:#?}");
                 }
                 None => println!("Out of bounds, no orders exist."),
