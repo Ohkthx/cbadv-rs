@@ -7,7 +7,7 @@ use crate::models::product::{Candle, Product, ProductType};
 use super::Level2Side;
 
 #[serde_as]
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Level2Update {
     pub side: Level2Side,
     pub event_time: String,
@@ -17,7 +17,7 @@ pub struct Level2Update {
     pub new_quantity: f64,
 }
 
-#[derive(Deserialize, Debug, Default)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 pub struct SubscribeUpdate {
     #[serde(default)]
     pub status: Vec<String>,

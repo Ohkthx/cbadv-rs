@@ -9,7 +9,7 @@
 use std::process::exit;
 use std::time::{Duration, Instant};
 
-use cbadv::models::websocket::{Channel, EndpointStream, Message};
+use cbadv::models::websocket::{Channel, EndpointStream, Events, Message};
 use cbadv::types::CbResult;
 use cbadv::WebSocketClientBuilder;
 
@@ -17,7 +17,20 @@ use cbadv::WebSocketClientBuilder;
 /// the stream.
 fn message_action(msg: CbResult<Message>) -> Result<(), String> {
     let rcvd = match msg {
-        Ok(message) => format!("{message:?}"), // Leverage Debug for all Message variants
+        Ok(Message {
+            events: Events::Candles(candles_events),
+            channel,
+            ..
+        }) => {
+            for ticker in candles_events {
+                println!("{ticker:?}");
+            }
+            format!("this is a {channel:?} message")
+        }
+        Ok(message) => format!(
+            "this is not a candles message it is a {:?} message",
+            message.channel
+        ), // Leverage Debug for all Message variants
         Err(error) => format!("Error: {error}"), // Handle WebSocket errors
     };
 
